@@ -1,0 +1,35 @@
+{
+  "name": "ems",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Offline Environmental Management System for DENR-PENRO Dinagat Islands — tracks fuel, electricity, water, paper, ESWM, and GHG consumption and compliance on a local LAN server.",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "prepare": "svelte-kit sync || echo ''",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+  },
+  "devDependencies": {
+    "@fontsource-variable/geist": "^5.3.0",
+    "@lucide/svelte": "^1.28.0",
+    "@sveltejs/adapter-node": "^5.5.7",
+    "@sveltejs/kit": "^2.63.0",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/typography": "^0.5.19",
+    "@tailwindcss/vite": "^4.3.0",
+    "clsx": "^2.1.1",
+    "shadcn-svelte": "^1.5.0",
+    "svelte": "^5.56.1",
+    "svelte-check": "^4.6.0",
+    "tailwind-merge": "^3.6.0",
+    "tailwind-variants": "^3.3.1",
+    "tailwindcss": "^4.3.0",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  }
+}
