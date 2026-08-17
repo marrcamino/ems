@@ -7,55 +7,35 @@
  * NOTE: This is still a SAMPLE set. Modules/actions are placeholders —
  * edit freely once the approval workflow per module is finalized.
  */
-
 export const PERMISSION_DEFS = {
+  "basic-user": {
+    view: "View the fuel and paper section",
+  },
   fuel: {
     view: "View the fuel section",
-    submit: "Submit a fuel request",
-    approve: "Approve or reject a fuel request",
-    view_all: "View all users' fuel requests, not just your own",
   },
   electricity: {
     view: "View the electricity section",
-    submit: "Submit electricity consumption data",
-    approve: "Approve or reject electricity data",
-    view_all: "View all electricity records, not just your own",
   },
   water: {
     view: "View the water section",
-    submit: "Submit water consumption data",
-    approve: "Approve or reject water data",
-    view_all: "View all water records, not just your own",
   },
   paper: {
     view: "View the paper section",
-    submit: "Submit paper consumption data",
-    approve: "Approve or reject paper data",
-    view_all: "View all paper records, not just your own",
   },
   "air-travel": {
     view: "View the air travel section",
-    submit: "Submit air travel data",
-    approve: "Approve or reject air travel data",
-    view_all: "View all air travel records, not just your own",
   },
   eswm: {
     view: "View the ESWM section",
-    submit: "Submit ESWM data",
-    approve: "Approve or reject ESWM data",
-    view_all: "View all ESWM records, not just your own",
   },
-  // GHG has no submit/approve of its own — read-only rollup over
-  // fuel + electricity + air-travel data.
   ghg: {
     view: "View GHG compliance data",
-    view_all: "View GHG data across all users/sections",
   },
-  // See RBAC_design___locked_decisions.md for the special rules around
-  // this pair (uniqueness, self-edit lock, last-user guard).
   admin: {
     manage_users: "Create, edit, deactivate, and reassign users",
     manage_roles: "Create, edit, and delete roles and their permissions",
+    view: "View the admin page",
   },
 } as const;
 

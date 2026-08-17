@@ -24,7 +24,7 @@ export const ROLE_TEMPLATES = [
     roleName: "Admin",
     description:
       "Full system access. Manages users, roles, and permissions. Not a routine participant in approval workflows.",
-    permissions: ["admin:manage_users", "admin:manage_roles"],
+    permissions: ["admin:manage_users", "admin:manage_roles", "admin:view"],
   },
 
   {
@@ -33,73 +33,55 @@ export const ROLE_TEMPLATES = [
       "General Services Unit. Broad access across consumption sections; approves requests from encoder/requester roles.",
     permissions: [
       "fuel:view",
-      "fuel:submit",
-      "fuel:approve",
-      "fuel:view_all",
       "electricity:view",
-      "electricity:submit",
-      "electricity:approve",
-      "electricity:view_all",
       "water:view",
-      "water:submit",
-      "water:approve",
-      "water:view_all",
       "paper:view",
-      "paper:submit",
-      "paper:approve",
-      "paper:view_all",
       "air-travel:view",
-      "air-travel:submit",
-      "air-travel:approve",
-      "air-travel:view_all",
       "eswm:view",
-      "eswm:submit",
-      "eswm:approve",
-      "eswm:view_all",
     ],
   },
 
   {
     roleName: "Fuel Requester",
     description: "Submits fuel requests for approval.",
-    permissions: ["fuel:view", "fuel:submit"],
+    permissions: ["fuel:view"],
   },
 
   {
     roleName: "Electricity Encoder",
     description: "Encodes electricity consumption data. No approval step.",
-    permissions: ["electricity:view", "electricity:submit"],
+    permissions: ["electricity:view"],
   },
 
   {
     roleName: "Water Encoder",
     description: "Encodes water consumption data. No approval step.",
-    permissions: ["water:view", "water:submit"],
+    permissions: ["water:view"],
   },
 
   {
     roleName: "Paper Encoder",
     description: "Encodes paper consumption data. No approval step.",
-    permissions: ["paper:view", "paper:submit"],
+    permissions: ["paper:view"],
   },
 
   {
     roleName: "Air Travel Encoder",
     description: "Encodes air travel data. No approval step.",
-    permissions: ["air-travel:view", "air-travel:submit"],
+    permissions: ["air-travel:view"],
   },
 
   {
     roleName: "ESWM Encoder",
     description: "Encodes ESWM data. No approval step.",
-    permissions: ["eswm:view", "eswm:submit"],
+    permissions: ["eswm:view"],
   },
 
   {
     roleName: "GHG Focal",
     description:
       "View-only role. Sees GHG-relevant data rolled up from fuel, electricity, and air travel — does not encode anything itself.",
-    permissions: ["ghg:view", "ghg:view_all"],
+    permissions: ["ghg:view"],
   },
 ] as const satisfies readonly RoleTemplate[];
 

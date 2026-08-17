@@ -2,6 +2,7 @@ import type {
   user,
   role,
   permission,
+  session,
   rolePermission,
 } from "$lib/server/db/schema";
 
@@ -12,6 +13,10 @@ export type NewUser = typeof user.$inferInsert;
 // role
 export type Role = typeof role.$inferSelect;
 export type NewRole = typeof role.$inferInsert;
+
+// session
+export type Session = typeof session.$inferSelect;
+export type NewSession = typeof session.$inferInsert;
 
 // permission
 export type Permission = typeof permission.$inferSelect;
