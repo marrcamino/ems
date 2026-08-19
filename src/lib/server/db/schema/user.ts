@@ -10,6 +10,7 @@ import {
   type AnyMySqlColumn,
 } from "drizzle-orm/mysql-core";
 import { role } from "./role";
+import { orgUnit } from "./org-unit";
 
 export const user = mysqlTable("user", {
   userPk: bigint("user_pk", { mode: "number", unsigned: true })
@@ -25,8 +26,12 @@ export const user = mysqlTable("user", {
   roleFk: bigint("role_fk", { mode: "number", unsigned: true })
     .notNull()
     .references((): AnyMySqlColumn => role.rolePk),
-  sectionFk: bigint("section_fk", { mode: "number", unsigned: true }),
-  unitFk: bigint("unit_fk", { mode: "number", unsigned: true }),
+  orgUnitFk: bigint("org_unit_fk", {
+    mode: "number",
+    unsigned: true,
+  }).references((): AnyMySqlColumn => orgUnit.orgUnitPk, {
+    onDelete: "restrict",
+  }),
   status: mysqlEnum("status", ["active", "inactive", "locked"])
     .notNull()
     .default("active"),

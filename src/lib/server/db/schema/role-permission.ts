@@ -1,4 +1,4 @@
-import { mysqlTable, bigint, primaryKey } from "drizzle-orm/mysql-core";
+import { mysqlTable, bigint, primaryKey, index } from "drizzle-orm/mysql-core";
 import { role } from "./role";
 import { permission } from "./permission";
 
@@ -12,5 +12,8 @@ export const rolePermission = mysqlTable(
       .notNull()
       .references(() => permission.permissionPk),
   },
-  (table) => [primaryKey({ columns: [table.roleFk, table.permissionFk] })],
+  (table) => [
+    primaryKey({ columns: [table.roleFk, table.permissionFk] }),
+    index("role_permission_role_fk_idx").on(table.roleFk),
+  ],
 );
