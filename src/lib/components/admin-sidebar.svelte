@@ -1,7 +1,12 @@
 <script lang="ts" module>
   import agencyLogo from "$lib/assets/agency-logo.png";
   import { useSidebar } from "$lib/components/ui/sidebar/index.js";
-  import { House, LogOutIcon, UsersRound } from "@lucide/svelte/icons";
+  import {
+    House,
+    LogOutIcon,
+    UsersRound,
+    Building,
+  } from "@lucide/svelte/icons";
 
   const data = {
     user: {
@@ -11,7 +16,7 @@
     },
     projects: [
       {
-        name: "Home",
+        name: "Dashbaord",
         url: "/",
         icon: House,
       },
@@ -20,6 +25,11 @@
         name: "Users",
         url: "/admin/users",
         icon: UsersRound,
+      },
+      {
+        name: "Organizational Structure",
+        url: "/admin/org-structure",
+        icon: Building,
       },
     ],
   };
