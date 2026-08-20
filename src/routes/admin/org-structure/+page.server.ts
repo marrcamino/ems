@@ -1,13 +1,18 @@
 // src/routes/admin/org-units/+page.server.ts
+import { can } from "$lib/rbac/access";
 import { db } from "$lib/server/db";
 import { orgUnit, user } from "$lib/server/db/schema";
 import type { OrgUnit } from "@/types";
-import { fail } from "@sveltejs/kit";
+import { error, fail } from "@sveltejs/kit";
 import { and, asc, eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
 import { nextLevel } from "./context.svelte";
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+  if (!can(locals.permissions, "admin:view_org_units")) {
+    throw error(403, "You do not have permission to view this page.");
+  }
+
   const orgUnits = await db
     .select()
     .from(orgUnit)
@@ -16,7 +21,11 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-  create: async ({ request }) => {
+  create: async ({ request, locals }) => {
+    if (!can(locals.permissions, "admin:manage_org_units")) {
+      throw fail(403, "You do not have permission to manage this page.");
+    }
+
     const form = await request.formData();
     const level = form.get("level") as
       | "office"
@@ -51,7 +60,11 @@ export const actions: Actions = {
     return { success: true, newRow };
   },
 
-  update: async ({ request }) => {
+  update: async ({ request, locals }) => {
+    if (!can(locals.permissions, "admin:manage_org_units")) {
+      throw fail(403, "You do not have permission to manage this page.");
+    }
+
     async function getUpdatedRow(orgUnitPk: number) {
       const [updatedRow] = await db
         .select()
@@ -112,7 +125,11 @@ export const actions: Actions = {
     return { success: true, updatedRow: await getUpdatedRow(orgUnitPk) };
   },
 
-  delete: async ({ request }) => {
+  delete: async ({ request, locals }) => {
+    if (!can(locals.permissions, "admin:manage_org_units")) {
+      throw fail(403, "You do not have permission to manage this page.");
+    }
+
     const form = await request.formData();
     const orgUnitPk = Number(form.get("orgUnitPk"));
     const level = form.get("level") as OrgUnit["level"];

@@ -22,6 +22,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>Organizational Structure - EMS</title>
+</svelte:head>
+
 <header
   class="flex h-16 shrink-0 items-center gap-2 sticky top-0 bg-background rounded-t-xl"
 >

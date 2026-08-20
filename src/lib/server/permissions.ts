@@ -1,3 +1,5 @@
+// location of this file: src\lib\server\permissions.ts
+
 /**
  * Permissions are grouped by module first, then by action. This is the
  * fixed, dev-defined list of every permission key in the system — never
@@ -8,9 +10,6 @@
  * edit freely once the approval workflow per module is finalized.
  */
 export const PERMISSION_DEFS = {
-  "basic-user": {
-    view: "View the fuel and paper section",
-  },
   fuel: {
     view: "View the fuel section",
   },
@@ -33,9 +32,12 @@ export const PERMISSION_DEFS = {
     view: "View GHG compliance data",
   },
   admin: {
+    view: "View the admin page",
+    view_users: "View the users page in admin",
+    view_org_units: "View the organizational structure page in admin",
     manage_users: "Create, edit, deactivate, and reassign users",
     manage_roles: "Create, edit, and delete roles and their permissions",
-    view: "View the admin page",
+    manage_org_units: "Create, edit, delete, deactivate organiational units",
   },
 } as const;
 

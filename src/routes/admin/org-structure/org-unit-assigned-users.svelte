@@ -5,12 +5,6 @@
   import { getOrgUnitContext } from "./context.svelte";
   import { initials } from "@/utils";
 
-  type AssignedUser = {
-    userPk: number;
-    firstName: string;
-    lastName: string;
-  };
-
   const MAX_AVATARS = 3;
   const ctx = getOrgUnitContext();
 

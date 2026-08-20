@@ -1,4 +1,6 @@
 /**
+ * location of this file: src/lib/server/role-templates.ts
+ *
  * Per the locked RBAC decisions:
  * - These templates are NEVER saved to the DB as their own record.
  * - They're only used as pre-checked defaults when an admin creates a new
@@ -11,7 +13,7 @@
  * is locked except the overall shape (roleName / description / permissions).
  */
 
-import type { PermissionKey } from "./permissions";
+import { PERMISSION_DEFS, type PermissionKey } from "./permissions";
 
 export interface RoleTemplate {
   roleName: string;
@@ -19,12 +21,17 @@ export interface RoleTemplate {
   permissions: readonly PermissionKey[];
 }
 
+const ALL_PERMISSIONS = Object.entries(PERMISSION_DEFS).flatMap(
+  ([module, verbs]) =>
+    Object.keys(verbs).map((verb) => `${module}:${verb}` as PermissionKey),
+);
+
 export const ROLE_TEMPLATES = [
   {
     roleName: "Admin",
     description:
       "Full system access. Manages users, roles, and permissions. Not a routine participant in approval workflows.",
-    permissions: ["admin:manage_users", "admin:manage_roles", "admin:view"],
+    permissions: ALL_PERMISSIONS,
   },
 
   {
@@ -42,27 +49,9 @@ export const ROLE_TEMPLATES = [
   },
 
   {
-    roleName: "Fuel Requester",
-    description: "Submits fuel requests for approval.",
-    permissions: ["fuel:view"],
-  },
-
-  {
     roleName: "Electricity Encoder",
     description: "Encodes electricity consumption data. No approval step.",
     permissions: ["electricity:view"],
-  },
-
-  {
-    roleName: "Water Encoder",
-    description: "Encodes water consumption data. No approval step.",
-    permissions: ["water:view"],
-  },
-
-  {
-    roleName: "Paper Encoder",
-    description: "Encodes paper consumption data. No approval step.",
-    permissions: ["paper:view"],
   },
 
   {
