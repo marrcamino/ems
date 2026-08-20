@@ -5,6 +5,10 @@
   import { Plus } from "@lucide/svelte";
 </script>
 
+<svelte:head>
+  <title>Users - EMS</title>
+</svelte:head>
+
 <Header>
   <Breadcrumb.Root>
     <Breadcrumb.List>
