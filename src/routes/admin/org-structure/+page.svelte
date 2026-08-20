@@ -12,9 +12,11 @@
   import OrgUnitNode from "./org-unit-node.svelte";
   import { Checkbox } from "$lib/components/ui/checkbox";
   import { Label } from "$lib/components/ui/label";
+  import { getGlobalContext } from "../../global-context.svelte.js";
   let { data } = $props();
 
   const ctx = setOrgUnitContext();
+  const gblCtx = getGlobalContext();
 
   onMount(() => {
     ctx.orgUnits = data.orgUnits;
@@ -48,7 +50,9 @@
     </Breadcrumb.Root>
 
     <div class="ml-auto">
-      <Button onclick={() => (ctx.addEditDialog = true)}><Plus /> Add</Button>
+      {#if gblCtx.can("admin:manage_org_units")}
+        <Button onclick={() => (ctx.addEditDialog = true)}><Plus /> Add</Button>
+      {/if}
     </div>
   </div>
 </header>

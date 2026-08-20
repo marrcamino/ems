@@ -1,15 +1,4 @@
-import { type User } from "$lib/types";
-
-type SessionUser = Omit<
-  User,
-  | "passwordHash"
-  | "failedLoginAttempts"
-  | "lockedUntil"
-  | "lastLoginAt"
-  | "createdByFk"
-  | "createdAt"
-  | "updatedAt"
->;
+import type { SessionUser } from "$lib/types";
 
 declare global {
   namespace App {
@@ -21,8 +10,14 @@ declare global {
       } | null;
       permissions: Set<string>;
     }
+    interface PageData {
+      // Optional here: only (app) and admin layouts actually return these
+      // (via getSessionData()) — (auth) routes have neither. GlobalContext
+      // casts `user` to non-null since it's only ever set where these exist.
+      user?: SessionUser;
+      permissions?: string[];
+    }
     // interface Error {}
-    // interface PageData {}
     // interface PageState {}
     // interface Platform {}
   }

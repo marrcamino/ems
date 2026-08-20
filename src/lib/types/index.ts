@@ -23,3 +23,14 @@ export type NewPermission = typeof db.permission.$inferInsert;
 // role_permission
 export type RolePermission = typeof db.rolePermission.$inferSelect;
 export type NewRolePermission = typeof db.rolePermission.$inferInsert;
+
+export type SessionUser = Omit<
+  User,
+  | "passwordHash"
+  | "failedLoginAttempts"
+  | "lockedUntil"
+  | "lastLoginAt"
+  | "createdByFk"
+  | "createdAt"
+  | "updatedAt"
+>;
