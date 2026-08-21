@@ -17,7 +17,12 @@ declare global {
       user?: SessionUser;
       permissions?: string[];
     }
-    // interface Error {}
+    interface Error {
+      message: string;
+      // Set by handleError() in hooks.server.ts so a user can quote the id
+      // from the error page and it can be matched against the server log.
+      errorId?: string;
+    }
     // interface PageState {}
     // interface Platform {}
   }

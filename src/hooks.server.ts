@@ -5,7 +5,11 @@ import {
   validateSessionToken,
 } from "$lib/server/auth/session";
 import { buildLoginRedirect, isPublicRoute } from "@/server/auth/redirect";
-import { redirect, type Handle } from "@sveltejs/kit";
+import {
+  redirect,
+  type Handle,
+  type HandleServerError,
+} from "@sveltejs/kit";
 
 const ADMIN_ROUTE_PREFIX = "/admin";
 const ROLE_ROUTING_EXEMPT = ["/logout"];
@@ -105,3 +109,14 @@ function clearAuthLocals(event: Parameters<Handle>[0]["event"]) {
   event.locals.session = null;
   event.locals.permissions = new Set();
 }
+
+// Unexpected errors reach the client as a generic message; log the real one
+// against a short id that the error page shows under "Error details".
+export const handleError: HandleServerError = ({ error, status, message }) => {
+  if (status === 404) return { message };
+
+  const errorId = `req_${crypto.randomUUID().replaceAll("-", "").slice(0, 10)}`;
+  console.error(`[${errorId}]`, error);
+
+  return { message, errorId };
+};

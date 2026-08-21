@@ -1,5 +1,6 @@
 <script lang="ts">
   import favicon from "$lib/assets/favicon.png";
+  import RouteProgress from "$lib/components/route-progress.svelte";
   import { Toaster } from "$lib/components/ui/sonner/index.js";
   import { ModeWatcher } from "mode-watcher";
   import "./layout.css";
@@ -14,5 +15,7 @@
 
 <ModeWatcher defaultMode={"system"} />
 <Toaster richColors position="top-right" closeButton class="z-auto" />
+
+<RouteProgress />
 
 {@render children()}
