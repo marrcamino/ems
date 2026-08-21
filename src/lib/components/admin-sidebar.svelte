@@ -6,6 +6,7 @@
     LogOutIcon,
     UsersRound,
     Building,
+    ShieldCheck,
   } from "@lucide/svelte/icons";
 
   const data = {
@@ -16,7 +17,7 @@
     },
     projects: [
       {
-        name: "Dashbaord",
+        name: "Dashboard",
         url: "/",
         icon: House,
       },
@@ -25,6 +26,11 @@
         name: "Users",
         url: "/admin/users",
         icon: UsersRound,
+      },
+      {
+        name: "Roles",
+        url: "/admin/roles",
+        icon: ShieldCheck,
       },
       {
         name: "Organizational Structure",

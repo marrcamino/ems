@@ -52,9 +52,9 @@ async function main() {
   const connection = await connectToDatabase(env, dbPasswordGate);
 
   try {
-    // ── Step 1.5: ensure Admin template permissions exist in the DB ──
+    // ── Step 1.5: ensure every defined permission exists in the DB ──
     const seedSpinner = p.spinner();
-    seedSpinner.start("Seeding Admin permissions");
+    seedSpinner.start("Seeding permissions");
 
     const adminTemplate = ROLE_TEMPLATES.find((t) => t.roleName === "Admin");
     if (!adminTemplate) {
@@ -62,15 +62,10 @@ async function main() {
       throw new Error('"Admin" template not found in ROLE_TEMPLATES.');
     }
 
-    for (const permissionKey of adminTemplate.permissions) {
-      const permission = PERMISSIONS.find((perm) => perm.key === permissionKey);
-      if (!permission) {
-        seedSpinner.stop("Seeding failed.");
-        throw new Error(
-          `Permission "${permissionKey}" from the Admin template is not defined in PERMISSIONS.`,
-        );
-      }
-
+    // Seed from PERMISSIONS (every key defined in code), not just the Admin
+    // template's list, so bootstrap and scripts/sync-permissions.ts agree on
+    // what the permission table should contain.
+    for (const permission of PERMISSIONS) {
       await connection.query(
         `
         INSERT INTO permission (\`key\`, module, description)
@@ -82,7 +77,7 @@ async function main() {
         [permission.key, permission.module, permission.description],
       );
     }
-    seedSpinner.stop("Admin permissions ready.");
+    seedSpinner.stop(`${PERMISSIONS.length} permission(s) ready.`);
 
     // ── Step 2: does any active user already hold both critical perms? ──
     const checkSpinner = p.spinner();

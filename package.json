@@ -12,6 +12,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "create-admin": "tsx scripts/create-admin.ts",
+    "sync-permissions": "tsx scripts/sync-permissions.ts",
     "reset-admin-password": "tsx scripts/reset-admin-password.ts"
   },
   "devDependencies": {

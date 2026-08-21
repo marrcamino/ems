@@ -13,7 +13,7 @@
  * is locked except the overall shape (roleName / description / permissions).
  */
 
-import { PERMISSION_DEFS, type PermissionKey } from "./permissions";
+import { PERMISSIONS, type PermissionKey } from "./permissions";
 
 export interface RoleTemplate {
   roleName: string;
@@ -21,10 +21,9 @@ export interface RoleTemplate {
   permissions: readonly PermissionKey[];
 }
 
-const ALL_PERMISSIONS = Object.entries(PERMISSION_DEFS).flatMap(
-  ([module, verbs]) =>
-    Object.keys(verbs).map((verb) => `${module}:${verb}` as PermissionKey),
-);
+// PERMISSIONS is the single source of the full key list — it already handles
+// flattening nested submodules, so this stays correct as PERMISSION_DEFS grows.
+const ALL_PERMISSIONS: readonly PermissionKey[] = PERMISSIONS.map((p) => p.key);
 
 export const ROLE_TEMPLATES = [
   {
