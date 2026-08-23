@@ -1,6 +1,7 @@
 <script lang="ts" module>
   import agencyLogo from "$lib/assets/agency-logo.png";
   import { useSidebar } from "$lib/components/ui/sidebar/index.js";
+  import type { PermissionKey } from "$lib/server/permissions";
   import {
     House,
     LogOutIcon,
@@ -8,6 +9,15 @@
     Building,
     ShieldCheck,
   } from "@lucide/svelte/icons";
+
+  type NavItem = {
+    name: string;
+    url: string;
+    // This should be `Component` after @lucide/svelte updates types
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    icon: any;
+    permission: PermissionKey;
+  };
 
   /**
    * Each page carries the `view` key that gates it, so the nav shows only
@@ -47,14 +57,15 @@
         icon: Building,
         permission: "admin:view_org_units",
       },
-    ],
+    ] satisfies NavItem[],
   };
 </script>
 
 <script lang="ts">
   import { enhance } from "$app/forms";
+  import { page } from "$app/state";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import type { PermissionKey } from "$lib/server/permissions";
+  import { isActivePath } from "$lib/utils/is-active-path";
   import { getGlobalContext } from "../../routes/global-context.svelte";
   import type { ComponentProps } from "svelte";
   import NavUser from "./nav-user.svelte";
@@ -67,9 +78,12 @@
   const gblCtx = getGlobalContext();
 
   const visibleProjects = $derived(
-    data.projects.filter((item) =>
-      gblCtx.can(item.permission as PermissionKey),
-    ),
+    data.projects
+      .filter((item) => gblCtx.can(item.permission))
+      .map((item) => ({
+        ...item,
+        active: isActivePath(page.url.pathname, item.url),
+      })),
   );
 </script>
 
@@ -101,9 +115,13 @@
       <Sidebar.Menu>
         {#each visibleProjects as item (item.name)}
           <Sidebar.MenuItem>
-            <Sidebar.MenuButton>
+            <Sidebar.MenuButton isActive={item.active}>
               {#snippet child({ props })}
-                <a href={item.url} {...props}>
+                <a
+                  href={item.url}
+                  aria-current={item.active ? "page" : undefined}
+                  {...props}
+                >
                   <item.icon />
                   <span>{item.name}</span>
                 </a>

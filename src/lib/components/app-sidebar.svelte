@@ -1,13 +1,30 @@
 <script lang="ts" module>
   import agencyLogo from "$lib/assets/agency-logo.png";
+  import type { PermissionKey } from "$lib/server/permissions";
   import { LogOutIcon } from "@lucide/svelte/icons";
-  import BookOpenIcon from "@lucide/svelte/icons/book-open";
-  import BotIcon from "@lucide/svelte/icons/bot";
-  import ChartPieIcon from "@lucide/svelte/icons/chart-pie";
-  import FrameIcon from "@lucide/svelte/icons/frame";
-  import MapIcon from "@lucide/svelte/icons/map";
-  import Settings2Icon from "@lucide/svelte/icons/settings-2";
   import SquareTerminalIcon from "@lucide/svelte/icons/square-terminal";
+
+  export type NavSubItem = {
+    title: string;
+    url: string;
+    permission: PermissionKey;
+  };
+
+  export type NavItem = {
+    title: string;
+    url: string;
+    // This should be `Component` after @lucide/svelte updates types
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    icon: any;
+    defaultOpen?: boolean;
+    items?: NavSubItem[];
+  };
+
+  /**
+   * Each page carries the `view` key that gates it, so the nav shows only
+   * what the signed-in user can actually open. A section whose pages have
+   * all been filtered away disappears along with its heading.
+   */
   const data = {
     user: {
       name: "User",
@@ -19,120 +36,59 @@
         title: "Main",
         url: "/",
         icon: SquareTerminalIcon,
-        isActive: true,
+        defaultOpen: true,
         items: [
-          {
-            title: "Admin",
-            url: "/admin",
-          },
           {
             title: "Fuel",
             url: "/fuel",
+            permission: "fuel:view",
           },
           {
-            title: "Settings",
-            url: "#",
+            title: "ESWM",
+            url: "/eswm",
+            permission: "eswm:view",
+          },
+          {
+            title: "Air Travel",
+            url: "/air-travel",
+            permission: "air_travel:view",
           },
         ],
       },
-      {
-        title: "Models",
-        url: "#",
-        icon: BotIcon,
-        items: [
-          {
-            title: "Genesis",
-            url: "#",
-          },
-          {
-            title: "Explorer",
-            url: "#",
-          },
-          {
-            title: "Quantum",
-            url: "#",
-          },
-        ],
-      },
-      {
-        title: "Documentation",
-        url: "#",
-        icon: BookOpenIcon,
-        items: [
-          {
-            title: "Introduction",
-            url: "#",
-          },
-          {
-            title: "Get Started",
-            url: "#",
-          },
-          {
-            title: "Tutorials",
-            url: "#",
-          },
-          {
-            title: "Changelog",
-            url: "#",
-          },
-        ],
-      },
-      {
-        title: "Settings",
-        url: "#",
-        icon: Settings2Icon,
-        items: [
-          {
-            title: "General",
-            url: "#",
-          },
-          {
-            title: "Team",
-            url: "#",
-          },
-          {
-            title: "Billing",
-            url: "#",
-          },
-          {
-            title: "Limits",
-            url: "#",
-          },
-        ],
-      },
-    ],
-
-    projects: [
-      {
-        name: "Design Engineering",
-        url: "#",
-        icon: FrameIcon,
-      },
-      {
-        name: "Sales & Marketing",
-        url: "#",
-        icon: ChartPieIcon,
-      },
-      {
-        name: "Travel",
-        url: "#",
-        icon: MapIcon,
-      },
-    ],
+    ] satisfies NavItem[],
   };
 </script>
 
 <script lang="ts">
+  import { enhance } from "$app/forms";
+  import { page } from "$app/state";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  import { isActivePath } from "$lib/utils/is-active-path";
+  import { getGlobalContext } from "../../routes/global-context.svelte";
   import type { ComponentProps } from "svelte";
   import NavMain from "./nav-main.svelte";
-  import NavProjects from "./nav-projects.svelte";
   import NavUser from "./nav-user.svelte";
-  import { enhance } from "$app/forms";
   let {
     ref = $bindable(null),
     ...restProps
   }: ComponentProps<typeof Sidebar.Root> = $props();
+
+  const gblCtx = getGlobalContext();
+
+  const visibleNavMain = $derived(
+    data.navMain
+      .map((section) => ({
+        ...section,
+        active: isActivePath(page.url.pathname, section.url),
+        items: section.items
+          .filter((item) => gblCtx.can(item.permission))
+          .map((item) => ({
+            ...item,
+            active: isActivePath(page.url.pathname, item.url),
+          })),
+      }))
+      .filter((section) => section.items.length > 0),
+  );
 </script>
 
 <Sidebar.Root bind:ref variant="inset" {...restProps}>
@@ -158,8 +114,7 @@
     </Sidebar.Menu>
   </Sidebar.Header>
   <Sidebar.Content>
-    <NavMain items={data.navMain} />
-    <NavProjects projects={data.projects} />
+    <NavMain items={visibleNavMain} />
     <Sidebar.Group class="mt-auto">
       <Sidebar.GroupContent>
         <Sidebar.Menu>
