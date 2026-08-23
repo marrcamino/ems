@@ -1,7 +1,7 @@
 /**
  * scripts/create-admin.ts
  *
- * CLI-only bootstrap script for the very first Admin user. Run via:
+ * CLI-only bootstrap script for the very first Super Admin user. Run via:
  *   npm run create-admin   (→ tsx scripts/create-admin.ts)
  *
  * Runs on the production server post-build, reading source directly via
@@ -24,6 +24,7 @@ import { ROLE_TEMPLATES } from "../src/lib/server/role-templates";
 import {
   bailIfCancelled,
   connectToDatabase,
+  findSuperAdminRolePk,
   generatePassword,
   getActiveSuperAdmins,
   hashPassword,
@@ -33,14 +34,15 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const CANCEL_MESSAGE = "Admin bootstrap cancelled. No admin user was created.";
+const CANCEL_MESSAGE =
+  "Super Admin bootstrap cancelled. No admin user was created.";
 const TOO_MANY_ATTEMPTS_MESSAGE =
-  "Admin bootstrap stopped — no admin user was created.";
+  "Super Admin bootstrap stopped — no admin user was created.";
 
 async function main() {
   console.clear();
   console.log("\n");
-  p.intro(color.bgCyan(color.black(" EMS Admin Bootstrap ")));
+  p.intro(color.bgCyan(color.black(" EMS Super Admin Bootstrap ")));
 
   const env = loadEnv(resolve(__dirname, "../.env"));
 
@@ -56,13 +58,15 @@ async function main() {
     const seedSpinner = p.spinner();
     seedSpinner.start("Seeding permissions");
 
-    const adminTemplate = ROLE_TEMPLATES.find((t) => t.roleName === "Admin");
+    const adminTemplate = ROLE_TEMPLATES.find(
+      (t) => t.roleName === "Super Admin",
+    );
     if (!adminTemplate) {
       seedSpinner.stop("Seeding failed.");
-      throw new Error('"Admin" template not found in ROLE_TEMPLATES.');
+      throw new Error('"Super Admin" template not found in ROLE_TEMPLATES.');
     }
 
-    // Seed from PERMISSIONS (every key defined in code), not just the Admin
+    // Seed from PERMISSIONS (every key defined in code), not just the Super Admin
     // template's list, so bootstrap and scripts/sync-permissions.ts agree on
     // what the permission table should contain.
     for (const permission of PERMISSIONS) {
@@ -79,7 +83,7 @@ async function main() {
     }
     seedSpinner.stop(`${PERMISSIONS.length} permission(s) ready.`);
 
-    // ── Step 2: does any active user already hold both critical perms? ──
+    // ── Step 2: does any active user already hold the critical perm? ──
     const checkSpinner = p.spinner();
     checkSpinner.start("Checking for an existing super-admin");
 
@@ -88,26 +92,27 @@ async function main() {
     if (existingHolders.length > 0) {
       checkSpinner.stop("An active super-admin already exists.");
       p.cancel(
-        "An active user already holds both admin:manage_users and admin:manage_roles.\n" +
-          "This script only bootstraps the first Admin — use the app's admin UI to manage users from here on.",
+        "An active user already holds admin:manage_roles.\n" +
+          "This script only bootstraps the first Super Admin — use the app's admin UI to manage users from here on.",
       );
       process.exit(0);
     }
     checkSpinner.stop("No existing super-admin found.");
 
-    // ── Step 3: ensure the "Admin" role exists (create from template if not) ──
+    // ── Step 3: ensure the super-admin role exists (create from template) ──
+    // Looked up by the role holding admin:manage_roles, not by role name —
+    // holding that key is what makes a role the super-admin role, and exactly
+    // one role in the system may ever hold it.
     const roleSpinner = p.spinner();
-    roleSpinner.start("Setting up the Admin role");
+    roleSpinner.start("Setting up the Super Admin role");
 
-    const [existingAdminRoleRows] = await connection.query<
-      mysql.RowDataPacket[]
-    >(`SELECT role_pk FROM role WHERE role_name = ? LIMIT 1`, ["Admin"]);
+    const existingSuperAdminRolePk = await findSuperAdminRolePk(connection);
 
     let adminRolePk: number;
 
-    if (existingAdminRoleRows.length > 0) {
-      adminRolePk = existingAdminRoleRows[0].role_pk;
-      roleSpinner.stop("Admin role already exists — reusing it.");
+    if (existingSuperAdminRolePk !== null) {
+      adminRolePk = existingSuperAdminRolePk;
+      roleSpinner.stop("Super Admin role already exists — reusing it.");
     } else {
       const [permRows] = await connection.query<mysql.RowDataPacket[]>(
         `SELECT permission_pk, \`key\` FROM permission WHERE \`key\` IN (?)`,
@@ -139,7 +144,7 @@ async function main() {
         }
 
         await connection.commit();
-        roleSpinner.stop("Admin role created from template.");
+        roleSpinner.stop("Super Admin role created from template.");
       } catch (err) {
         await connection.rollback();
         roleSpinner.stop("Setup failed.");
@@ -155,7 +160,7 @@ async function main() {
     while (true) {
       username = bailIfCancelled(
         await p.text({
-          message: "Username for the new admin",
+          message: "Username for the new Super Admin",
           validate: (value) => {
             if (!value || !value.trim()) return "Username cannot be empty.";
           },
@@ -167,7 +172,7 @@ async function main() {
       passwordHash = hashPassword(generatedPassword);
 
       const createSpinner = p.spinner();
-      createSpinner.start("Creating admin user");
+      createSpinner.start("Creating the Super Admin user");
       try {
         await connection.query(
           `
@@ -177,7 +182,7 @@ async function main() {
           `,
           [username, passwordHash, "Admin", "User", adminRolePk],
         );
-        createSpinner.stop("Admin user created.");
+        createSpinner.stop("Super Admin user created.");
         break;
       } catch (err: any) {
         if (err?.code === "ER_DUP_ENTRY") {
@@ -192,7 +197,7 @@ async function main() {
     // ── Step 6: print credentials ──
     p.note(
       `${color.dim("Username")}  ${username}\n${color.dim("Password")}  ${generatedPassword}`,
-      "Admin credentials",
+      "Super Admin credentials",
     );
     p.log.warn("The user must change this password on first login.");
     p.outro(color.green("Done."));

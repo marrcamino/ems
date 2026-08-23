@@ -2,8 +2,8 @@
  * scripts/reset-admin-password.ts
  *
  * CLI-only recovery script for resetting the password of an existing
- * active super-admin (a user whose role holds both admin:manage_users
- * and admin:manage_roles). Run via:
+ * active super-admin (a user whose role holds admin:manage_roles).
+ * Run via:
  *   npm run reset-admin-password   (→ tsx scripts/reset-admin-password.ts)
  *
  * Runs on the production server, reading source directly via tsx (not
@@ -42,7 +42,7 @@ const TOO_MANY_ATTEMPTS_MESSAGE =
 async function main() {
   console.clear();
   console.log("\n");
-  p.intro(color.bgCyan(color.black(" EMS Admin Password Reset ")));
+  p.intro(color.bgCyan(color.black(" EMS Super Admin Password Reset ")));
 
   const env = loadEnv(resolve(__dirname, "../.env"));
 
@@ -54,7 +54,7 @@ async function main() {
   const connection = await connectToDatabase(env, dbPasswordGate);
 
   try {
-    // ── Step 2: find active users holding both critical permissions ──
+    // ── Step 2: find active users holding the critical permission ──
     const checkSpinner = p.spinner();
     checkSpinner.start("Looking for active super-admins");
 
@@ -63,8 +63,8 @@ async function main() {
     if (holders.length === 0) {
       checkSpinner.stop("No active super-admin found.");
       p.cancel(
-        "No active user currently holds both admin:manage_users and admin:manage_roles.\n" +
-          "Run `npm run create-admin` instead to bootstrap the first Admin.",
+        "No active user currently holds admin:manage_roles.\n" +
+          "Run `npm run create-admin` instead to bootstrap the first Super Admin.",
       );
       process.exit(0);
     }

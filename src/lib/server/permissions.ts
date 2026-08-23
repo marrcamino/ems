@@ -6,28 +6,72 @@
  * created/edited by an admin at runtime (roles, which ARE runtime-editable,
  * just pick from this list).
  *
+ * ── Two route trees, two kinds of role ──────────────────────────────────
+ *
+ * The app has two parallel route trees over the same data:
+ *
+ *   staff:  /fuel, /paper, /electricity, ...
+ *   admin:  /admin/fuel, /admin/paper, /admin/electricity, ...
+ *           /admin/users, /admin/roles, /admin/org-structure
+ *
+ * These are genuinely different pages, not one page branching on which keys
+ * you hold — the admin table has different columns and different actions
+ * from the staff one. So each tree gets its own keys: the staff modules
+ * below gate the staff tree, and the `admin` module's submodules gate the
+ * admin tree, one submodule per admin page.
+ *
+ * Because holding `admin:view` redirects a user into /admin (see
+ * hooks.server.ts), an admin user can never reach /fuel — a staff key on an
+ * admin role would be a key that can never be exercised. A role is therefore
+ * EITHER an admin role (only `admin:*` keys) OR a staff role (only non-admin
+ * keys), never a mix. That is structural, not a rule the role editor
+ * enforces reactively.
+ *
+ * ── Nesting ─────────────────────────────────────────────────────────────
+ *
  * A module may nest ONE level of submodules, for sections that own their own
- * page inside a parent area (admin → users / roles / org_units). Nesting is
- * capped at one level on purpose: deeper nesting makes the key flattening
- * below ambiguous for no real gain.
+ * page inside a parent area. Nesting is capped at one level on purpose:
+ * deeper nesting makes the key flattening below ambiguous for no real gain.
  *
  * Every module AND every submodule must define a `view` action — the types
  * below enforce it, so you cannot add a module without one. That matters
  * because every route's `load` gates on `module:view`; a role holding only
- * `paper:manage` would otherwise be bounced out of the very page it is meant
- * to manage. See PERMISSION_IMPLIES for how that is resolved.
+ * `admin:manage_paper` would otherwise be bounced out of the very page it is
+ * meant to manage. See PERMISSION_IMPLIES for how that is resolved.
  *
- * NOTE: This is still a SAMPLE set. Modules/actions are placeholders —
- * edit freely once the approval workflow per module is finalized.
+ * ── Two special situations ──────────────────────────────────────────────
+ *
+ * 1. One key implying another. `admin:manage_users` is meaningless without
+ *    `admin:view_users`, which is meaningless without `admin:view`. Rather
+ *    than make callers check several keys, holding the stronger key means
+ *    holding the weaker ones — resolved by expandPermissions() below, and
+ *    mirrored in the role editor by a checkbox cascade so the stored set is
+ *    already closed.
+ *
+ * 2. A key restricted to a single role. `admin:manage_roles` is the one
+ *    critical permission: exactly one role in the system may ever hold it,
+ *    and only scripts/create-admin.ts creates that role. It is hidden from
+ *    the role editor entirely — never rendered, not merely disabled — so it
+ *    cannot be granted through the UI at all. Every other admin key,
+ *    including `admin:manage_users`, is freely grantable: a role that
+ *    manages users but not roles is a legitimate sub-admin.
+ *
+ * NOTE: This is still a SAMPLE set. The staff modules carry only `view` for
+ * now — the submit/approve actions per module are still TBD and land with
+ * the approval workflow.
  *
  * Naming: plural for countable resources (`users`, `roles`, `org_units`);
- * mass nouns stay as they are (`fuel`, `water`, `paper`, `air-travel`).
+ * mass nouns stay as they are (`fuel`, `water`, `paper`, `air_travel`).
+ * Keys use `_`, never `-`, so `admin:manage_air_travel` reads consistently
+ * with `admin:manage_org_units`. Keys do not have to match URLs — the route
+ * can stay /air-travel.
  */
 
 type ActionMap = { view: string } & Record<string, string>;
 type ModuleDef = { view: string } & Record<string, string | ActionMap>;
 
 export const PERMISSION_DEFS = {
+  // ── Staff modules: the /fuel, /paper, ... tree ────────────────────────
   fuel: {
     view: "Access the Fuel page",
   },
@@ -40,7 +84,7 @@ export const PERMISSION_DEFS = {
   paper: {
     view: "Access the Paper page",
   },
-  "air-travel": {
+  air_travel: {
     view: "Access the Air Travel page",
   },
   eswm: {
@@ -49,12 +93,52 @@ export const PERMISSION_DEFS = {
   ghg: {
     view: "Access the GHG Compliance page",
   },
+
+  // ── Admin module: the /admin/* tree ───────────────────────────────────
+  // One submodule per admin page. The data submodules mirror the staff
+  // modules above one-for-one; keep the two lists in step when adding a
+  // module (they are spelled out separately because the literal `as const`
+  // object is what PermissionKey is derived from).
   admin: {
-    view: "Access the Admin page",
+    view: "Access the Admin area",
+
+    // Data modules — the admin-side counterpart of each staff page.
+    fuel: {
+      view: "Access the Fuel management page",
+      manage: "Add, edit, and delete fuel records",
+    },
+    electricity: {
+      view: "Access the Electricity management page",
+      manage: "Add, edit, and delete electricity records",
+    },
+    water: {
+      view: "Access the Water management page",
+      manage: "Add, edit, and delete water records",
+    },
+    paper: {
+      view: "Access the Paper management page",
+      manage: "Add, edit, and delete paper records",
+    },
+    air_travel: {
+      view: "Access the Air Travel management page",
+      manage: "Add, edit, and delete air travel records",
+    },
+    eswm: {
+      view: "Access the ESWM management page",
+      manage: "Add, edit, and delete ESWM records",
+    },
+    ghg: {
+      view: "Access the GHG Compliance management page",
+      manage: "Add, edit, and delete GHG compliance records",
+    },
+
+    // System modules — no staff-side counterpart.
     users: {
       view: "Access the Users page",
       manage: "Add, edit, deactivate, and reassign users",
     },
+    // CRITICAL: only one role may ever hold admin:manage_roles and admin:view_roles,
+    // and only scripts/create-admin.ts creates it. Never rendered in the role editor.
     roles: {
       view: "Access the Roles page",
       manage: "Add, edit, and delete roles and their permissions",
