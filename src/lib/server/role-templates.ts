@@ -26,6 +26,7 @@
  * is locked except the overall shape (roleName / description / permissions).
  */
 
+import { RESTRICTED_PERMISSION_KEYS } from "$lib/rbac/permission-tree";
 import { PERMISSIONS, type PermissionKey } from "./permissions";
 
 export interface RoleTemplate {
@@ -47,12 +48,13 @@ const ALL_ADMIN_PERMISSIONS: readonly PermissionKey[] = PERMISSIONS.filter(
 // with `admin:manage_roles` restricted to one role, a view-only Roles page
 // would be a dead end for everyone else. Role details are surfaced in the
 // user editor instead.
-const ROLES_PAGE_KEYS = ["admin:view_roles", "admin:manage_roles"] as const;
+// RESTRICTED_PERMISSION_KEYS is the same list the role editor hides and the
+// Roles page load strips from anything submitted — kept in one place so a
+// template can never quietly reintroduce a key the UI refuses to render.
+const rolesPageKeys = new Set<string>(RESTRICTED_PERMISSION_KEYS);
 
 const ADMIN_PERMISSIONS: readonly PermissionKey[] =
-  ALL_ADMIN_PERMISSIONS.filter(
-    (key) => !ROLES_PAGE_KEYS.includes(key as (typeof ROLES_PAGE_KEYS)[number]),
-  );
+  ALL_ADMIN_PERMISSIONS.filter((key) => !rolesPageKeys.has(key));
 
 export const ROLE_TEMPLATES = [
   {
