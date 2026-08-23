@@ -82,7 +82,6 @@ export const ROLE_TEMPLATES = [
       "electricity:view",
       "water:view",
       "paper:view",
-      "air_travel:view",
       "eswm:view",
     ],
   },

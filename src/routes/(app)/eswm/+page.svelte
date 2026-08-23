@@ -4,7 +4,7 @@
 </script>
 
 <svelte:head>
-  <title>Fuel - EMS</title>
+  <title>ESWM - EMS</title>
 </svelte:head>
 
 <Header>
@@ -15,7 +15,7 @@
       </Breadcrumb.Item>
       <Breadcrumb.Separator class="hidden md:block" />
       <Breadcrumb.Item>
-        <Breadcrumb.Page>Fuel</Breadcrumb.Page>
+        <Breadcrumb.Page>ESWM</Breadcrumb.Page>
       </Breadcrumb.Item>
     </Breadcrumb.List>
   </Breadcrumb.Root>
