@@ -1,5 +1,7 @@
 {
-	"files.associations": {
-		"*.css": "tailwindcss"
-	}
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "tailwindCSS.classFunctions": ["cn", "cva", "tv"],
+  "js/ts.experimental.useTsgo": false
 }
