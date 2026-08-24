@@ -46,3 +46,21 @@ export function initials<T extends { firstName: string; lastName: string }>(
 ) {
   return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
 }
+
+/**
+ * A person's name as it should read on screen: the parts that are filled in,
+ * in order, separated by spaces. Middle name and suffix are optional columns,
+ * so they drop out when blank instead of leaving a double space.
+ */
+export function fullName<
+  T extends {
+    firstName: string;
+    middleName?: string | null;
+    lastName: string;
+    suffix?: string | null;
+  },
+>(user: T): string {
+  return [user.firstName, user.middleName, user.lastName, user.suffix]
+    .filter(Boolean)
+    .join(" ");
+}

@@ -1,7 +1,7 @@
 import { roleKindOf, type RoleKind } from "$lib/rbac/permission-tree";
 import type { PermissionKey, PermissionRow } from "$lib/server/permissions";
 import type { OrgUnit } from "$lib/types";
-import { makeContext } from "@/utils";
+import { fullName, makeContext } from "@/utils";
 import { untrack } from "svelte";
 
 /**
@@ -44,13 +44,9 @@ export interface RoleOption {
  */
 export type SuperAdminImpact = "none" | "warn" | "block";
 
-export function fullName(
-  user: Pick<UserRow, "firstName" | "middleName" | "lastName" | "suffix">,
-): string {
-  return [user.firstName, user.middleName, user.lastName, user.suffix]
-    .filter(Boolean)
-    .join(" ");
-}
+// Re-exported so the pages under this route keep importing it from here,
+// while the sidebar and anything else outside the route take it from $lib.
+export { fullName };
 
 /** Locked by failed sign-in attempts, as opposed to switched off by an admin. */
 export function isTemporarilyLocked(user: UserRow): boolean {

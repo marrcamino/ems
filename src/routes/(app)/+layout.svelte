@@ -1,5 +1,5 @@
 <script lang="ts">
-  import AppSidebar from "$lib/components/app-sidebar.svelte";
+  import StaffSidebar from "@/components/staff-sidebar.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { setGlobalContext } from "../global-context.svelte";
 
@@ -12,7 +12,7 @@
 </svelte:head>
 
 <Sidebar.Provider>
-  <AppSidebar />
+  <StaffSidebar />
   <Sidebar.Inset>
     {@render children()}
   </Sidebar.Inset>
