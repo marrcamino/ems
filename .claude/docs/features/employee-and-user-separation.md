@@ -433,13 +433,64 @@ That does not require `admin:view_employees` — the key controls opening the
 Employees *page*, not reading employee names elsewhere. A user manager can still
 create logins normally.
 
-### Running the sync is deferred
+### Running the sync — done, but it may not be enough
 
 Adding keys to `PERMISSION_DEFS` changes no table, so the new keys reach the
-database only when `npm run sync-permissions` is run. The user has chosen to
-hold that off for now: every table is empty, and `scripts/create-admin.ts` does
-not work against the new schema yet, so there is no super-admin role for the
-sync to backfill. Both are done once the bootstrap path is repaired.
+database only when `npm run sync-permissions` is run. That was held off while
+`scripts/create-admin.ts` did not work against the new schema. The bootstrap
+path is now repaired, and **the user has run the sync**, so
+`admin:view_employees` and `admin:manage_employees` exist in the `permission`
+table.
+
+**Open — does the super-admin role actually hold them?**
+
+The locked RBAC decisions
+(`.claude/skills/rbac-design/SKILL.md`, "Permission sync") say the script has
+four steps, the third being: *backfill the super-admin role with any `admin:*`
+key it is missing — required, because that role is frozen and has no UI path to
+gain a new module.*
+
+`scripts/sync-permissions.ts` as written has only three steps: upsert the keys,
+report orphans, and re-normalize every role to its implied keys. There is no
+super-admin backfill. Re-normalizing does not help here, because nothing implies
+`admin:manage_employees` — implication only runs upward, from manage to view to
+`admin:view`.
+
+Whether the super-admin role holds the two new keys therefore depends on when
+that role was created, and **the user has checked: it holds them.** They can
+open the Employees page with their super-admin account, so `create-admin.ts`
+must have run after the keys were added to `PERMISSION_DEFS`. Nothing is broken
+right now.
+
+The gap in the script was still real, though, and would have bitten the next
+time an admin page was added: the super-admin role is frozen, so a key it does
+not already hold can never be granted through the interface — the only remedy
+would have been editing `role_permission` by hand in MySQL.
+
+### The missing step was added — settled
+
+The user agreed to fix it now rather than wait for a page to break.
+`scripts/sync-permissions.ts` now does four things instead of three, matching
+the locked decisions. The new third step:
+
+- finds the super-admin role by the permission it holds, `admin:manage_roles`,
+  never by name;
+- compares what it holds against every `admin:*` key defined in code;
+- inserts whatever is missing, inside one transaction;
+- names what it added, so the run is not silent;
+- and if no role holds that key at all — a fresh database where
+  `create-admin.ts` has not run — says so and skips, rather than failing.
+
+Staff keys are deliberately left out of the comparison. A user holding
+`admin:view` is sent to the admin area, where a staff key could never be used.
+
+The lookup that turns a key into its row number was moved above this step,
+since the re-normalizing step below needs the same thing and it is now read
+once for both.
+
+**Not run yet.** The script type-checks. Nobody has run it since the change,
+and on this database it should report that the super-admin role already holds
+everything.
 
 ---
 
