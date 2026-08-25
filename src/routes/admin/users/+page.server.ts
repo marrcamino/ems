@@ -7,6 +7,7 @@ import {
 } from "$lib/server/auth/password";
 import { db } from "$lib/server/db";
 import {
+  employee,
   orgUnit,
   permission,
   role,
@@ -22,8 +23,6 @@ import type { Actions, PageServerLoad } from "./$types";
 
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 50;
-const NAME_MAX_LENGTH = 100;
-const SUFFIX_MAX_LENGTH = 20;
 
 /** Letters, digits, and the separators a name-based username needs. */
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
@@ -59,42 +58,57 @@ async function countActiveSuperAdminUsers(
   const holders = await db
     .select({ userPk: user.userPk })
     .from(user)
-    .where(and(eq(user.roleFk, superAdminRolePk), eq(user.status, "active")));
+    .where(
+      and(
+        eq(user.roleFk, superAdminRolePk),
+        eq(user.accountStatus, "active"),
+      ),
+    );
 
   return holders.length;
 }
 
 /**
- * The columns the table needs, with the role and section names resolved.
+ * The columns the table needs. The login half comes from `user`; the name,
+ * position, and section come from the `employee` row it points at, and are
+ * kept in a nested object rather than flattened so it stays obvious which
+ * table each field came from.
+ *
  * The password hash and the failed-attempt counter are deliberately absent —
  * neither is anything the page shows, and everything selected here travels to
  * the browser with the rest of the load return.
  */
 const userRowColumns = {
   userPk: user.userPk,
+  employeeFk: user.employeeFk,
   username: user.username,
-  firstName: user.firstName,
-  middleName: user.middleName,
-  lastName: user.lastName,
-  suffix: user.suffix,
-  positionTitle: user.positionTitle,
   roleFk: user.roleFk,
   roleName: role.roleName,
-  orgUnitFk: user.orgUnitFk,
-  orgUnitName: orgUnit.orgUnitName,
-  orgUnitAbbr: orgUnit.abbr,
-  status: user.status,
+  accountStatus: user.accountStatus,
   mustChangePassword: user.mustChangePassword,
   lockedUntil: user.lockedUntil,
   lastLoginAt: user.lastLoginAt,
+  employee: {
+    employeePk: employee.employeePk,
+    firstName: employee.firstName,
+    middleName: employee.middleName,
+    lastName: employee.lastName,
+    suffix: employee.suffix,
+    positionTitle: employee.positionTitle,
+    employmentStatus: employee.employmentStatus,
+    orgUnitFk: employee.orgUnitFk,
+    orgUnitName: orgUnit.orgUnitName,
+    orgUnitAbbr: orgUnit.abbr,
+  },
 };
 
 function selectUserRows() {
   return db
     .select(userRowColumns)
     .from(user)
+    .innerJoin(employee, eq(user.employeeFk, employee.employeePk))
     .innerJoin(role, eq(user.roleFk, role.rolePk))
-    .leftJoin(orgUnit, eq(user.orgUnitFk, orgUnit.orgUnitPk));
+    .leftJoin(orgUnit, eq(employee.orgUnitFk, orgUnit.orgUnitPk));
 }
 
 async function readUserRow(userPk: number) {
@@ -126,21 +140,16 @@ async function endAllSessionsFor(userPk: number) {
 }
 
 function readUserForm(form: FormData) {
-  const optionalText = (field: string) =>
-    ((form.get(field) as string) ?? "").trim() || null;
-
-  const orgUnitFkRaw = form.get("orgUnitFk");
+  const employeeFkRaw = form.get("employeeFk");
 
   return {
+    // Only read when adding. A login cannot be moved to a different person —
+    // that is a new account, not an edit — so the update action ignores it.
+    employeeFk: employeeFkRaw ? Number(employeeFkRaw) : null,
     username: ((form.get("username") as string) ?? "").trim(),
-    firstName: ((form.get("firstName") as string) ?? "").trim(),
-    middleName: optionalText("middleName"),
-    lastName: ((form.get("lastName") as string) ?? "").trim(),
-    suffix: optionalText("suffix"),
-    positionTitle: optionalText("positionTitle"),
     roleFk: Number(form.get("roleFk")),
-    orgUnitFk: orgUnitFkRaw ? Number(orgUnitFkRaw) : null,
-    status: form.get("status") === "inactive" ? "inactive" : "active",
+    accountStatus:
+      form.get("accountStatus") === "inactive" ? "inactive" : "active",
   } as const;
 }
 
@@ -157,19 +166,6 @@ function validateUserForm(input: UserInput): string | null {
   if (!USERNAME_PATTERN.test(input.username)) {
     return "The username can only contain letters, numbers, dots, dashes, and underscores.";
   }
-  if (!input.firstName) return "Enter a first name.";
-  if (!input.lastName) return "Enter a last name.";
-  if (
-    input.firstName.length > NAME_MAX_LENGTH ||
-    input.lastName.length > NAME_MAX_LENGTH ||
-    (input.middleName?.length ?? 0) > NAME_MAX_LENGTH ||
-    (input.positionTitle?.length ?? 0) > NAME_MAX_LENGTH
-  ) {
-    return `Names and the position can be at most ${NAME_MAX_LENGTH} characters.`;
-  }
-  if ((input.suffix?.length ?? 0) > SUFFIX_MAX_LENGTH) {
-    return `The suffix can be at most ${SUFFIX_MAX_LENGTH} characters.`;
-  }
   if (!input.roleFk || Number.isNaN(input.roleFk)) {
     return "Choose a role for this person.";
   }
@@ -177,14 +173,47 @@ function validateUserForm(input: UserInput): string | null {
 }
 
 /**
- * Check that the chosen role and section still exist, and refuse a retired one
- * unless the person is already on it — an admin fixing a spelling mistake in
- * somebody's name should not be forced to move them off a role that was
- * retired after they were assigned to it.
+ * Check the person this account is being made for: they must exist, they must
+ * not already have one, and they must still work here. All three are things
+ * the dialog already prevents, so reaching one of these means the request did
+ * not come from the form.
  */
-async function validateAssignments(
+async function validateEmployee(employeeFk: number | null): Promise<string | null> {
+  if (!employeeFk || Number.isNaN(employeeFk)) {
+    return "Choose the person this account is for.";
+  }
+
+  const [person] = await db
+    .select({ employmentStatus: employee.employmentStatus })
+    .from(employee)
+    .where(eq(employee.employeePk, employeeFk));
+
+  if (!person) return "That employee no longer exists.";
+
+  if (person.employmentStatus !== "active") {
+    return "That person is marked as no longer employed, so they can't be given an account.";
+  }
+
+  const [taken] = await db
+    .select({ username: user.username })
+    .from(user)
+    .where(eq(user.employeeFk, employeeFk));
+
+  if (taken) {
+    return `That person already signs in as "${taken.username}". One person can have only one account.`;
+  }
+
+  return null;
+}
+
+/**
+ * Check the chosen role still exists, and refuse a retired one unless the
+ * person is already on it — an admin fixing a username should not be forced
+ * to move somebody off a role that was retired after they were assigned to it.
+ */
+async function validateRole(
   input: UserInput,
-  current?: { roleFk: number; orgUnitFk: number | null },
+  current?: { roleFk: number },
 ): Promise<string | null> {
   const [chosenRole] = await db
     .select({ status: role.status })
@@ -194,21 +223,6 @@ async function validateAssignments(
   if (!chosenRole) return "That role no longer exists.";
   if (chosenRole.status !== "active" && current?.roleFk !== input.roleFk) {
     return "That role is inactive and can't be assigned. Pick an active one.";
-  }
-
-  if (input.orgUnitFk !== null) {
-    const [chosenUnit] = await db
-      .select({ status: orgUnit.status })
-      .from(orgUnit)
-      .where(eq(orgUnit.orgUnitPk, input.orgUnitFk));
-
-    if (!chosenUnit) return "That section no longer exists.";
-    if (
-      chosenUnit.status !== "active" &&
-      current?.orgUnitFk !== input.orgUnitFk
-    ) {
-      return "That section is inactive and can't be assigned. Pick an active one.";
-    }
   }
 
   return null;
@@ -222,8 +236,8 @@ export const load: PageServerLoad = async ({ locals }) => {
   }
 
   const users = await selectUserRows().orderBy(
-    asc(user.lastName),
-    asc(user.firstName),
+    asc(employee.lastName),
+    asc(employee.firstName),
   );
 
   const roles = await db.select().from(role).orderBy(asc(role.roleName));
@@ -262,10 +276,34 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from(orgUnit)
     .orderBy(asc(orgUnit.orgUnitName));
 
+  /**
+   * Everyone on file, with the username of their login attached when they
+   * have one. The editor needs the whole list rather than only the people
+   * without an account: somebody who already has one still has to appear,
+   * greyed out, or an admin looking for them would think they were missing.
+   */
+  const employees = await db
+    .select({
+      employeePk: employee.employeePk,
+      firstName: employee.firstName,
+      middleName: employee.middleName,
+      lastName: employee.lastName,
+      suffix: employee.suffix,
+      positionTitle: employee.positionTitle,
+      employmentStatus: employee.employmentStatus,
+      orgUnitName: orgUnit.orgUnitName,
+      username: user.username,
+    })
+    .from(employee)
+    .leftJoin(orgUnit, eq(employee.orgUnitFk, orgUnit.orgUnitPk))
+    .leftJoin(user, eq(user.employeeFk, employee.employeePk))
+    .orderBy(asc(employee.lastName), asc(employee.firstName));
+
   return {
     users,
     roles: rolesWithPermissions,
     orgUnits,
+    employees,
     permissionDefs: PERMISSIONS,
     superAdminRolePk: await getSuperAdminRolePk(),
   };
@@ -283,8 +321,11 @@ export const actions: Actions = {
     const invalid = validateUserForm(input);
     if (invalid) return fail(400, { error: invalid });
 
-    const badAssignment = await validateAssignments(input);
-    if (badAssignment) return fail(400, { error: badAssignment });
+    const badEmployee = await validateEmployee(input.employeeFk);
+    if (badEmployee) return fail(400, { error: badEmployee });
+
+    const badRole = await validateRole(input);
+    if (badRole) return fail(400, { error: badRole });
 
     /**
      * Only someone who can already manage roles may put another person on the
@@ -321,16 +362,11 @@ export const actions: Actions = {
     const temporaryPassword = typed || generateTemporaryPassword();
 
     const result = await db.insert(user).values({
+      employeeFk: input.employeeFk!,
       username: input.username,
       passwordHash: await hashPassword(temporaryPassword),
-      firstName: input.firstName,
-      middleName: input.middleName,
-      lastName: input.lastName,
-      suffix: input.suffix,
-      positionTitle: input.positionTitle,
       roleFk: input.roleFk,
-      orgUnitFk: input.orgUnitFk,
-      status: input.status,
+      accountStatus: input.accountStatus,
       mustChangePassword: true,
       createdByFk: locals.user?.userPk ?? null,
     });
@@ -366,8 +402,31 @@ export const actions: Actions = {
     const invalid = validateUserForm(input);
     if (invalid) return fail(400, { error: invalid });
 
-    const badAssignment = await validateAssignments(input, existing);
-    if (badAssignment) return fail(400, { error: badAssignment });
+    const badRole = await validateRole(input, existing);
+    if (badRole) return fail(400, { error: badRole });
+
+    /**
+     * Switching an account on for somebody who has left is refused here as
+     * well as being disabled in the editor. It would not let them in — the
+     * sign-in checks employment — so all it could do is leave the Users page
+     * claiming an account works when it does not.
+     */
+    if (
+      input.accountStatus === "active" &&
+      existing.accountStatus !== "active"
+    ) {
+      const [person] = await db
+        .select({ employmentStatus: employee.employmentStatus })
+        .from(employee)
+        .where(eq(employee.employeePk, existing.employeeFk));
+
+      if (person && person.employmentStatus !== "active") {
+        return fail(409, {
+          error:
+            "This person is marked as no longer employed, so their account can't be switched back on. Mark them as employed again on the Employees page first.",
+        });
+      }
+    }
 
     const isSelf = locals.user?.userPk === userPk;
     const roleChanged = existing.roleFk !== input.roleFk;
@@ -387,7 +446,7 @@ export const actions: Actions = {
 
     // The same reasoning: switching off your own account locks you out of the
     // page that would switch it back on.
-    if (isSelf && input.status === "inactive") {
+    if (isSelf && input.accountStatus === "inactive") {
       return fail(403, {
         error:
           "You can't deactivate your own account. Ask another admin to do it for you.",
@@ -418,9 +477,10 @@ export const actions: Actions = {
      * field was touched.
      */
     const holdsNow =
-      existing.roleFk === superAdminRolePk && existing.status === "active";
+      existing.roleFk === superAdminRolePk &&
+      existing.accountStatus === "active";
     const holdsAfter =
-      input.roleFk === superAdminRolePk && input.status === "active";
+      input.roleFk === superAdminRolePk && input.accountStatus === "active";
 
     if (holdsNow && !holdsAfter) {
       const holders = await countActiveSuperAdminUsers(superAdminRolePk);
@@ -441,20 +501,16 @@ export const actions: Actions = {
     // Turning an account back on clears the failed-attempt lockout as well. An
     // admin reactivating an account means it should work, and a stale lockout
     // left behind would look like the change had not taken.
-    const clearingLock = input.status === "active";
+    const clearingLock = input.accountStatus === "active";
 
+    // The name, position, and section are not here on purpose: they belong to
+    // the person, not the login, and are edited on the Employees page.
     await db
       .update(user)
       .set({
         username: input.username,
-        firstName: input.firstName,
-        middleName: input.middleName,
-        lastName: input.lastName,
-        suffix: input.suffix,
-        positionTitle: input.positionTitle,
         roleFk: input.roleFk,
-        orgUnitFk: input.orgUnitFk,
-        status: input.status,
+        accountStatus: input.accountStatus,
         ...(clearingLock ? { failedLoginAttempts: 0, lockedUntil: null } : {}),
         updatedAt: new Date(),
       })
@@ -462,7 +518,7 @@ export const actions: Actions = {
 
     // A new role or a switched-off account takes effect now, not whenever
     // this person's current session happens to expire.
-    if (roleChanged || input.status !== "active") {
+    if (roleChanged || input.accountStatus !== "active") {
       await endAllSessionsFor(userPk);
     }
 
@@ -555,7 +611,7 @@ export const actions: Actions = {
     const userPk = Number(form.get("userPk"));
 
     const [existing] = await db
-      .select({ status: user.status })
+      .select({ accountStatus: user.accountStatus })
       .from(user)
       .where(eq(user.userPk, userPk));
 
@@ -571,7 +627,9 @@ export const actions: Actions = {
       .set({
         failedLoginAttempts: 0,
         lockedUntil: null,
-        ...(existing.status === "locked" ? { status: "active" as const } : {}),
+        ...(existing.accountStatus === "locked"
+          ? { accountStatus: "active" as const }
+          : {}),
         updatedAt: new Date(),
       })
       .where(eq(user.userPk, userPk));
@@ -588,7 +646,9 @@ export const actions: Actions = {
 
   delete: async ({ request, locals }) => {
     if (!can(locals.permissions, "admin:manage_users")) {
-      return fail(403, { error: "You do not have permission to delete users." });
+      return fail(403, {
+        error: "You do not have permission to delete users.",
+      });
     }
 
     const form = await request.formData();
@@ -602,7 +662,7 @@ export const actions: Actions = {
     }
 
     const [existing] = await db
-      .select({ roleFk: user.roleFk, status: user.status })
+      .select({ roleFk: user.roleFk, accountStatus: user.accountStatus })
       .from(user)
       .where(eq(user.userPk, userPk));
 
@@ -624,7 +684,10 @@ export const actions: Actions = {
       });
     }
 
-    if (existing.roleFk === superAdminRolePk && existing.status === "active") {
+    if (
+      existing.roleFk === superAdminRolePk &&
+      existing.accountStatus === "active"
+    ) {
       const holders = await countActiveSuperAdminUsers(superAdminRolePk);
       if (holders <= 1) {
         return fail(409, {

@@ -14,10 +14,7 @@ no CDN assets, no external auth providers, no network calls at runtime.
 
 ## Read only when relevant
 
-- `src/lib/server/db/schema/index.ts` — before writing any query, migration,
-  or table change. Read it fresh; never work from a remembered copy.
-- `.claude/docs/project-brief.md` — only for questions about scope, users,
-  deployment, or an item listed as still open.
-- `.claude/skills/git-feature-flow/SKILL.md` — before any commit, merge, or
-  branch switch. Defines where a change belongs and how feature work reaches
-  main; never improvise the git steps.
+- `src/lib/server/db/schema/index.ts` — before writing any query, migration, or table change. Read it fresh; never work from a remembered copy.
+- `.claude/docs/project-brief.md` — only for questions about scope, users, deployment, or an item listed as still open.
+- `.claude/docs/features/signatory.md` — before touching signatory tables, routes, or approval flow. Contains locked decisions and open questions.
+- `.claude/skills/git-feature-flow/SKILL.md` — before any commit, merge, or branch switch. Defines where a change belongs and how feature work reaches main; never improvise the git steps.

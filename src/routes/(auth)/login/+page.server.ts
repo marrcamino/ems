@@ -11,7 +11,12 @@ import {
   setSessionTokenCookie,
 } from "$lib/server/auth/session";
 import { db } from "$lib/server/db";
-import { permission, rolePermission, user } from "$lib/server/db/schema";
+import {
+  employee,
+  permission,
+  rolePermission,
+  user,
+} from "$lib/server/db/schema";
 import { fail, redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
@@ -46,18 +51,32 @@ export const actions: Actions = {
       return fail(400, { error: "Username and password are required." });
     }
 
-    const [found] = await db
-      .select()
+    // The join carries the employment status across: whether this person
+    // still works here decides the sign-in before the account itself does.
+    const [row] = await db
+      .select({ account: user, employmentStatus: employee.employmentStatus })
       .from(user)
+      .innerJoin(employee, eq(user.employeeFk, employee.employeePk))
       .where(eq(user.username, username))
       .limit(1);
 
     // Same generic error for "no such user" and "wrong password" — don't leak which one
-    if (!found) {
+    if (!row) {
       return fail(400, { error: "Invalid username or password." });
     }
 
-    if (found.status !== "active") {
+    const found = row.account;
+
+    // Checked ahead of the account status, and worded so it says nothing
+    // about whether the password was right.
+    if (row.employmentStatus !== "active") {
+      return fail(403, {
+        error:
+          "This account belongs to somebody who no longer works here, so it can no longer be used. Contact your administrator.",
+      });
+    }
+
+    if (found.accountStatus !== "active") {
       return fail(403, {
         error: "This account is inactive. Contact your administrator.",
       });
@@ -87,7 +106,7 @@ export const actions: Actions = {
         })
         .where(eq(user.userPk, found.userPk));
 
-      return fail(400, { error: "Invalid username or passwordss." });
+      return fail(400, { error: "Invalid username or password." });
     }
 
     await db

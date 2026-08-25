@@ -10,9 +10,8 @@
   import * as Select from "$lib/components/ui/select/index.js";
   import { Switch } from "$lib/components/ui/switch/index.js";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
-  import { capitalize } from "@/utils";
+  import { fullName } from "@/utils";
   import { getPasswordStrengthError } from "$lib/validation/password";
-  import type { OrgUnit } from "$lib/types";
   import { AlertCircle, Info, Lock, ShieldCheck } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
   import { getUsersContext, type UserRow } from "./context.svelte.js";
@@ -25,6 +24,17 @@
 
   const editingSelf = $derived(
     ctx.userToEdit !== null && ctx.isSelf(ctx.userToEdit),
+  );
+
+  /**
+   * The person this account belongs to has left the office. The sign-in
+   * refuses them either way, so switching the account on here would promise
+   * something that will not happen — the switch is disabled rather than
+   * hidden, so the stored setting is still visible.
+   */
+  const personHasLeft = $derived(
+    ctx.userToEdit !== null &&
+      ctx.userToEdit.employee.employmentStatus !== "active",
   );
 
   const editingSuperAdminUser = $derived(
@@ -57,23 +67,11 @@
     ctx.assignableRoles.filter((r) => ctx.kindOfRole(r.rolePk) !== "admin"),
   );
 
-  const LEVEL_ORDER: OrgUnit["level"][] = [
-    "office",
-    "division",
-    "section",
-    "unit",
-  ];
-
-  const sectionsByLevel = $derived(
-    LEVEL_ORDER.map((level) => ({
-      level,
-      units: ctx.assignableOrgUnits.filter((unit) => unit.level === level),
-    })).filter((group) => group.units.length > 0),
-  );
-
-  const selectedSection = $derived(
-    ctx.formOrgUnitFk ? ctx.orgUnitByPk(Number(ctx.formOrgUnitFk)) : undefined,
-  );
+  /**
+   * Everybody, so somebody who already has an account still appears — greyed
+   * out with the reason — rather than being silently missing from the list.
+   */
+  const peopleOptions = $derived(ctx.employees);
 
   /**
    * What saving this would do to the group of active accounts that can manage
@@ -99,7 +97,8 @@
     !submitting &&
       superAdminImpact !== "block" &&
       !passwordProblem &&
-      !!ctx.formRoleFk,
+      !!ctx.formRoleFk &&
+      !!ctx.formEmployeeFk,
   );
 </script>
 
@@ -158,12 +157,12 @@
     >
       <Dialog.Header class="px-4">
         <Dialog.Title>
-          {ctx.mode === "edit" ? "Edit person" : "Add person"}
+          {ctx.mode === "edit" ? "Edit account" : "Add account"}
         </Dialog.Title>
         <Dialog.Description>
           {ctx.mode === "edit"
-            ? "Update this person's details, role, and section."
-            : "Create an account and choose what this person can do. They will set their own password the first time they sign in."}
+            ? "Update the username, role, and whether this account can sign in. The name and section belong to the employee record and are edited on the Employees page."
+            : "Give somebody who is already on the Employees page an account to sign in with. They will set their own password the first time they use it."}
         </Dialog.Description>
       </Dialog.Header>
 
@@ -173,13 +172,24 @@
         {/if}
         <input
           type="hidden"
-          name="status"
+          name="accountStatus"
           value={ctx.formIsActive ? "active" : "inactive"}
         />
         <input type="hidden" name="roleFk" value={ctx.formRoleFk} />
-        <input type="hidden" name="orgUnitFk" value={ctx.formOrgUnitFk} />
+        <input type="hidden" name="employeeFk" value={ctx.formEmployeeFk} />
 
         <div class="grid gap-4">
+          {#if personHasLeft}
+            <Alert.Root variant="info">
+              <Info />
+              <Alert.Title>This person no longer works here</Alert.Title>
+              <Alert.Description>
+                They cannot sign in, whatever this account says. To let them
+                back in, mark them as employed again on the Employees page.
+              </Alert.Description>
+            </Alert.Root>
+          {/if}
+
           {#if superAdminImpact === "block"}
             <Alert.Root variant="danger">
               <AlertCircle />
@@ -204,69 +214,75 @@
             </Alert.Root>
           {/if}
 
-          <div class="grid gap-2 sm:grid-cols-2">
-            <div class="grid gap-2">
-              <Label for="firstName">First name</Label>
-              <Input
-                id="firstName"
-                name="firstName"
-                required
-                maxlength={100}
-                bind:value={ctx.formFirstName}
-              />
-            </div>
-
-            <div class="grid gap-2">
-              <Label for="lastName">Last name</Label>
-              <Input
-                id="lastName"
-                name="lastName"
-                required
-                maxlength={100}
-                bind:value={ctx.formLastName}
-              />
-            </div>
-
-            <div class="grid gap-2">
-              <Label for="middleName" class="gap-1">
-                Middle name
-                <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
-              </Label>
-              <Input
-                id="middleName"
-                name="middleName"
-                maxlength={100}
-                bind:value={ctx.formMiddleName}
-              />
-            </div>
-
-            <div class="grid gap-2">
-              <Label for="suffix" class="gap-1">
-                Suffix
-                <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
-              </Label>
-              <Input
-                id="suffix"
-                name="suffix"
-                maxlength={20}
-                placeholder="Jr., Sr., III"
-                bind:value={ctx.formSuffix}
-              />
-            </div>
-          </div>
-
           <div class="grid gap-2">
-            <Label for="positionTitle" class="gap-1">
-              Position
-              <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
-            </Label>
-            <Input
-              id="positionTitle"
-              name="positionTitle"
-              maxlength={100}
-              placeholder="Administrative Officer II"
-              bind:value={ctx.formPositionTitle}
-            />
+            <Label for="employee">Person</Label>
+            {#if ctx.mode === "edit"}
+              <!--
+                A login cannot be handed to a different person: that is a new
+                account, not an edit. Shown as plain text rather than a
+                disabled dropdown, which would invite clicking.
+              -->
+              <div class="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                <p class="font-medium">
+                  {ctx.userToEdit ? fullName(ctx.userToEdit.employee) : ""}
+                </p>
+                {#if ctx.userToEdit?.employee.positionTitle}
+                  <p class="text-xs text-muted-foreground">
+                    {ctx.userToEdit.employee.positionTitle}
+                  </p>
+                {/if}
+              </div>
+              <p class="text-xs text-muted-foreground">
+                An account stays with the person it was made for. To give
+                somebody else an account, add a new one.
+              </p>
+            {:else}
+              <Select.Root type="single" bind:value={ctx.formEmployeeFk}>
+                <Select.Trigger id="employee" class="w-full">
+                  {ctx.selectedEmployee
+                    ? fullName(ctx.selectedEmployee)
+                    : "Choose a person"}
+                </Select.Trigger>
+                <Select.Content>
+                  {#each peopleOptions as person (person.employeePk)}
+                    <Select.Item
+                      value={String(person.employeePk)}
+                      label={fullName(person)}
+                      disabled={!ctx.employeeIsAvailable(person)}
+                    >
+                      <span class="grid gap-0.5">
+                        <span>{fullName(person)}</span>
+                        <span class="text-xs text-muted-foreground">
+                          {#if person.username}
+                            Already signs in as {person.username}
+                          {:else if person.employmentStatus !== "active"}
+                            No longer employed
+                          {:else}
+                            {person.positionTitle}
+                          {/if}
+                        </span>
+                      </span>
+                    </Select.Item>
+                  {:else}
+                    <p class="px-2 py-1.5 text-sm text-muted-foreground">
+                      Nobody has been added yet.
+                    </p>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+
+              {#if ctx.availableEmployeeCount === 0}
+                <p class="text-xs text-muted-foreground">
+                  Everybody on file already has an account. Add the person on
+                  the Employees page first, then come back here.
+                </p>
+              {:else}
+                <p class="text-xs text-muted-foreground">
+                  Only people without an account can be picked. The name and
+                  position come from their employee record.
+                </p>
+              {/if}
+            {/if}
           </div>
 
           <div class="grid gap-2">
@@ -387,44 +403,6 @@
             {/if}
           </div>
 
-          <div class="grid gap-2 pb-1">
-            <Label for="section" class="gap-1">
-              Section
-              <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
-            </Label>
-            <Select.Root
-              type="single"
-              value={ctx.formOrgUnitFk || "none"}
-              onValueChange={(value) => {
-                ctx.formOrgUnitFk = value === "none" ? "" : value;
-              }}
-            >
-              <Select.Trigger id="section" class="w-full">
-                {selectedSection?.orgUnitName ?? "Not assigned"}
-              </Select.Trigger>
-              <Select.Content>
-                <Select.Item value="none" label="Not assigned">
-                  Not assigned
-                </Select.Item>
-                {#each sectionsByLevel as group (group.level)}
-                  <Select.Group>
-                    <Select.GroupHeading>
-                      {capitalize(group.level)}
-                    </Select.GroupHeading>
-                    {#each group.units as unit (unit.orgUnitPk)}
-                      <Select.Item
-                        value={String(unit.orgUnitPk)}
-                        label={unit.orgUnitName}
-                      >
-                        {unit.orgUnitName}{unit.abbr ? ` (${unit.abbr})` : ""}
-                      </Select.Item>
-                    {/each}
-                  </Select.Group>
-                {/each}
-              </Select.Content>
-            </Select.Root>
-          </div>
-
           {#if ctx.mode === "add"}
             <div class="grid gap-3 rounded-lg border p-3">
               <div class="flex items-center justify-between gap-2">
@@ -473,7 +451,7 @@
           <div class="mr-auto flex items-center space-x-2 max-sm:order-1">
             <Switch
               id="isActive"
-              disabled={editingSelf}
+              disabled={editingSelf || personHasLeft}
               bind:checked={ctx.formIsActive}
             />
             <Label for="isActive">Active</Label>
@@ -491,7 +469,7 @@
           {#if submitting}
             <Spinner />
           {/if}
-          {ctx.mode === "edit" ? "Save changes" : "Add person"}
+          {ctx.mode === "edit" ? "Save changes" : "Add account"}
         </Button>
       </Dialog.Footer>
     </form>

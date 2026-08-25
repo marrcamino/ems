@@ -5,7 +5,7 @@
   import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import { ListFilter } from "@lucide/svelte/icons";
-  import type { CountedOption } from "./filters.js";
+  import type { CountedOption } from "$lib/utils/facets";
 
   /**
    * One filter dropdown: tick as many options as you like, and the trigger

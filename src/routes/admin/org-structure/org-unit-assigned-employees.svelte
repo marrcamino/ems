@@ -8,8 +8,8 @@
   const MAX_AVATARS = 3;
   const ctx = getOrgUnitContext();
 
-  let visibleUsers = $derived(ctx.assignedUsers.slice(0, MAX_AVATARS));
-  let count = $derived(ctx.assignedUsers.length);
+  let visibleEmployees = $derived(ctx.assignedEmployees.slice(0, MAX_AVATARS));
+  let count = $derived(ctx.assignedEmployees.length);
   let displayCount = $derived(count > 99 ? "99+" : String(count));
 </script>
 
@@ -22,29 +22,31 @@
         {@render emptyAvatar()}
       </div>
 
-      <p class="text-sm text-muted-foreground px-1">No users assigned yet.</p>
+      <p class="text-sm text-muted-foreground px-1">
+        No employees assigned yet.
+      </p>
     </div>
   {:else}
     <Button
       type="button"
       size="lg"
       onclick={() => {
-        ctx.assignedUsersDialog = true;
+        ctx.assignedEmployeesDialog = true;
       }}
       variant="ghost"
       class="pl-1"
     >
       <div class="flex -space-x-3">
-        {#each visibleUsers as user (user.userPk)}
+        {#each visibleEmployees as employee (employee.employeePk)}
           <Avatar.Root class="size-7">
             <Avatar.Fallback class="text-[10px]"
-              >{initials(user)}</Avatar.Fallback
+              >{initials(employee)}</Avatar.Fallback
             >
           </Avatar.Root>
         {/each}
       </div>
 
-      <span class="text-sm font-medium">Assigned Users</span>
+      <span class="text-sm font-medium">Assigned Employees</span>
       <span class="text-sm text-muted-foreground">{displayCount}</span>
 
       <ChevronRightIcon class="ml-auto h-4 w-4 text-muted-foreground" />

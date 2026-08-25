@@ -1,4 +1,4 @@
-import type { OrgUnit, User } from "$lib/types";
+import type { Employee, OrgUnit } from "$lib/types";
 import { makeContext } from "@/utils";
 import { untrack } from "svelte";
 
@@ -27,7 +27,7 @@ function buildTree(
 }
 
 type NonOfficeOrgUnit = Exclude<OrgUnit["level"], "office">;
-type AssignedUser = Pick<User, "firstName" | "lastName" | "userPk">;
+type AssignedEmployee = Pick<Employee, "firstName" | "lastName" | "employeePk">;
 
 export class OrgUnitContext {
   rawOrgUnits: OrgUnit[] = $state([]);
@@ -57,9 +57,9 @@ export class OrgUnitContext {
   formStatusIsDisabled = $state(false);
   formStatusMessage = $state("");
 
-  assignedUsersDialog = $state(false);
-  assignedUsers: AssignedUser[] = $state([]);
-  assignedIsUsersLoading = $state(false);
+  assignedEmployeesDialog = $state(false);
+  assignedEmployees: AssignedEmployee[] = $state([]);
+  assignedEmployeesLoading = $state(false);
 
   constructor() {
     // Form level and parent fk trigger
@@ -103,7 +103,7 @@ export class OrgUnitContext {
         this.formOrgUnitName = this.orgUnitToEdit.orgUnitName;
         this.formOrgUnitAbbr = this.orgUnitToEdit.abbr || "";
 
-        await this.fetchAssignedUsers(this.orgUnitToEdit.orgUnitPk);
+        await this.fetchAssignedEmployees(this.orgUnitToEdit.orgUnitPk);
       });
     });
 
@@ -158,17 +158,17 @@ export class OrgUnitContext {
       .filter((o) => o.status === "active");
   }
 
-  async fetchAssignedUsers(orgUnitPk: number) {
-    if (this.assignedUsers.length) return;
+  async fetchAssignedEmployees(orgUnitPk: number) {
+    if (this.assignedEmployees.length) return;
 
-    this.assignedIsUsersLoading = true;
+    this.assignedEmployeesLoading = true;
     try {
-      const res = await fetch(`/admin/org-structure/${orgUnitPk}/users`);
-      if (!res.ok) throw new Error("Failed to load assigned users.");
+      const res = await fetch(`/admin/org-structure/${orgUnitPk}/employees`);
+      if (!res.ok) throw new Error("Failed to load assigned employees.");
       const data = await res.json();
-      this.assignedUsers = data.users;
+      this.assignedEmployees = data.employees;
     } finally {
-      this.assignedIsUsersLoading = false;
+      this.assignedEmployeesLoading = false;
     }
   }
 

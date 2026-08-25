@@ -15,18 +15,20 @@
 
 <div class="flex items-center gap-3">
   <Avatar.Root class="size-8">
-    <Avatar.Fallback class="text-xs">{initials(user)}</Avatar.Fallback>
+    <Avatar.Fallback class="text-xs">{initials(user.employee)}</Avatar.Fallback>
   </Avatar.Root>
 
   <div class="grid min-w-0 gap-0.5">
     <div class="flex items-center gap-2">
-      <span class="font-medium">{fullName(user)}</span>
+      <span class="font-medium">{fullName(user.employee)}</span>
       {#if isSelf}
         <Badge variant="secondary">You</Badge>
       {/if}
     </div>
     <span class="truncate text-xs text-muted-foreground">
-      {user.username}{user.positionTitle ? ` · ${user.positionTitle}` : ""}
+      {user.username}{user.employee.positionTitle
+        ? ` · ${user.employee.positionTitle}`
+        : ""}
     </span>
   </div>
 </div>

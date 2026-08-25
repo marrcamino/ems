@@ -17,8 +17,8 @@
   import { toast } from "svelte-sonner";
   import { fade, slide } from "svelte/transition";
   import { getOrgUnitContext } from "./context.svelte";
-  import AssignedUsersDialog from "./assigned-users-dialog.svelte";
-  import OrgUnitAssignedUsers from "./org-unit-assigned-users.svelte";
+  import AssignedEmployeesDialog from "./assigned-employees-dialog.svelte";
+  import OrgUnitAssignedEmployees from "./org-unit-assigned-employees.svelte";
 
   const ctx = getOrgUnitContext();
 
@@ -62,12 +62,12 @@
     // Reset inputs and values when close
     // This block only runs when it closes — shadcn bug
     ctx.resetFormInputValues();
-    ctx.assignedUsers = [];
+    ctx.assignedEmployees = [];
     noOfficeYet = false;
   }}
 >
   <Dialog.Content
-    data-nested-open={ctx.assignedUsersDialog ? "" : null}
+    data-nested-open={ctx.assignedEmployeesDialog ? "" : null}
     class="sm:max-w-100 data-nested-open:scale-95 data-nested-open:-translate-y-[calc(50%+1.5rem)]"
   >
     <form
@@ -272,7 +272,7 @@
         </div>
 
         <div>
-          {#if ctx.mode === "edit" && !ctx.assignedIsUsersLoading}
+          {#if ctx.mode === "edit" && !ctx.assignedEmployeesLoading}
             <div
               in:slide={{ duration: 150 }}
               out:slide={{ delay: 200, duration: 200 }}
@@ -281,7 +281,7 @@
                 in:fade={{ duration: 200, delay: 200 }}
                 out:fade={{ duration: 200 }}
               >
-                <OrgUnitAssignedUsers />
+                <OrgUnitAssignedEmployees />
               </div>
             </div>
           {/if}
@@ -344,6 +344,6 @@
     </form>
 
     <!-- NESTED DIALOG -->
-    <AssignedUsersDialog />
+    <AssignedEmployeesDialog />
   </Dialog.Content>
 </Dialog.Root>

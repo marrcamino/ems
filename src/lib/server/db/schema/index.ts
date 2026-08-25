@@ -1,3 +1,4 @@
+export * from "./employee";
 export * from "./org-unit";
 export * from "./permission";
 export * from "./role-permission";

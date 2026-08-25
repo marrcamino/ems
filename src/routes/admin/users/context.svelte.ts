@@ -1,13 +1,36 @@
 import { roleKindOf, type RoleKind } from "$lib/rbac/permission-tree";
 import type { PermissionKey, PermissionRow } from "$lib/server/permissions";
-import type { OrgUnit, Role, User } from "$lib/types";
+import type { Employee, OrgUnit, Role, User } from "$lib/types";
 import { fullName, makeContext } from "@/utils";
 import { untrack } from "svelte";
 
 /**
- * A user as the table shows them: the account row with the role and section
- * names already resolved, and without the password hash or the failed-attempt
- * counter, which the page has no use for.
+ * The person half of a row, as it comes down from the load: the fields of the
+ * `employee` record the login points at, with the section name resolved.
+ *
+ * Kept as a nested object rather than flattened into the login, so it stays
+ * obvious which table each field came from — the whole point of separating
+ * the two.
+ */
+export type UserPerson = Pick<
+  Employee,
+  | "employeePk"
+  | "firstName"
+  | "middleName"
+  | "lastName"
+  | "suffix"
+  | "positionTitle"
+  | "employmentStatus"
+  | "orgUnitFk"
+> & {
+  orgUnitName: string | null;
+  orgUnitAbbr: string | null;
+};
+
+/**
+ * A login as the table shows them: the account row with the role name already
+ * resolved and the person attached, and without the password hash or the
+ * failed-attempt counter, which the page has no use for.
  */
 export type UserRow = Omit<
   User,
@@ -18,8 +41,26 @@ export type UserRow = Omit<
   | "updatedAt"
 > & {
   roleName: string;
+  employee: UserPerson;
+};
+
+/**
+ * Somebody who could be given a login, as the editor's picker needs them.
+ * `username` is filled in when they already have one, which is what makes the
+ * option unselectable rather than missing.
+ */
+export type EmployeeOption = Pick<
+  Employee,
+  | "employeePk"
+  | "firstName"
+  | "middleName"
+  | "lastName"
+  | "suffix"
+  | "positionTitle"
+  | "employmentStatus"
+> & {
   orgUnitName: string | null;
-  orgUnitAbbr: string | null;
+  username: string | null;
 };
 
 /** A role as the assignment dropdown needs it, with the keys it holds. */
@@ -44,7 +85,7 @@ export { fullName };
 /** Locked by failed sign-in attempts, as opposed to switched off by an admin. */
 export function isTemporarilyLocked(user: UserRow): boolean {
   return (
-    user.status === "locked" ||
+    user.accountStatus === "locked" ||
     (user.lockedUntil !== null && user.lockedUntil.getTime() > Date.now())
   );
 }
@@ -53,6 +94,7 @@ export class UsersContext {
   users: UserRow[] = $state([]);
   roles: RoleOption[] = $state([]);
   orgUnits: OrgUnit[] = $state([]);
+  employees: EmployeeOption[] = $state([]);
 
   /**
    * The permission list as defined in code. Held here so the editor can turn
@@ -78,14 +120,9 @@ export class UsersContext {
 
   mode: "edit" | "add" = $derived(this.userToEdit !== null ? "edit" : "add");
 
+  formEmployeeFk = $state("");
   formUsername = $state("");
-  formFirstName = $state("");
-  formMiddleName = $state("");
-  formLastName = $state("");
-  formSuffix = $state("");
-  formPositionTitle = $state("");
   formRoleFk = $state("");
-  formOrgUnitFk = $state("");
   formIsActive = $state(true);
 
   /**
@@ -121,7 +158,9 @@ export class UsersContext {
     this.superAdminRolePk === null
       ? 0
       : this.users.filter(
-          (u) => u.roleFk === this.superAdminRolePk && u.status === "active",
+          (u) =>
+            u.roleFk === this.superAdminRolePk &&
+            u.accountStatus === "active",
         ).length,
   );
 
@@ -132,7 +171,7 @@ export class UsersContext {
    */
   impactOfLeaving(user: UserRow, holdsAfter: boolean): SuperAdminImpact {
     const holdsNow =
-      this.isSuperAdminRole(user.roleFk) && user.status === "active";
+      this.isSuperAdminRole(user.roleFk) && user.accountStatus === "active";
 
     if (!holdsNow || holdsAfter) return "none";
     if (this.activeSuperAdminCount <= 1) return "block";
@@ -171,13 +210,29 @@ export class UsersContext {
     return this.orgUnits.find((unit) => unit.orgUnitPk === orgUnitPk);
   }
 
-  /** Active sections, plus whichever one this person is already in. */
-  assignableOrgUnits = $derived(
-    this.orgUnits.filter(
-      (unit) =>
-        unit.status === "active" ||
-        unit.orgUnitPk === this.userToEdit?.orgUnitFk,
-    ),
+  employeeByPk(employeePk: number): EmployeeOption | undefined {
+    return this.employees.find((person) => person.employeePk === employeePk);
+  }
+
+  /** Whether this person can be given a login right now, and if not, why. */
+  employeeIsAvailable(person: EmployeeOption): boolean {
+    return person.username === null && person.employmentStatus === "active";
+  }
+
+  /**
+   * How many people are still waiting for an account. Shown in the editor so
+   * an admin who finds the list empty knows to add the person on the
+   * Employees page rather than hunting for a missing option.
+   */
+  availableEmployeeCount = $derived(
+    this.employees.filter((person) => this.employeeIsAvailable(person)).length,
+  );
+
+  /** The person this account is for, once one has been picked. */
+  selectedEmployee = $derived(
+    this.formEmployeeFk
+      ? this.employeeByPk(Number(this.formEmployeeFk))
+      : undefined,
   );
 
   constructor() {
@@ -187,31 +242,19 @@ export class UsersContext {
       untrack(() => {
         if (!this.userToEdit) return;
 
+        this.formEmployeeFk = String(this.userToEdit.employeeFk);
         this.formUsername = this.userToEdit.username;
-        this.formFirstName = this.userToEdit.firstName;
-        this.formMiddleName = this.userToEdit.middleName ?? "";
-        this.formLastName = this.userToEdit.lastName;
-        this.formSuffix = this.userToEdit.suffix ?? "";
-        this.formPositionTitle = this.userToEdit.positionTitle ?? "";
         this.formRoleFk = String(this.userToEdit.roleFk);
-        this.formOrgUnitFk = this.userToEdit.orgUnitFk
-          ? String(this.userToEdit.orgUnitFk)
-          : "";
-        this.formIsActive = this.userToEdit.status === "active";
+        this.formIsActive = this.userToEdit.accountStatus === "active";
       });
     });
   }
 
   resetFormInputValues() {
     this.userToEdit = null;
+    this.formEmployeeFk = "";
     this.formUsername = "";
-    this.formFirstName = "";
-    this.formMiddleName = "";
-    this.formLastName = "";
-    this.formSuffix = "";
-    this.formPositionTitle = "";
     this.formRoleFk = "";
-    this.formOrgUnitFk = "";
     this.formIsActive = true;
     this.formPassword = "";
     this.formSetPasswordManually = false;
@@ -219,7 +262,7 @@ export class UsersContext {
 
   showTemporaryPassword(password: string, forUser: UserRow) {
     this.temporaryPassword = password;
-    this.temporaryPasswordFor = fullName(forUser);
+    this.temporaryPasswordFor = fullName(forUser.employee);
   }
 
   clearTemporaryPassword() {

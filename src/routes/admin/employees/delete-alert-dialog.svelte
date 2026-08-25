@@ -5,22 +5,13 @@
   import AlertCircleIcon from "@lucide/svelte/icons/alert-circle";
   import { toast } from "svelte-sonner";
   import { fade, slide } from "svelte/transition";
-  import { fullName, getUsersContext } from "./context.svelte.js";
+  import { fullName, getEmployeesContext } from "./context.svelte.js";
 
-  const ctx = getUsersContext();
+  const ctx = getEmployeesContext();
 
-  const userToDelete = $derived(ctx.userToEdit);
+  const employeeToDelete = $derived(ctx.employeeToEdit);
   let submitting = $state(false);
   let errorMessage: string | null = $state(null);
-
-  /**
-   * Deleting the last active account that can manage roles is refused by the
-   * server. Saying so before the button is pressed is kinder than letting it
-   * fail, and the second-to-last one is worth a word too.
-   */
-  const impact = $derived(
-    userToDelete ? ctx.impactOfLeaving(userToDelete, false) : "none",
-  );
 </script>
 
 <AlertDialog.Root
@@ -43,10 +34,10 @@
           if (
             result.type === "success" &&
             result.data?.deleted &&
-            userToDelete
+            employeeToDelete
           ) {
-            ctx.removeUser(userToDelete.userPk);
-            toast.success(`${fullName(userToDelete.employee)} deleted`);
+            ctx.removeEmployee(employeeToDelete.employeePk);
+            toast.success(`${fullName(employeeToDelete)} deleted`);
             ctx.deleteAlertDialog = false;
           }
 
@@ -61,36 +52,22 @@
         };
       }}
     >
-      <input type="hidden" name="userPk" value={userToDelete?.userPk} />
+      <input
+        type="hidden"
+        name="employeePk"
+        value={employeeToDelete?.employeePk}
+      />
 
       <AlertDialog.Header>
-        <AlertDialog.Title>Delete this account?</AlertDialog.Title>
+        <AlertDialog.Title>Delete this employee?</AlertDialog.Title>
         <AlertDialog.Description>
-          This permanently deletes the account for "{userToDelete
-            ? fullName(userToDelete.employee)
-            : ""}" and signs them out. It cannot be undone. To keep the account
-          but stop them signing in, set it to inactive instead.
+          This permanently removes the record for "{employeeToDelete
+            ? fullName(employeeToDelete)
+            : ''}" and cannot be undone. If this person has left the office, mark
+          them as no longer employed instead — that keeps their record for anything
+          they signed or submitted.
         </AlertDialog.Description>
       </AlertDialog.Header>
-
-      {#if impact === "block"}
-        <Alert.Root variant="danger">
-          <AlertCircleIcon />
-          <Alert.Title>This is the last account that can manage roles</Alert.Title>
-          <Alert.Description>
-            Deleting it would leave nobody able to manage roles. Set up another
-            account on this role first.
-          </Alert.Description>
-        </Alert.Root>
-      {:else if impact === "warn"}
-        <Alert.Root variant="info">
-          <AlertCircleIcon />
-          <Alert.Title>One account will be left</Alert.Title>
-          <Alert.Description>
-            After this, only one active account will be able to manage roles.
-          </Alert.Description>
-        </Alert.Root>
-      {/if}
 
       {#if errorMessage}
         <div
@@ -103,7 +80,7 @@
           >
             <Alert.Root variant="danger">
               <AlertCircleIcon />
-              <Alert.Title>Can't delete this account</Alert.Title>
+              <Alert.Title>Can't delete this employee</Alert.Title>
               <Alert.Description>{errorMessage}</Alert.Description>
             </Alert.Root>
           </div>
@@ -115,7 +92,7 @@
         <AlertDialog.Action
           type="submit"
           variant="destructive"
-          disabled={submitting || impact === "block"}
+          disabled={submitting}
         >
           Delete
         </AlertDialog.Action>

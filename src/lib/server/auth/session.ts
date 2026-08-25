@@ -1,6 +1,7 @@
 import { db } from "$lib/server/db";
 import { expandPermissions } from "$lib/server/permissions";
 import {
+  employee,
   permission,
   rolePermission,
   session,
@@ -30,21 +31,40 @@ export async function createSession(token: string, userId: number) {
   return { sessionPk, expiresAt };
 }
 
+function emptySession() {
+  return {
+    session: null,
+    user: null,
+    employee: null,
+    permissions: new Set<string>(),
+  };
+}
+
 export async function validateSessionToken(token: string) {
   const sessionPk = hashToken(token);
 
+  // The employee join is inner, not left: user.employee_fk is NOT NULL, so a
+  // login without a person cannot exist.
   const [row] = await db
-    .select({ session, user })
+    .select({ session, user, employee })
     .from(session)
     .innerJoin(user, eq(session.userFk, user.userPk))
+    .innerJoin(employee, eq(user.employeeFk, employee.employeePk))
     .where(eq(session.sessionPk, sessionPk));
 
-  if (!row)
-    return { session: null, user: null, permissions: new Set<string>() };
+  if (!row) return emptySession();
+
+  // Somebody who no longer works here cannot stay signed in, whatever their
+  // account status says. The row is deleted rather than merely refused, so an
+  // open session ends at the next request instead of at its eight-hour expiry.
+  if (row.employee.employmentStatus !== "active") {
+    await db.delete(session).where(eq(session.sessionPk, sessionPk));
+    return emptySession();
+  }
 
   if (Date.now() >= row.session.expiresAt.getTime()) {
     await db.delete(session).where(eq(session.sessionPk, sessionPk));
-    return { session: null, user: null, permissions: new Set<string>() };
+    return emptySession();
   }
 
   if (Date.now() >= row.session.expiresAt.getTime() - RENEW_THRESHOLD_MS) {

@@ -1,28 +1,27 @@
 <script lang="ts">
+  import FacetedFilter from "$lib/components/faceted-filter.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
-  import {
-    Building,
-    LogIn,
-    Search,
-    ShieldCheck,
-    ToggleLeft,
-    UserRound,
-    X,
-  } from "@lucide/svelte/icons";
-  import FacetedFilter from "$lib/components/faceted-filter.svelte";
   import { countActiveFilters } from "$lib/utils/facets";
   import {
-    emptyUserFilters,
-    type UserFacets,
-    type UserFilterId,
-    type UserFilterState,
+    Briefcase,
+    Building,
+    KeyRound,
+    Search,
+    ToggleLeft,
+    X,
+  } from "@lucide/svelte/icons";
+  import {
+    emptyEmployeeFilters,
+    type EmployeeFacets,
+    type EmployeeFilterId,
+    type EmployeeFilterState,
   } from "./filters.js";
 
   interface Props {
     search: string;
-    filters: UserFilterState;
-    facets: UserFacets;
+    filters: EmployeeFilterState;
+    facets: EmployeeFacets;
     matched: number;
     total: number;
   }
@@ -39,19 +38,18 @@
   const narrowed = $derived(activeCount > 0 || search.trim().length > 0);
 
   const CONTROLS: {
-    id: UserFilterId;
+    id: EmployeeFilterId;
     label: string;
-    icon: typeof ShieldCheck;
+    icon: typeof Building;
   }[] = [
-    { id: "role", label: "Role", icon: UserRound },
-    { id: "kind", label: "Type", icon: ShieldCheck },
     { id: "section", label: "Section", icon: Building },
-    { id: "status", label: "Status", icon: ToggleLeft },
-    { id: "signIn", label: "Sign-in", icon: LogIn },
+    { id: "tenure", label: "Tenure", icon: Briefcase },
+    { id: "employment", label: "Employment", icon: ToggleLeft },
+    { id: "login", label: "Account", icon: KeyRound },
   ];
 
   function clearEverything() {
-    filters = emptyUserFilters();
+    filters = emptyEmployeeFilters();
     search = "";
   }
 </script>
@@ -63,7 +61,7 @@
         class="pointer-events-none absolute inset-s-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
       />
       <Input
-        placeholder="Search name, username, or position..."
+        placeholder="Search name or position..."
         class="h-9 w-72 ps-8"
         bind:value={search}
       />

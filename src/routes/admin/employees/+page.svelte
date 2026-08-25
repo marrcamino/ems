@@ -10,51 +10,38 @@
     ArrowUpDown,
     ChevronLeft,
     ChevronRight,
+    IdCard,
     Plus,
-    UsersRound,
   } from "@lucide/svelte/icons";
   import { createTable, FlexRender } from "@tanstack/svelte-table";
   import type { ColumnFiltersState } from "@tanstack/table-core";
   import { untrack } from "svelte";
   import { getGlobalContext } from "../../global-context.svelte.js";
-  import AddEditUserDialog from "./add-edit-user-dialog.svelte";
-  import { createColumns, features, HIDDEN_COLUMNS } from "./columns.js";
-  import { setUsersContext } from "./context.svelte.js";
+  import AddEditEmployeeDialog from "./add-edit-employee-dialog.svelte";
+  import { columns, features, HIDDEN_COLUMNS } from "./columns.js";
+  import { setEmployeesContext } from "./context.svelte.js";
   import DeleteAlertDialog from "./delete-alert-dialog.svelte";
-  import { buildUserFacets, emptyUserFilters } from "./filters.js";
-  import ResetPasswordDialog from "./reset-password-dialog.svelte";
-  import TemporaryPasswordDialog from "./temporary-password-dialog.svelte";
-  import UsersToolbar from "./users-toolbar.svelte";
+  import EmployeesToolbar from "./employees-toolbar.svelte";
+  import { buildEmployeeFacets, emptyEmployeeFilters } from "./filters.js";
 
   let { data } = $props();
 
-  const ctx = setUsersContext();
+  const ctx = setEmployeesContext();
   const gblCtx = getGlobalContext();
 
   let globalFilter = $state("");
-  let filters = $state(emptyUserFilters());
+  let filters = $state(emptyEmployeeFilters());
 
   // Seeded during init rather than on mount so the table cells — which read
-  // the role list and the signed-in user out of the context — have it on
-  // their very first render. A one-time copy on purpose: from here the
-  // context is the source of truth for the table, updated in place as
-  // accounts are added, edited, and deleted.
+  // the section list out of the context — have it on their very first render.
+  // A one-time copy on purpose: from here the context is the source of truth
+  // for the table, updated in place as people are added, edited, and deleted.
   untrack(() => {
-    ctx.users = data.users;
-    ctx.roles = data.roles;
-    ctx.orgUnits = data.orgUnits;
     ctx.employees = data.employees;
-    ctx.permissionDefs = data.permissionDefs;
-    ctx.superAdminRolePk = data.superAdminRolePk;
-    ctx.currentUserPk = gblCtx.user.userPk;
-    ctx.canManageRoles = gblCtx.can("admin:manage_roles");
+    ctx.orgUnits = data.orgUnits;
   });
 
-  // The role list is read through a getter so the "Type" column keeps working
-  // after a role is renamed or retired elsewhere and the page data refreshes.
-  const columns = untrack(() => createColumns(() => ctx.roles));
-
-  const facets = $derived(buildUserFacets(ctx.users, ctx.roles));
+  const facets = $derived(buildEmployeeFacets(ctx.employees));
 
   // Filter state is owned here rather than inside the table, so the toolbar
   // can drive it directly and "Reset" is one assignment. An empty list means
@@ -70,7 +57,7 @@
     features,
     columns,
     get data() {
-      return ctx.users;
+      return ctx.employees;
     },
     state: {
       get globalFilter() {
@@ -106,7 +93,7 @@
 </script>
 
 <svelte:head>
-  <title>Users - EMS</title>
+  <title>Employees - EMS</title>
 </svelte:head>
 
 <Header>
@@ -117,27 +104,27 @@
       </Breadcrumb.Item>
       <Breadcrumb.Separator class="hidden md:block" />
       <Breadcrumb.Item>
-        <Breadcrumb.Page>Users</Breadcrumb.Page>
+        <Breadcrumb.Page>Employees</Breadcrumb.Page>
       </Breadcrumb.Item>
     </Breadcrumb.List>
   </Breadcrumb.Root>
 
   <div class="ml-auto">
-    {#if gblCtx.can("admin:manage_users")}
+    {#if gblCtx.can("admin:manage_employees")}
       <Button onclick={() => (ctx.addEditDialog = true)}><Plus /> Add</Button>
     {/if}
   </div>
 </Header>
 
 <div class="flex min-w-0 flex-1 flex-col gap-4 p-4 pt-0">
-  {#if ctx.users.length}
+  {#if ctx.employees.length}
     <div class="mt-1">
-      <UsersToolbar
+      <EmployeesToolbar
         bind:search={globalFilter}
         bind:filters
         {facets}
         {matched}
-        total={ctx.users.length}
+        total={ctx.employees.length}
       />
     </div>
 
@@ -196,7 +183,7 @@
                 variant="link"
                 size="sm"
                 onclick={() => {
-                  filters = emptyUserFilters();
+                  filters = emptyEmployeeFilters();
                   globalFilter = "";
                 }}
               >
@@ -238,28 +225,29 @@
     <Empty.Root class="border border-dashed">
       <Empty.Header class="max-w-md">
         <Empty.Media variant="icon">
-          <UsersRound />
+          <IdCard />
         </Empty.Media>
-        <Empty.Title>No accounts yet</Empty.Title>
+        <Empty.Title>No employees yet</Empty.Title>
         <Empty.Description>
-          Give the people on the Employees page an account to sign in with, and
-          a role. Roles decide which pages a person can open.
+          Add everyone who works in the office, whether or not they will use the
+          system. Accounts for signing in are made separately, on the Users
+          page.
         </Empty.Description>
       </Empty.Header>
-      {#if gblCtx.can("admin:manage_users")}
+      {#if gblCtx.can("admin:manage_employees")}
         <Empty.Content>
           <Button
             variant="outline"
             size="sm"
-            onclick={() => (ctx.addEditDialog = true)}>Add Account</Button
+            onclick={() => (ctx.addEditDialog = true)}
           >
+            Add Employee
+          </Button>
         </Empty.Content>
       {/if}
     </Empty.Root>
   {/if}
 </div>
 
-<AddEditUserDialog />
-<ResetPasswordDialog />
+<AddEditEmployeeDialog />
 <DeleteAlertDialog />
-<TemporaryPasswordDialog />

@@ -1,5 +1,11 @@
 import { grantedAreaLabels, roleKindOf } from "$lib/rbac/permission-tree";
 import type { PermissionRow } from "$lib/server/permissions";
+import {
+  optionsFromValues,
+  withCounts,
+  type CountedOption,
+  type FilterOption,
+} from "$lib/utils/facets";
 import type { RoleOption, UserRow } from "./context.svelte.js";
 import { isTemporarilyLocked } from "./context.svelte.js";
 
@@ -24,18 +30,6 @@ export const NO_SECTION_LABEL = "No section";
 
 export function emptyUserFilters(): UserFilterState {
   return { role: [], kind: [], status: [], section: [], signIn: [] };
-}
-
-export function countActiveFilters(filters: UserFilterState): number {
-  return Object.values(filters).reduce(
-    (total, values) => total + values.length,
-    0,
-  );
-}
-
-export interface FilterOption {
-  value: string;
-  label: string;
 }
 
 export const KIND_OPTIONS: FilterOption[] = [
@@ -78,11 +72,11 @@ export function userKindValue(
  */
 export function userStatusValue(user: UserRow): string {
   if (isTemporarilyLocked(user)) return "locked";
-  return user.status;
+  return user.accountStatus;
 }
 
 export function userSectionValue(user: UserRow): string {
-  return user.orgUnitName ?? NO_SECTION_LABEL;
+  return user.employee.orgUnitName ?? NO_SECTION_LABEL;
 }
 
 export function userSignInValue(user: UserRow): string {
@@ -107,37 +101,6 @@ export function roleAreaLabels(
  * are applied read as a glitch; a stable "3" next to a role name is a fact
  * about the system.
  */
-export interface CountedOption extends FilterOption {
-  count: number;
-}
-
-function withCounts(
-  options: FilterOption[],
-  values: Iterable<string>,
-): CountedOption[] {
-  const tally = new Map<string, number>();
-  for (const value of values) {
-    tally.set(value, (tally.get(value) ?? 0) + 1);
-  }
-
-  return options.map((option) => ({
-    ...option,
-    count: tally.get(option.value) ?? 0,
-  }));
-}
-
-/** Options taken from the data itself — role and section names. */
-function optionsFromValues(values: Iterable<string>): CountedOption[] {
-  const tally = new Map<string, number>();
-  for (const value of values) {
-    tally.set(value, (tally.get(value) ?? 0) + 1);
-  }
-
-  return [...tally.entries()]
-    .map(([value, count]) => ({ value, label: value, count }))
-    .sort((a, b) => a.label.localeCompare(b.label));
-}
-
 export interface UserFacets {
   role: CountedOption[];
   kind: CountedOption[];

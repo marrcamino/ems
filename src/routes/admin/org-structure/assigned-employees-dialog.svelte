@@ -8,23 +8,24 @@
   const ctx = getOrgUnitContext();
 </script>
 
-<Dialog.Root bind:open={ctx.assignedUsersDialog}>
+<Dialog.Root bind:open={ctx.assignedEmployeesDialog}>
   <Dialog.Content>
     <Dialog.Header>
-      <Dialog.Title>Assigned Users</Dialog.Title>
+      <Dialog.Title>Assigned Employees</Dialog.Title>
       <Dialog.Description>
         <div class="min-h-30">
           <ScrollArea viewPortClasses="max-h-50 pr-4">
-            {#if ctx.assignedUsers.length}
+            {#if ctx.assignedEmployees.length}
               <ul class="divide-y">
-                {#each ctx.assignedUsers as user (user.userPk)}
+                {#each ctx.assignedEmployees as employee (employee.employeePk)}
                   <li class="flex items-center gap-3 py-2">
                     <Avatar.Root class="h-8 w-8">
                       <Avatar.Fallback class="text-xs"
-                        >{initials(user)}</Avatar.Fallback
+                        >{initials(employee)}</Avatar.Fallback
                       >
                     </Avatar.Root>
-                    <span class="text-sm">{user.firstName} {user.lastName}</span
+                    <span class="text-sm"
+                      >{employee.firstName} {employee.lastName}</span
                     >
                   </li>
                 {/each}
