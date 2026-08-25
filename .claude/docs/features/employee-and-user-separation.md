@@ -501,6 +501,71 @@ An empty one links to the Users page.
 
 ---
 
+## Topic 8 — Somebody leaves the office, but their account still works
+
+**Status: Settled. Not built yet.**
+
+### The problem
+
+Marking a person as "No longer employed" on the Employees page does nothing to
+their login. They can still sign in. The account keeps working until somebody
+remembers to go to the Users page and switch it off as a second, separate
+step on a second page.
+
+The code as it stands only shows a warning, which depends on the admin reading
+it and then remembering to act on it.
+
+### Decision — the sign-in itself refuses them
+
+Three options were put to the user:
+
+- **A** — leave it: warn only, and the admin does the second step by hand.
+- **B** — marking somebody as no longer employed also switches their account
+  off at the same moment.
+- **C** — the sign-in refuses anyone marked as no longer employed, whatever
+  their account status says.
+
+**The user chose C**, in their words: why would we let a person log in if that
+person is no longer working here.
+
+C was also the recommendation. The reason is that it cannot be forgotten. B
+still leaves a gap, because an admin could switch the account back on later
+without ever touching the employment record, and the account would then work
+again for somebody who has left.
+
+### The known cost, accepted
+
+The Users page will show such an account as "Active" while it actually refuses
+to work. That is contradictory on screen, so C is only honest if the Users page
+also shows that the person has left. This is part of the work, not a follow-up.
+
+### What building this involves
+
+Listed so none of it is missed. Item 5 matters most: three places in the code
+currently tell the admin the opposite of what will be true.
+
+1. **`src/lib/server/auth/session.ts`** — `validateSessionToken` already inner
+   joins `employee`. Treat the session as invalid when
+   `employee.employment_status` is not `active`. This is what makes an open
+   session stop working immediately rather than at its eight-hour expiry.
+2. **`src/routes/(auth)/login/+page.server.ts`** — refuse the sign-in with a
+   plain sentence. It must not hint at whether the password was right.
+3. **The Employees page `separate` and `update` actions** — delete that
+   person's `session` rows when they are marked as no longer employed, so they
+   are signed out at once.
+4. **The Users page** — show "Person has left" on those rows. `UserRow`
+   already carries `employee.employmentStatus`, so no query change is needed.
+   The account editor should also not offer to set such an account to active.
+5. **Three existing messages become wrong and must be rewritten:**
+   - the alert in `add-edit-employee-dialog.svelte` headed "Their account will
+     still work";
+   - the warning toast in `employee-actions-cell.svelte` saying the account
+     "can still sign in";
+   - the comment in the `separate` action explaining that the login is
+     deliberately left alone.
+
+---
+
 ## Progress — what has been changed in code
 
 ### Done
@@ -583,6 +648,10 @@ Two `drizzle-kit push` runs, both done by the user:
   unproven.
 - **The Organizational Structure page has not been re-opened** since its
   assigned-people list was pointed at `employee`.
+
+### The next piece of work
+
+Topic 8, settled above and not yet built.
 
 ---
 
