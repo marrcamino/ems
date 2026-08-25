@@ -2,6 +2,7 @@
   import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
   import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  import NavActiveIndicator from "./nav-active-indicator.svelte";
 
   let {
     items,
@@ -77,6 +78,16 @@
                         >
                           <span>{subItem.title}</span>
                         </Sidebar.MenuSubButton>
+
+                        <!--
+                          Sits on the guide line that runs down the left of the
+                          sub-menu, rather than beside the row like the flat
+                          menus do.
+                        -->
+                        <NavActiveIndicator
+                          active={subItem.active}
+                          class="-left-2.75 h-4"
+                        />
                       </Sidebar.MenuSubItem>
                     {/each}
                   </Sidebar.MenuSub>

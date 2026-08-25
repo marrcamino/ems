@@ -1,5 +1,5 @@
 <script lang="ts">
-  import StaffSidebar from "@/components/staff-sidebar.svelte";
+  import StaffSidebar from "@/components/navigation/staff-sidebar.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { setGlobalContext } from "../global-context.svelte";
 

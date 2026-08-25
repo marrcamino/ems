@@ -1,6 +1,6 @@
 import { roleKindOf, type RoleKind } from "$lib/rbac/permission-tree";
 import type { PermissionKey, PermissionRow } from "$lib/server/permissions";
-import type { OrgUnit } from "$lib/types";
+import type { OrgUnit, Role, User } from "$lib/types";
 import { fullName, makeContext } from "@/utils";
 import { untrack } from "svelte";
 
@@ -9,33 +9,26 @@ import { untrack } from "svelte";
  * names already resolved, and without the password hash or the failed-attempt
  * counter, which the page has no use for.
  */
-export interface UserRow {
-  userPk: number;
-  username: string;
-  firstName: string;
-  middleName: string | null;
-  lastName: string;
-  suffix: string | null;
-  positionTitle: string | null;
-  roleFk: number;
+export type UserRow = Omit<
+  User,
+  | "createdAt"
+  | "passwordHash"
+  | "failedLoginAttempts"
+  | "createdByFk"
+  | "updatedAt"
+> & {
   roleName: string;
-  orgUnitFk: number | null;
   orgUnitName: string | null;
   orgUnitAbbr: string | null;
-  status: "active" | "inactive" | "locked";
-  mustChangePassword: boolean;
-  lockedUntil: Date | null;
-  lastLoginAt: Date | null;
-}
+};
 
 /** A role as the assignment dropdown needs it, with the keys it holds. */
-export interface RoleOption {
-  rolePk: number;
-  roleName: string;
-  description: string | null;
-  status: "active" | "inactive";
+export type RoleOption = Pick<
+  Role,
+  "rolePk" | "roleName" | "description" | "status"
+> & {
   permissions: PermissionKey[];
-}
+};
 
 /**
  * What a change would do to the group of active accounts that can manage
@@ -182,7 +175,8 @@ export class UsersContext {
   assignableOrgUnits = $derived(
     this.orgUnits.filter(
       (unit) =>
-        unit.status === "active" || unit.orgUnitPk === this.userToEdit?.orgUnitFk,
+        unit.status === "active" ||
+        unit.orgUnitPk === this.userToEdit?.orgUnitFk,
     ),
   );
 

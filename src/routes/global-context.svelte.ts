@@ -2,7 +2,7 @@ import { page } from "$app/state";
 import { can, canAll, canAny, canModule } from "$lib/rbac/access";
 import type { PermissionKey } from "$lib/server/permissions";
 import type { SessionUser } from "$lib/types";
-import { makeContext } from "$lib/utils"; // adjust path to wherever makeContext lives
+import { makeContext } from "$lib/utils";
 
 class GlobalContext {
   // Cast: only ever set in (app)/admin layouts, where getSessionData()

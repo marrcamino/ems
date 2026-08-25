@@ -1,5 +1,4 @@
 <script lang="ts" module>
-  import agencyLogo from "$lib/assets/agency-logo.png";
   import type { PermissionKey } from "$lib/server/permissions";
   import SquareTerminalIcon from "@lucide/svelte/icons/square-terminal";
 
@@ -55,8 +54,9 @@
   import { page } from "$app/state";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { isActivePath } from "$lib/utils/is-active-path";
-  import { getGlobalContext } from "../../routes/global-context.svelte";
   import type { ComponentProps } from "svelte";
+  import { getGlobalContext } from "../../../routes/global-context.svelte";
+  import NavHeader from "./nav-header.svelte";
   import NavMain from "./nav-main.svelte";
   import NavTheme from "./nav-theme.svelte";
   import NavUser from "./nav-user.svelte";
@@ -85,33 +85,8 @@
 </script>
 
 <Sidebar.Root bind:ref variant="inset" {...restProps}>
-  <Sidebar.Header>
-    <Sidebar.Menu>
-      <Sidebar.MenuItem>
-        <Sidebar.MenuButton size="lg">
-          {#snippet child({ props })}
-            <a href="/" {...props}>
-              <div
-                class="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted"
-              >
-                <img
-                  src={agencyLogo}
-                  alt=""
-                  class="size-full object-contain"
-                />
-              </div>
-              <div class="grid flex-1 text-start text-sm leading-tight">
-                <span class="truncate font-medium">EMS</span>
-                <span class="truncate text-xs text-muted-foreground">
-                  PENRO Dinagat Islands
-                </span>
-              </div>
-            </a>
-          {/snippet}
-        </Sidebar.MenuButton>
-      </Sidebar.MenuItem>
-    </Sidebar.Menu>
-  </Sidebar.Header>
+  <NavHeader userType="staff" />
+
   <Sidebar.Content>
     <NavMain items={visibleNavMain} />
     <Sidebar.Group class="mt-auto">

@@ -1,11 +1,10 @@
 <script lang="ts" module>
-  import agencyLogo from "$lib/assets/agency-logo.png";
   import type { PermissionKey } from "$lib/server/permissions";
   import {
-    House,
-    UsersRound,
     Building,
+    House,
     ShieldCheck,
+    UsersRound,
   } from "@lucide/svelte/icons";
 
   type NavItem = {
@@ -56,8 +55,10 @@
   import { page } from "$app/state";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { isActivePath } from "$lib/utils/is-active-path";
-  import { getGlobalContext } from "../../routes/global-context.svelte";
   import type { ComponentProps } from "svelte";
+  import { getGlobalContext } from "../../../routes/global-context.svelte";
+  import NavActiveIndicator from "./nav-active-indicator.svelte";
+  import NavHeader from "./nav-header.svelte";
   import NavTheme from "./nav-theme.svelte";
   import NavUser from "./nav-user.svelte";
 
@@ -79,39 +80,15 @@
 </script>
 
 <Sidebar.Root bind:ref variant="inset" {...restProps}>
-  <Sidebar.Header>
-    <Sidebar.Menu>
-      <Sidebar.MenuItem>
-        <Sidebar.MenuButton size="lg">
-          {#snippet child({ props })}
-            <a href="/admin" {...props}>
-              <div
-                class="flex border shadow size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted"
-              >
-                <img src={agencyLogo} alt="" class="size-full object-contain" />
-              </div>
-              <div class="grid flex-1 text-start text-sm leading-tight">
-                <span class="truncate font-medium">EMS</span>
-                <span class="truncate text-xs text-muted-foreground">
-                  PENRO Dinagat Islands
-                </span>
-              </div>
-            </a>
-          {/snippet}
-        </Sidebar.MenuButton>
-      </Sidebar.MenuItem>
-    </Sidebar.Menu>
-  </Sidebar.Header>
+  <NavHeader userType="admin" />
+
   <Sidebar.Content>
     <Sidebar.Group>
       <Sidebar.GroupLabel class="h-6">Administration</Sidebar.GroupLabel>
       <Sidebar.Menu class="gap-0.5">
         {#each visiblePages as item (item.name)}
           <Sidebar.MenuItem>
-            <Sidebar.MenuButton
-              isActive={item.active}
-              tooltipContent={item.name}
-            >
+            <Sidebar.MenuButton isActive={item.active} tooltipContent={item.name}>
               {#snippet child({ props })}
                 <a
                   href={item.url}
@@ -120,6 +97,8 @@
                 >
                   <item.icon />
                   <span>{item.name}</span>
+
+                  <NavActiveIndicator active={item.active} />
                 </a>
               {/snippet}
             </Sidebar.MenuButton>
