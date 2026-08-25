@@ -18,3 +18,6 @@ no CDN assets, no external auth providers, no network calls at runtime.
   or table change. Read it fresh; never work from a remembered copy.
 - `.claude/docs/project-brief.md` — only for questions about scope, users,
   deployment, or an item listed as still open.
+- `.claude/skills/git-feature-flow/SKILL.md` — before any commit, merge, or
+  branch switch. Defines where a change belongs and how feature work reaches
+  main; never improvise the git steps.
