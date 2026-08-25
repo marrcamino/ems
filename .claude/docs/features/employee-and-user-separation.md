@@ -674,11 +674,12 @@ The user tested the whole path in a browser, and it behaved as designed:
 Step 6 is the part that matters: the open session stopped working at the next
 request, rather than lasting until its eight-hour expiry.
 
-Still untried, and smaller: **the refusal at the login form itself.** The test
-proved the session is ended; nobody has typed that person's correct username
-and password afterwards to see the sentence saying the account belongs to
-somebody who no longer works here. That is a separate branch of the code from
-the session check.
+7. On that login page, typed the same person's correct username and password
+   again. The sign-in was refused, and the message appeared under the password
+   field.
+
+Steps 6 and 7 are two different pieces of code — one ends the session that
+already existed, the other refuses a new one — and both now work.
 
 ### Decided while building, worth revisiting
 
@@ -776,8 +777,9 @@ Two `drizzle-kit push` runs, both done by the user:
 - **The Employees page, the Users page, and Topic 8 all work in a browser.** In
   one sitting the user added a person, created a role from a template, gave
   that person a login, signed in as them in a private window, set a password,
-  marked them as no longer employed from the admin tab, and was returned to the
-  login page on the next refresh.
+  marked them as no longer employed from the admin tab, was returned to the
+  login page on the next refresh, and was then refused when signing in again
+  with the correct password.
 - `npm run sync-permissions` runs with the new backfill step and reports that
   the super-admin role already holds every admin permission.
 
@@ -788,9 +790,7 @@ Two `drizzle-kit push` runs, both done by the user:
   unproven.
 - **The Organizational Structure page has not been re-opened** since its
   assigned-people list was pointed at `employee`.
-- **The refusal at the login form.** Topic 8's session half is proven; nobody
-  has yet typed the correct username and password of somebody who has left, to
-  see the sentence that refuses them.
+Topic 8 itself is fully tested and needs nothing further.
 
 ### The next piece of work
 
