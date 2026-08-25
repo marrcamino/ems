@@ -539,13 +539,6 @@ An empty one links to the Users page.
   - Side effect worth noting: the list now includes people with no login, which
     is what the page was always trying to show.
 
-`npm run build` succeeds.
-
-### Verified by the user
-
-`npm run create-admin` runs cleanly against the new schema, and signing in and
-changing the password both work.
-
 - **The Employees page** — new, at `/admin/employees`, with the five columns
   from Topic 7, an editor, and a delete guard. Added to the admin sidebar.
 - **The Users page** — now about logins only.
@@ -560,13 +553,36 @@ changing the password both work.
 - **Shared between the two tables** — the filter dropdown moved to
   `src/lib/components/faceted-filter.svelte` and its counting helpers to
   `src/lib/utils/facets.ts`, rather than being written twice.
+- **Position and tenure made required** — see Topic 2. The columns became
+  `NOT NULL`, both fields became required in the editor, and the table dropped
+  the blank branches it carried for them.
 
 `npm run check` reports **0 errors**, down from 54. `npm run build` succeeds.
 
-### Not tested against a running server yet
+### Applied to the database
 
-Everything above type-checks and builds, but the two pages have not been
-opened in a browser with real rows in the database.
+Two `drizzle-kit push` runs, both done by the user:
+
+1. The separation itself — the new `employee` table, and `user` rewritten to
+   hold only login columns.
+2. `position_title` and `tenure_status` made `NOT NULL`.
+
+### Verified by the user
+
+- `npm run create-admin` runs cleanly against the separated schema, and signing
+  in and changing the password both work. This was checked after the first
+  push, before the two admin pages existed.
+
+### Not tested yet
+
+- **The Employees page and the Users page have not been opened in a browser.**
+  They type-check and build, but no employee has been added and no account has
+  been made through them.
+- **`create-admin.ts` has not been re-run since position and tenure became
+  required.** It was changed to write placeholders for both; that change is
+  unproven.
+- **The Organizational Structure page has not been re-opened** since its
+  assigned-people list was pointed at `employee`.
 
 ---
 
