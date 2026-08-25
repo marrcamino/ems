@@ -6,7 +6,7 @@ import type { OrgUnit } from "@/types";
 import { error, fail } from "@sveltejs/kit";
 import { and, asc, eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
-import { nextLevel } from "./context.svelte";
+import { nextLevel } from "./context.svelte.js";
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!can(locals.permissions, "admin:view_org_units")) {
