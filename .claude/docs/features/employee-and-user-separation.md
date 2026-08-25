@@ -488,9 +488,23 @@ The lookup that turns a key into its row number was moved above this step,
 since the re-normalizing step below needs the same thing and it is now read
 once for both.
 
-**Not run yet.** The script type-checks. Nobody has run it since the change,
-and on this database it should report that the super-admin role already holds
-everything.
+**Run and verified by the user.** The output was:
+
+```
+30 permission(s) synced, 0 new.
+"Super Admin" already holds every admin permission.
+All roles already hold their implied permissions.
+```
+
+Which is the expected result on this database: the two employee keys were
+already in the table from the earlier run, and the super-admin role already
+held them. Nothing was changed, which is what a correct backfill does when
+there is nothing to backfill.
+
+Worth noting for next time: the first attempt at this run showed no such line
+at all, because the fix was committed on `main` while the checkout was on
+`feature/employee-user`. Merging `main` into the feature branch was what made
+the new step reachable.
 
 ---
 
@@ -645,6 +659,27 @@ browser yet.
 5. **The three messages** — all rewritten to say the opposite of what they said,
    plus the comment in the employees context describing `leavingWithLogin`.
 
+### Tried against the running system — it works
+
+The user tested the whole path in a browser, and it behaved as designed:
+
+1. Added a person on the Employees page.
+2. Created a new role from one of the templates.
+3. Gave that person a login on the Users page.
+4. Signed in as them in a private window. It worked, and asked them to set
+   their own password — the temporary-password flow is intact.
+5. Back in the ordinary tab as super admin, marked them as no longer employed.
+6. Refreshed the private tab. It returned to the login page.
+
+Step 6 is the part that matters: the open session stopped working at the next
+request, rather than lasting until its eight-hour expiry.
+
+Still untried, and smaller: **the refusal at the login form itself.** The test
+proved the session is ended; nobody has typed that person's correct username
+and password afterwards to see the sentence saying the account belongs to
+somebody who no longer works here. That is a separate branch of the code from
+the session check.
+
 ### Decided while building, worth revisiting
 
 - **The Active switch is disabled rather than forced off.** An account that was
@@ -738,25 +773,33 @@ Two `drizzle-kit push` runs, both done by the user:
 - `npm run create-admin` runs cleanly against the separated schema, and signing
   in and changing the password both work. This was checked after the first
   push, before the two admin pages existed.
+- **The Employees page, the Users page, and Topic 8 all work in a browser.** In
+  one sitting the user added a person, created a role from a template, gave
+  that person a login, signed in as them in a private window, set a password,
+  marked them as no longer employed from the admin tab, and was returned to the
+  login page on the next refresh.
+- `npm run sync-permissions` runs with the new backfill step and reports that
+  the super-admin role already holds every admin permission.
 
 ### Not tested yet
 
-- **The Employees page and the Users page have not been opened in a browser.**
-  They type-check and build, but no employee has been added and no account has
-  been made through them.
 - **`create-admin.ts` has not been re-run since position and tenure became
   required.** It was changed to write placeholders for both; that change is
   unproven.
 - **The Organizational Structure page has not been re-opened** since its
   assigned-people list was pointed at `employee`.
-- **Topic 8 has not been tried against a running system.** Nobody has been
-  marked as no longer employed and then attempted to sign in.
+- **The refusal at the login form.** Topic 8's session half is proven; nobody
+  has yet typed the correct username and password of somebody who has left, to
+  see the sentence that refuses them.
 
 ### The next piece of work
 
-Nothing is chosen yet. Topic 8 is built. The largest thing still outstanding is
-that none of these pages has been opened in a browser, and `create-admin.ts` has
-not been re-run since position and tenure became required.
+Nothing is chosen yet. Topic 8 is built and proven in a browser. What remains
+is the short list under "Not tested yet" above, and the topics never opened —
+whether `employment_status` needs more than active and separated (Topic 3), the
+"Give this person a login" shortcut from the Employees page (Topic 5), and
+whether anything on the Employees page should change now that it has been used
+for real (Topic 7).
 
 ---
 
