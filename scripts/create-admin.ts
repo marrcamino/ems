@@ -173,18 +173,35 @@ async function main() {
 
       const createSpinner = p.spinner();
       createSpinner.start("Creating the Super Admin user");
+
+      // Two rows now: the person, then the login pointing at them. Wrapped in
+      // a transaction so a taken username does not leave an orphan employee
+      // behind on the retry.
+      await connection.beginTransaction();
       try {
+        const [employeeInsert] = await connection.query<mysql.ResultSetHeader>(
+          `
+          INSERT INTO employee
+            (first_name, last_name, employment_status)
+          VALUES (?, ?, 'active')
+          `,
+          ["Admin", "User"],
+        );
+
         await connection.query(
           `
           INSERT INTO user
-            (username, password_hash, first_name, last_name, role_fk, status, must_change_password)
-          VALUES (?, ?, ?, ?, ?, 'active', 1)
+            (employee_fk, username, password_hash, role_fk, account_status, must_change_password)
+          VALUES (?, ?, ?, ?, 'active', 1)
           `,
-          [username, passwordHash, "Admin", "User", adminRolePk],
+          [employeeInsert.insertId, username, passwordHash, adminRolePk],
         );
+
+        await connection.commit();
         createSpinner.stop("Super Admin user created.");
         break;
       } catch (err: any) {
+        await connection.rollback();
         if (err?.code === "ER_DUP_ENTRY") {
           createSpinner.stop(`Username "${username}" is already taken.`);
           continue;

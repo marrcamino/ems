@@ -59,7 +59,7 @@ export async function getActiveSuperAdmins(
     JOIN role r ON u.role_fk = r.role_pk
     JOIN role_permission rp ON rp.role_fk = r.role_pk
     JOIN permission p ON p.permission_pk = rp.permission_fk
-    WHERE u.status = 'active'
+    WHERE u.account_status = 'active'
       AND p.\`key\` = ?
     ORDER BY u.username
     `,
