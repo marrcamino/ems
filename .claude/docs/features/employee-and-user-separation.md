@@ -424,6 +424,64 @@ sync to backfill. Both are done once the bootstrap path is repaired.
 
 ---
 
+## Topic 7 — What the Employees page shows
+
+### Status
+
+**Built as recommended, still open to change.** The user asked to go ahead
+with the recommendation rather than discuss it first, and said they want to
+talk about it later. So nothing here is locked — it is what was built, not
+what was agreed.
+
+### The problem
+
+The Employees page did not exist. Before writing it, we had to know which
+facts appear as columns in the list, and which are only visible when you open
+one person to edit them. The employee record now holds personal things —
+birthday, sex, civil status — that were never on the old Users page.
+
+### What was built — five columns
+
+| Column | What it shows |
+|---|---|
+| Name | The full name, with the position title underneath it. |
+| Section | The division or section the person belongs to. |
+| Tenure | Permanent, temporary, casual, coterminous, contractual, COS, Job Order. |
+| Employment | Employed, or no longer employed. |
+| Has login | The username, or "No account yet". |
+
+### Birthday, sex and civil status are not columns
+
+They appear only when a person is opened for editing, grouped under a
+"Personal details" heading. Two reasons: nobody scans a staff list looking
+for a birthday, and these are personal details that do not need to sit on
+screen where anyone walking past the desk can read them. They are still one
+click away.
+
+### Why "Has login" is there
+
+It is the one column that reaches across to the Users page, and it answers the
+question the separation creates — *who in this office still has no account?*
+Without it an admin would have to open both pages and compare them by hand.
+An empty one links to the Users page.
+
+### Also decided while building, worth revisiting
+
+- **COS and Job Order are shortened in the table** and spelled out in full in
+  a tooltip, because "Contract of Service" does not fit in a column.
+- **Deleting somebody who has a login is refused**, with a sentence saying to
+  delete the account first or mark them as no longer employed instead.
+- **Marking somebody as no longer employed does not switch off their account.**
+  The editor says so plainly. The reasoning: switching an account off is a
+  decision made on the Users page, possibly by a different admin, and doing it
+  silently from here would hide it from them. This one is worth talking about
+  — the opposite choice is defensible.
+- **A repeated name is a warning, not a refusal.** Two people can genuinely
+  share a name in a small office, but the usual cause is the same person being
+  added twice.
+
+---
+
 ## Progress — what has been changed in code
 
 ### Done
@@ -469,13 +527,27 @@ sync to backfill. Both are done once the bootstrap path is repaired.
 `npm run create-admin` runs cleanly against the new schema, and signing in and
 changing the password both work.
 
-### Not done yet — 46 type errors remain, all in one place
+- **The Employees page** — new, at `/admin/employees`, with the five columns
+  from Topic 7, an editor, and a delete guard. Added to the admin sidebar.
+- **The Users page** — now about logins only.
+  - Adding an account picks somebody already on the Employees page instead of
+    typing a name. People who already have an account stay in the list but
+    cannot be picked, so they do not read as missing.
+  - The person is locked when editing. A login belongs to the person it was
+    made for; moving it elsewhere is a new account, not an edit.
+  - The name, position and section are read from the joined employee row and
+    kept nested, matching how `SessionUser` is shaped.
+  - Every use of the old `status` column became `account_status`.
+- **Shared between the two tables** — the filter dropdown moved to
+  `src/lib/components/faceted-filter.svelte` and its counting helpers to
+  `src/lib/utils/facets.ts`, rather than being written twice.
 
-`src/routes/admin/users/` — the whole page, its dialogs and its table columns.
-It still reads `firstName`, `positionTitle`, `orgUnitFk` and `status` from
-`user`. It compiles out (the build does not typecheck) but will fail at runtime
-when opened. Rewriting it is the next block of work, and Topic 5 says it becomes
-two pages rather than one: a new Employees page and a Users page for logins.
+`npm run check` reports **0 errors**, down from 54. `npm run build` succeeds.
+
+### Not tested against a running server yet
+
+Everything above type-checks and builds, but the two pages have not been
+opened in a browser with real rows in the database.
 
 ---
 
