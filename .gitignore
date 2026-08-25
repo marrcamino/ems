@@ -21,3 +21,6 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Python bytecode from the graphify tool — regenerated, never edited
+graphify-out/__pycache__/
