@@ -30,7 +30,9 @@ export class EmployeesContext {
   deleteAlertDialog = $state(false);
   employeeToEdit: EmployeeRow | null = $state(null);
 
-  mode: "edit" | "add" = $derived(this.employeeToEdit !== null ? "edit" : "add");
+  mode: "edit" | "add" = $derived(
+    this.employeeToEdit !== null ? "edit" : "add",
+  );
 
   formFirstName = $state("");
   formMiddleName = $state("");
@@ -77,9 +79,9 @@ export class EmployeesContext {
   });
 
   /**
-   * Somebody marked as no longer employed who can still sign in. Worth saying
-   * in the editor, because switching the account off happens on the Users
-   * page and nothing here does it for them.
+   * Somebody being marked as no longer employed who has a login. Worth saying
+   * in the editor, because saving it stops that account from working and
+   * signs them out, which is not obvious from a field about employment.
    */
   leavingWithLogin = $derived(
     !this.formIsEmployed &&

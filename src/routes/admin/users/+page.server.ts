@@ -405,6 +405,29 @@ export const actions: Actions = {
     const badRole = await validateRole(input, existing);
     if (badRole) return fail(400, { error: badRole });
 
+    /**
+     * Switching an account on for somebody who has left is refused here as
+     * well as being disabled in the editor. It would not let them in — the
+     * sign-in checks employment — so all it could do is leave the Users page
+     * claiming an account works when it does not.
+     */
+    if (
+      input.accountStatus === "active" &&
+      existing.accountStatus !== "active"
+    ) {
+      const [person] = await db
+        .select({ employmentStatus: employee.employmentStatus })
+        .from(employee)
+        .where(eq(employee.employeePk, existing.employeeFk));
+
+      if (person && person.employmentStatus !== "active") {
+        return fail(409, {
+          error:
+            "This person is marked as no longer employed, so their account can't be switched back on. Mark them as employed again on the Employees page first.",
+        });
+      }
+    }
+
     const isSelf = locals.user?.userPk === userPk;
     const roleChanged = existing.roleFk !== input.roleFk;
 
@@ -623,7 +646,9 @@ export const actions: Actions = {
 
   delete: async ({ request, locals }) => {
     if (!can(locals.permissions, "admin:manage_users")) {
-      return fail(403, { error: "You do not have permission to delete users." });
+      return fail(403, {
+        error: "You do not have permission to delete users.",
+      });
     }
 
     const form = await request.formData();

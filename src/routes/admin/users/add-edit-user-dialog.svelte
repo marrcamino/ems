@@ -26,6 +26,17 @@
     ctx.userToEdit !== null && ctx.isSelf(ctx.userToEdit),
   );
 
+  /**
+   * The person this account belongs to has left the office. The sign-in
+   * refuses them either way, so switching the account on here would promise
+   * something that will not happen — the switch is disabled rather than
+   * hidden, so the stored setting is still visible.
+   */
+  const personHasLeft = $derived(
+    ctx.userToEdit !== null &&
+      ctx.userToEdit.employee.employmentStatus !== "active",
+  );
+
   const editingSuperAdminUser = $derived(
     ctx.userToEdit !== null && ctx.isSuperAdminRole(ctx.userToEdit.roleFk),
   );
@@ -168,6 +179,17 @@
         <input type="hidden" name="employeeFk" value={ctx.formEmployeeFk} />
 
         <div class="grid gap-4">
+          {#if personHasLeft}
+            <Alert.Root variant="info">
+              <Info />
+              <Alert.Title>This person no longer works here</Alert.Title>
+              <Alert.Description>
+                They cannot sign in, whatever this account says. To let them
+                back in, mark them as employed again on the Employees page.
+              </Alert.Description>
+            </Alert.Root>
+          {/if}
+
           {#if superAdminImpact === "block"}
             <Alert.Root variant="danger">
               <AlertCircle />
@@ -429,7 +451,7 @@
           <div class="mr-auto flex items-center space-x-2 max-sm:order-1">
             <Switch
               id="isActive"
-              disabled={editingSelf}
+              disabled={editingSelf || personHasLeft}
               bind:checked={ctx.formIsActive}
             />
             <Label for="isActive">Active</Label>

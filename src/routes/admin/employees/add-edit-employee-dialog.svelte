@@ -134,10 +134,11 @@
           {#if ctx.leavingWithLogin}
             <Alert.Root variant="info">
               <Info />
-              <Alert.Title>Their account will still work</Alert.Title>
+              <Alert.Title>They will not be able to sign in</Alert.Title>
               <Alert.Description>
-                Marking somebody as no longer employed does not switch off their
-                account. Set it to inactive on the Users page as well.
+                Once you save this, their account stops working and they are
+                signed out straight away. The account itself stays on the Users
+                page, marked as belonging to somebody who has left.
               </Alert.Description>
             </Alert.Root>
           {/if}

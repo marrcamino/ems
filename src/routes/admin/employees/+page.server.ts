@@ -1,7 +1,7 @@
 // src/routes/admin/employees/+page.server.ts
 import { can } from "$lib/rbac/access";
 import { db } from "$lib/server/db";
-import { employee, orgUnit, user } from "$lib/server/db/schema";
+import { employee, orgUnit, session, user } from "$lib/server/db/schema";
 import { error, fail } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
@@ -187,6 +187,22 @@ async function findLoginFor(employeePk: number) {
   return row;
 }
 
+/**
+ * Sign this person out of everything, if they have a login at all, and return
+ * that login so the caller can name it.
+ *
+ * Used when somebody is marked as no longer employed. From that moment the
+ * sign-in refuses them, but a session opened before the change would keep
+ * working until it expired — up to eight hours after they left.
+ */
+async function endSessionsForEmployee(employeePk: number) {
+  const login = await findLoginFor(employeePk);
+  if (login) {
+    await db.delete(session).where(eq(session.userFk, login.userPk));
+  }
+  return login;
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
   // Viewing the page needs only view_employees; each action below separately
   // requires admin:manage_employees.
@@ -269,6 +285,15 @@ export const actions: Actions = {
       .set({ ...toEmployeeValues(input), updatedAt: new Date() })
       .where(eq(employee.employeePk, employeePk));
 
+    // The editor can be the place somebody is marked as no longer employed,
+    // just as the menu action can, so it signs them out the same way.
+    if (
+      input.employmentStatus !== "active" &&
+      existing.employmentStatus === "active"
+    ) {
+      await endSessionsForEmployee(employeePk);
+    }
+
     const updatedRow = await readEmployeeRow(employeePk);
     if (!updatedRow) {
       return fail(500, {
@@ -315,10 +340,13 @@ export const actions: Actions = {
       });
     }
 
-    // The login is deliberately left alone. Switching off an account is a
-    // decision made on the Users page, by somebody who may not manage
-    // employees, and doing it silently from here would hide it from them.
-    return { success: true, updatedRow, login: await findLoginFor(employeePk) };
+    // Their login is left in place — deleting an account is a decision made
+    // on the Users page — but it stops working from here on: the sign-in
+    // refuses anybody who no longer works here, and any session they still
+    // have open is ended now rather than at its eight-hour expiry.
+    const login = await endSessionsForEmployee(employeePk);
+
+    return { success: true, updatedRow, login };
   },
 
   delete: async ({ request, locals }) => {
@@ -362,5 +390,4 @@ export const actions: Actions = {
       });
     }
   },
-
 };

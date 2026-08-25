@@ -503,7 +503,7 @@ An empty one links to the Users page.
 
 ## Topic 8 — Somebody leaves the office, but their account still works
 
-**Status: Settled. Not built yet.**
+**Status: Settled and built.**
 
 ### The problem
 
@@ -564,6 +564,52 @@ currently tell the admin the opposite of what will be true.
    - the comment in the `separate` action explaining that the login is
      deliberately left alone.
 
+### What was built
+
+All five items, plus two small decisions taken while building. `npm run check`
+reports 0 errors and `npm run build` succeeds. Nothing has been opened in a
+browser yet.
+
+1. **`session.ts`** — a session whose employee is not `active` is deleted and
+   treated as no session. Deleting rather than only refusing means the row does
+   not sit there until its eight-hour expiry.
+2. **The sign-in** — the lookup now joins `employee` and refuses before it
+   looks at the account status, with: "This account belongs to somebody who no
+   longer works here, so it can no longer be used. Contact your administrator."
+   It says nothing about the password.
+3. **The Employees page** — a shared `endSessionsForEmployee` helper deletes
+   that person's `session` rows. Called from `separate`, and also from `update`
+   when the edit is what marks them as having left. The editor was the second
+   way in, and would otherwise have left the person signed in.
+4. **The Users page**
+   - The status column shows a "Person has left" badge, and greys out the
+     account's own status behind it, so the row never reads plain "Active" for
+     an account that does not work. The tooltip explains where it comes from.
+     The "New password" reminder is hidden on those rows.
+   - The account editor shows an information box saying the person no longer
+     works here and how to undo it, and the Active switch is disabled — shown
+     rather than hidden, so the stored setting is still visible.
+   - The `update` action refuses switching such an account back on, so the
+     rule does not depend on the editor.
+5. **The three messages** — all rewritten to say the opposite of what they said,
+   plus the comment in the employees context describing `leavingWithLogin`.
+
+### Decided while building, worth revisiting
+
+- **The Active switch is disabled rather than forced off.** An account that was
+  active when the person left keeps showing "Active" in the editor, greyed out.
+  The alternative — quietly setting it to inactive on the next save — would
+  change stored data without being asked. Showing the true stored value and
+  refusing to change it seemed more honest, but the opposite is defensible.
+- **The status filter still counts such an account under its stored status.**
+  Filtering the Users page by "Active" still lists somebody who has left. Adding
+  a separate filter option for them was not part of Topic 8, so it was left
+  alone.
+- **An unrelated typo was fixed in the same file.** The failed-password branch
+  of the sign-in said "Invalid username or passwordss.", which also made the two
+  supposedly identical messages differ — the exact thing that branch is worded
+  to avoid.
+
 ---
 
 ## Progress — what has been changed in code
@@ -621,6 +667,10 @@ currently tell the admin the opposite of what will be true.
 - **Position and tenure made required** — see Topic 2. The columns became
   `NOT NULL`, both fields became required in the editor, and the table dropped
   the blank branches it carried for them.
+- **Sign-in refuses anybody who has left** — Topic 8, in full: the session
+  check, the sign-in check, signing them out at the moment they are marked, the
+  "Person has left" badge and the disabled Active switch on the Users page, and
+  the three messages that said the opposite.
 
 `npm run check` reports **0 errors**, down from 54. `npm run build` succeeds.
 
@@ -648,10 +698,14 @@ Two `drizzle-kit push` runs, both done by the user:
   unproven.
 - **The Organizational Structure page has not been re-opened** since its
   assigned-people list was pointed at `employee`.
+- **Topic 8 has not been tried against a running system.** Nobody has been
+  marked as no longer employed and then attempted to sign in.
 
 ### The next piece of work
 
-Topic 8, settled above and not yet built.
+Nothing is chosen yet. Topic 8 is built. The largest thing still outstanding is
+that none of these pages has been opened in a browser, and `create-admin.ts` has
+not been re-run since position and tenure became required.
 
 ---
 

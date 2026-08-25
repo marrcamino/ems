@@ -54,6 +54,14 @@ export async function validateSessionToken(token: string) {
 
   if (!row) return emptySession();
 
+  // Somebody who no longer works here cannot stay signed in, whatever their
+  // account status says. The row is deleted rather than merely refused, so an
+  // open session ends at the next request instead of at its eight-hour expiry.
+  if (row.employee.employmentStatus !== "active") {
+    await db.delete(session).where(eq(session.sessionPk, sessionPk));
+    return emptySession();
+  }
+
   if (Date.now() >= row.session.expiresAt.getTime()) {
     await db.delete(session).where(eq(session.sessionPk, sessionPk));
     return emptySession();

@@ -39,8 +39,8 @@
 
           const login = result.data.login as { username: string } | undefined;
           if (login) {
-            toast.warning("Marked as no longer employed", {
-              description: `Their account "${login.username}" can still sign in. Switch it off on the Users page.`,
+            toast.success("Marked as no longer employed", {
+              description: `Their account "${login.username}" can no longer sign in, and they have been signed out.`,
             });
           } else {
             toast.success("Marked as no longer employed");
