@@ -104,6 +104,25 @@ means it only exists where it means something.
 - **Add `tenure_status`** — how the person is hired: permanent, COS, JO, and
   the other Civil Service Commission (CSC) categories.
 
+### Which of these are required — settled later, while building
+
+`position_title` and `tenure_status` are **required**, not optional.
+
+They were optional at first only because they had been optional on the old
+`user` table and were carried across unchanged. The user asked why, and then
+corrected the reasoning behind it: the office hires a person *into* a named
+position, so somebody on file with no position at all is not a real case.
+Contract of Service and Job Order staff hold no plantilla item, but they still
+have a position or a designation.
+
+Still optional: `middle_name`, `suffix`, `org_unit_fk`, `birth_date`, `sex`,
+`civil_status`.
+
+One consequence: `scripts/create-admin.ts` cannot write its bootstrap employee
+row without them, so it fills in the placeholders "System Administrator" and
+"Permanent" alongside the placeholder name "Admin User", and warns at the end
+to correct the record on the Employees page.
+
 ### The limit the user set
 
 Follow CSC conventions where they exist, so the fields feel familiar to the
