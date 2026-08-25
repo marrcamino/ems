@@ -449,6 +449,18 @@ sync to backfill. Both are done once the bootstrap path is repaired.
     pointing at it. Both inserts run in one transaction, so a taken username
     does not leave an orphan employee behind when the prompt retries.
   - `scripts/lib/super-admin.ts` reads `u.account_status` instead of `u.status`.
+- **The Organizational Structure page** — the part that lists who is assigned to
+  a division or section now reads `employee`, since `org_unit_fk` moved there.
+  - The endpoint moved from `[org_unit_pk]/users` to `[org_unit_pk]/employees`.
+  - It filters on `employee.employment_status`, not the old `user.status`, so
+    someone who has left the office stops being listed.
+  - The two components were renamed to match, and the dialog now reads
+    "Assigned Employees".
+  - Deleting an org unit now checks for a linked **employee**. The old check
+    looked at `user`, which after the split would have let a populated division
+    be deleted.
+  - Side effect worth noting: the list now includes people with no login, which
+    is what the page was always trying to show.
 
 `npm run build` succeeds.
 
@@ -457,16 +469,13 @@ sync to backfill. Both are done once the bootstrap path is repaired.
 `npm run create-admin` runs cleanly against the new schema, and signing in and
 changing the password both work.
 
-### Not done yet — 54 type errors remain, all in two places
+### Not done yet — 46 type errors remain, all in one place
 
-- `src/routes/admin/users/` — the whole page, its dialogs and its table columns.
-- `src/routes/admin/org-structure/` — the parts listing who is assigned to a
-  division or section.
-
-Both still read `firstName`, `positionTitle`, `orgUnitFk` and `status` from
-`user`. They compile out (the build does not typecheck) but will fail at runtime
-when opened. Rewriting them is the next block of work, and Topic 5 says it
-becomes two pages rather than one.
+`src/routes/admin/users/` — the whole page, its dialogs and its table columns.
+It still reads `firstName`, `positionTitle`, `orgUnitFk` and `status` from
+`user`. It compiles out (the build does not typecheck) but will fail at runtime
+when opened. Rewriting it is the next block of work, and Topic 5 says it becomes
+two pages rather than one: a new Employees page and a Users page for logins.
 
 ---
 
