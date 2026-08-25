@@ -1,3 +1,4 @@
+import { filterFn_isOneOf } from "$lib/utils/facets";
 import { renderComponent } from "@tanstack/svelte-table";
 import {
   columnFilteringFeature,
@@ -28,23 +29,6 @@ import UserSectionCell from "./user-section-cell.svelte";
 import UserSignInCell from "./user-sign-in-cell.svelte";
 import UserStatusCell from "./user-status-cell.svelte";
 
-/**
- * Every filter dropdown lets more than one option be ticked, so the filter
- * function takes an array of chosen values and keeps a row matching any of
- * them. An empty array means "no filter" rather than "match nothing", which
- * is what an untouched dropdown means.
- */
-function filterFn_isOneOf(
-  row: { getValue: (columnId: string) => unknown },
-  columnId: string,
-  filterValue: unknown,
-) {
-  const chosen = filterValue as string[];
-  if (!chosen?.length) return true;
-
-  return chosen.includes(String(row.getValue(columnId)));
-}
-
 export const features = tableFeatures({
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
@@ -72,19 +56,22 @@ export function createColumns(roles: () => RoleOption[]) {
     // The accessor is "Surname, First name" rather than the displayed full
     // name: it is what the column sorts and searches on, and a staff list is
     // read by surname. The cell renders the name properly regardless.
-    helper.accessor((row) => `${row.lastName}, ${row.firstName}`, {
-      id: "name",
-      header: "Name",
-      sortFn: "alphanumeric",
-      cell: (info) =>
-        renderComponent(UserNameCell, { user: info.row.original }),
-    }),
+    helper.accessor(
+      (row) => `${row.employee.lastName}, ${row.employee.firstName}`,
+      {
+        id: "name",
+        header: "Name",
+        sortFn: "alphanumeric",
+        cell: (info) =>
+          renderComponent(UserNameCell, { user: info.row.original }),
+      },
+    ),
 
     // Search-only: the username and position are shown inside the name cell
     // rather than in columns of their own, but both are things an admin types
     // into the search box.
     helper.accessor(
-      (row) => `${row.username} ${row.positionTitle ?? ""}`.trim(),
+      (row) => `${row.username} ${row.employee.positionTitle ?? ""}`.trim(),
       { id: "account", header: "Account" },
     ),
 

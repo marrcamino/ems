@@ -76,7 +76,7 @@
       <Dialog.Header>
         <Dialog.Title>Reset password</Dialog.Title>
         <Dialog.Description>
-          {userToReset ? fullName(userToReset) : "This person"} will be given a new
+          {userToReset ? fullName(userToReset.employee) : "This person"} will be given a new
           temporary password and asked to set their own the next time they sign in.
         </Dialog.Description>
       </Dialog.Header>

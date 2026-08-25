@@ -43,6 +43,7 @@
     ctx.users = data.users;
     ctx.roles = data.roles;
     ctx.orgUnits = data.orgUnits;
+    ctx.employees = data.employees;
     ctx.permissionDefs = data.permissionDefs;
     ctx.superAdminRolePk = data.superAdminRolePk;
     ctx.currentUserPk = gblCtx.user.userPk;
@@ -241,8 +242,8 @@
         </Empty.Media>
         <Empty.Title>No accounts yet</Empty.Title>
         <Empty.Description>
-          Add the people who will use the system and give each of them a role.
-          Roles decide which pages a person can open.
+          Give the people on the Employees page an account to sign in with, and
+          a role. Roles decide which pages a person can open.
         </Empty.Description>
       </Empty.Header>
       {#if gblCtx.can("admin:manage_users")}
@@ -250,7 +251,7 @@
           <Button
             variant="outline"
             size="sm"
-            onclick={() => (ctx.addEditDialog = true)}>Add Person</Button
+            onclick={() => (ctx.addEditDialog = true)}>Add Account</Button
           >
         </Empty.Content>
       {/if}

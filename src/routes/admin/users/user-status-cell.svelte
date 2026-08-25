@@ -8,7 +8,7 @@
   let { user }: { user: UserRow } = $props();
 
   const locked = $derived(isTemporarilyLocked(user));
-  const status = $derived(locked ? "locked" : user.status);
+  const status = $derived(locked ? "locked" : user.accountStatus);
 
   const LABELS = {
     active: "Active",

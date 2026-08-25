@@ -46,7 +46,7 @@
             userToDelete
           ) {
             ctx.removeUser(userToDelete.userPk);
-            toast.success(`${fullName(userToDelete)} deleted`);
+            toast.success(`${fullName(userToDelete.employee)} deleted`);
             ctx.deleteAlertDialog = false;
           }
 
@@ -67,7 +67,7 @@
         <AlertDialog.Title>Delete this account?</AlertDialog.Title>
         <AlertDialog.Description>
           This permanently deletes the account for "{userToDelete
-            ? fullName(userToDelete)
+            ? fullName(userToDelete.employee)
             : ""}" and signs them out. It cannot be undone. To keep the account
           but stop them signing in, set it to inactive instead.
         </AlertDialog.Description>
