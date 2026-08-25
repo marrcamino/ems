@@ -28,7 +28,10 @@ export const employee = mysqlTable("employee", {
   }).references((): AnyMySqlColumn => orgUnit.orgUnitPk, {
     onDelete: "restrict",
   }),
-  birthDate: date("birth_date"),
+  // Kept as a plain "YYYY-MM-DD" string rather than a Date. A birthday has
+  // no time and no timezone, and turning it into a Date is what makes it
+  // shift by a day when it crosses one.
+  birthDate: date("birth_date", { mode: "string" }),
   sex: mysqlEnum("sex", ["male", "female"]),
   civilStatus: mysqlEnum("civil_status", [
     "single",

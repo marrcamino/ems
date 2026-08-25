@@ -56,6 +56,7 @@ const GROUP_LABELS: Record<string, string> = {
   air_travel: "Air travel",
   eswm: "ESWM",
   ghg: "GHG compliance",
+  employees: "Employees",
   users: "Users",
   roles: "Roles",
   org_units: "Organizational structure",

@@ -3,6 +3,7 @@
   import {
     Building,
     House,
+    IdCard,
     ShieldCheck,
     UsersRound,
   } from "@lucide/svelte/icons";
@@ -29,6 +30,12 @@
       url: "/admin",
       icon: House,
       permission: "admin:view",
+    },
+    {
+      name: "Employees",
+      url: "/admin/employees",
+      icon: IdCard,
+      permission: "admin:view_employees",
     },
     {
       name: "Users",
