@@ -133,6 +133,10 @@ export const PERMISSION_DEFS = {
     },
 
     // System modules — no staff-side counterpart.
+    employees: {
+      view: "Access the Employees page",
+      manage: "Add, edit, and remove employee records",
+    },
     users: {
       view: "Access the Users page",
       manage: "Add, edit, deactivate, and reassign users",
