@@ -28,9 +28,10 @@ Carried over from that decision, already agreed and not up for discussion here:
 
 ---
 
-## What the `user` table holds today
+## What the `user` table held before the split
 
-For reference while we split it. From `src/lib/server/db/schema/user.ts`:
+Kept for reference. This is what `src/lib/server/db/schema/user.ts` held before
+any of the work below:
 
 `user_pk`, `username`, `password_hash`, `first_name`, `middle_name`,
 `last_name`, `suffix`, `position_title`, `role_fk`, `org_unit_fk`, `status`,
@@ -90,7 +91,8 @@ means it only exists where it means something.
 
 ## Topic 2 — What else does `employee` hold, beyond what moved from `user`?
 
-**Status: Settled on what to include. The exact wording of the lists is Topic 3.**
+**Status: Settled.** What the table holds is decided here. What the value
+lists are *called* is Topic 3.
 
 ### Decisions
 
@@ -193,18 +195,27 @@ The user asked whether these are one thing under a different name. They are not:
 
 One is tied to a term or a project, the other to a person being absent.
 
-### Still uncertain
+### `employment_status` stays at two values — settled
 
-- Whether `employment_status` needs more than active and separated — for
-  example telling retirement, resignation, and end of contract apart. Not yet
-  discussed; `active` and `separated` are the working assumption.
+The question was whether the record should tell apart the reasons somebody
+left: retirement, resignation, end of contract, dismissal.
+
+**It should not.** The user decided to keep the two values as they are, `active`
+and `separated`. Their reasoning: recording why a person left starts to overlap
+with a personnel system. Their agency has no HR system today, and may get one
+later, but either way that information belongs there and not here.
+
+This is the same limit set in Topic 2 — follow the familiar conventions, but
+this is an environmental management system, not a personnel one.
 
 ---
 
 ## What the separation touches — high level
 
-Listed so the size of the change is visible. Not decisions, except where
-marked. Detail is deliberately left out.
+This was the plan, written before the work started, so the size of the change
+was visible. **All nine are done.** The "Progress" section near the end of this
+document records what actually happened. This list is kept because it is still
+the clearest map of which parts of the app the separation reaches.
 
 1. **Database.** New `employee` table. `user` loses the name, position title,
    and org unit columns. All tables were truncated before this work began, so
@@ -312,6 +323,10 @@ and `index.ts` which now exports `employee`.
 change the database, so the user ran `drizzle-kit push` by hand. It completed
 with no problem.
 
+Shown here in its **final** shape, after the second push that made
+`position_title` and `tenure_status` required. See "Applied to the database"
+near the end for both runs.
+
 ```sql
 CREATE TABLE `employee` (
 	`employee_pk` bigint unsigned AUTO_INCREMENT NOT NULL,
@@ -319,12 +334,12 @@ CREATE TABLE `employee` (
 	`middle_name` varchar(100),
 	`last_name` varchar(100) NOT NULL,
 	`suffix` varchar(20),
-	`position_title` varchar(100),
+	`position_title` varchar(100) NOT NULL,
 	`org_unit_fk` bigint unsigned,
 	`birth_date` date,
 	`sex` enum('male','female'),
 	`civil_status` enum('single','married','widowed','separated','annulled'),
-	`tenure_status` enum('permanent','temporary','casual','coterminous','contractual','cos','job_order'),
+	`tenure_status` enum('permanent','temporary','casual','coterminous','contractual','cos','job_order') NOT NULL,
 	`employment_status` enum('active','separated') NOT NULL DEFAULT 'active',
 	`created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	`updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -353,8 +368,9 @@ CREATE TABLE `user` (
 
 `user_employee_fk_unique` is what enforces one login per employee.
 
-The application code has **not** been changed yet, so it still refers to columns
-that have moved. That work is the "What the separation touches" list above.
+When this schema was first applied, the application code still referred to
+columns that had moved, and nothing worked. That repair is the "What the
+separation touches" list above, and it is finished — see "Progress" at the end.
 
 ---
 
@@ -364,9 +380,10 @@ that have moved. That work is the "What the separation touches" list above.
 
 ### The problem
 
-Today `src/routes/admin/users/` has one page and one dialog that create the
-person and the login together in a single step. After the split those are two
-records, so the screen has to be either one page doing both or two pages.
+Before the split, `src/routes/admin/users/` had one page and one dialog that
+created the person and the login together in a single step. After the split
+those are two records, so the screen had to become either one page doing both
+or two pages.
 
 ### Decision
 
@@ -375,7 +392,7 @@ page for logins.
 
 ### Why
 
-- **The form is already long.** The current dialog asks for ten things: first
+- **The form was already long.** That dialog asked for ten things: first
   name, last name, middle name, suffix, position title, username, role,
   section, password, active. The employee record now adds birth date, sex,
   civil status and tenure status on top. One dialog for all of it, password
@@ -433,39 +450,32 @@ That does not require `admin:view_employees` — the key controls opening the
 Employees *page*, not reading employee names elsewhere. A user manager can still
 create logins normally.
 
-### Running the sync — done, but it may not be enough
+### Running the sync, and the gap it exposed — settled
 
 Adding keys to `PERMISSION_DEFS` changes no table, so the new keys reach the
 database only when `npm run sync-permissions` is run. That was held off while
-`scripts/create-admin.ts` did not work against the new schema. The bootstrap
-path is now repaired, and **the user has run the sync**, so
-`admin:view_employees` and `admin:manage_employees` exist in the `permission`
-table.
+`scripts/create-admin.ts` did not work against the new schema. Once the
+bootstrap path was repaired the user ran it, and both keys reached the
+`permission` table.
 
-**Open — does the super-admin role actually hold them?**
+That raised a question: **does the super-admin role actually hold them?** That
+role is frozen — the role editor shows its permissions as plain text with
+nothing to tick — so a key it does not already hold cannot be granted through
+the interface at all.
 
-The locked RBAC decisions
-(`.claude/skills/rbac-design/SKILL.md`, "Permission sync") say the script has
-four steps, the third being: *backfill the super-admin role with any `admin:*`
-key it is missing — required, because that role is frozen and has no UI path to
-gain a new module.*
-
-`scripts/sync-permissions.ts` as written has only three steps: upsert the keys,
-report orphans, and re-normalize every role to its implied keys. There is no
-super-admin backfill. Re-normalizing does not help here, because nothing implies
+The locked RBAC decisions (`.claude/skills/rbac-design/SKILL.md`, "Permission
+sync") say the script must backfill that role with any `admin:*` key it is
+missing, for exactly this reason. The script did not do it. It had three steps:
+upsert the keys, report orphans, and re-normalize every role to its implied
+keys. Re-normalizing does not help, because nothing implies
 `admin:manage_employees` — implication only runs upward, from manage to view to
 `admin:view`.
 
-Whether the super-admin role holds the two new keys therefore depends on when
-that role was created, and **the user has checked: it holds them.** They can
-open the Employees page with their super-admin account, so `create-admin.ts`
-must have run after the keys were added to `PERMISSION_DEFS`. Nothing is broken
-right now.
-
-The gap in the script was still real, though, and would have bitten the next
-time an admin page was added: the super-admin role is frozen, so a key it does
-not already hold can never be granted through the interface — the only remedy
-would have been editing `role_permission` by hand in MySQL.
+On this database nothing was broken. The user checked, and their super-admin
+role holds both keys, because `create-admin.ts` happened to run after the keys
+were added to `PERMISSION_DEFS`. But the gap would have bitten the next time an
+admin page was added, and the only remedy would have been editing
+`role_permission` by hand in MySQL.
 
 ### The missing step was added — settled
 
@@ -512,10 +522,11 @@ the new step reachable.
 
 ### Status
 
-**Built as recommended, still open to change.** The user asked to go ahead
-with the recommendation rather than discuss it first, and said they want to
-talk about it later. So nothing here is locked — it is what was built, not
-what was agreed.
+**Built as recommended, still open to change — and this is the next topic to
+discuss.** The user asked to go ahead with the recommendation rather than
+discuss it first, and said they wanted to talk about it later. So nothing here
+is locked: it is what was built, not what was agreed. They have now used the
+page for real, and have asked to open this topic in a fresh session.
 
 ### The problem
 
@@ -556,10 +567,10 @@ An empty one links to the Users page.
 - **Deleting somebody who has a login is refused**, with a sentence saying to
   delete the account first or mark them as no longer employed instead.
 - **Marking somebody as no longer employed does not switch off their account.**
-  The editor says so plainly. The reasoning: switching an account off is a
-  decision made on the Users page, possibly by a different admin, and doing it
-  silently from here would hide it from them. This one is worth talking about
-  — the opposite choice is defensible.
+  True when this page was built, and **Topic 8 has since overtaken it.** The
+  account row is still left alone, but that person can no longer sign in and is
+  signed out at once. The messages that said otherwise were rewritten. Read
+  Topic 8 rather than this line.
 - **A repeated name is a warning, not a refusal.** Two people can genuinely
   share a name in a small office, but the usual cause is the same person being
   added twice.
@@ -577,8 +588,8 @@ their login. They can still sign in. The account keeps working until somebody
 remembers to go to the Users page and switch it off as a second, separate
 step on a second page.
 
-The code as it stands only shows a warning, which depends on the admin reading
-it and then remembering to act on it.
+At that point the code only showed a warning, which depended on the admin
+reading it and then remembering to act on it.
 
 ### Decision — the sign-in itself refuses them
 
@@ -600,14 +611,15 @@ again for somebody who has left.
 
 ### The known cost, accepted
 
-The Users page will show such an account as "Active" while it actually refuses
+The Users page would show such an account as "Active" while it actually refused
 to work. That is contradictory on screen, so C is only honest if the Users page
-also shows that the person has left. This is part of the work, not a follow-up.
+also shows that the person has left. That was treated as part of the work rather
+than a follow-up, and it was built — see "What was built" below.
 
 ### What building this involves
 
-Listed so none of it is missed. Item 5 matters most: three places in the code
-currently tell the admin the opposite of what will be true.
+The plan, listed so none of it was missed. Item 5 mattered most: three places
+in the code told the admin the opposite of what was about to become true.
 
 1. **`src/lib/server/auth/session.ts`** — `validateSessionToken` already inner
    joins `employee`. Treat the session as invalid when
@@ -632,8 +644,8 @@ currently tell the admin the opposite of what will be true.
 ### What was built
 
 All five items, plus two small decisions taken while building. `npm run check`
-reports 0 errors and `npm run build` succeeds. Nothing has been opened in a
-browser yet.
+reports 0 errors and `npm run build` succeeds. It was tested in a browser
+afterwards — see "Tried against the running system" below.
 
 1. **`session.ts`** — a session whose employee is not `active` is deleted and
    treated as no session. Deleting rather than only refusing means the row does
@@ -782,26 +794,37 @@ Two `drizzle-kit push` runs, both done by the user:
   with the correct password.
 - `npm run sync-permissions` runs with the new backfill step and reports that
   the super-admin role already holds every admin permission.
+- **`scripts/create-admin.ts` works against the finished schema.** The user
+  truncated every table and ran it again from empty. It completed with no
+  error, which proves the placeholder position title and tenure it writes
+  satisfy the two columns that became required.
+- **The Organizational Structure page works.** Adding a unit, renaming a
+  section, and deleting a unit were all tried after the context import was
+  repaired.
+
+### Merged and pushed
+
+The work reached `main` in two merge bubbles: `feature/employee-user` for the
+separation itself, and `feature/org-unit` for the Organizational Structure
+fix, which belongs to that area rather than to this feature.
 
 ### Not tested yet
 
-- **`create-admin.ts` has not been re-run since position and tenure became
-  required.** It was changed to write placeholders for both; that change is
-  unproven. **Deliberately postponed** — the user has chosen to leave this for
-  later, since running it creates a second admin account on a database that
-  already has one.
-- **The Organizational Structure page has not been re-opened** since its
-  assigned-people list was pointed at `employee`.
-Topic 8 itself is fully tested and needs nothing further.
+Nothing is left. Every item that was on this list has been tried against a
+running system, and the results are in "Verified by the user" above.
 
 ### The next piece of work
 
-Nothing is chosen yet. Topic 8 is built and proven in a browser. What remains
-is the short list under "Not tested yet" above, and the topics never opened —
-whether `employment_status` needs more than active and separated (Topic 3), the
-"Give this person a login" shortcut from the Employees page (Topic 5), and
-whether anything on the Employees page should change now that it has been used
-for real (Topic 7).
+**Topic 7 — whether the Employees page shows the right things.** The user has
+asked to open this one in a fresh session. Nothing on that page was ever agreed:
+it was built on a "go ahead" rather than after a discussion, and the user has
+now used it for real.
+
+After that, one idea remains — the **"Give this person a login"** shortcut
+described at the end of Topic 5. It has never been discussed and is not a
+decision.
+
+Everything else in this document is settled, built, and tested.
 
 ---
 
@@ -809,6 +832,9 @@ for real (Topic 7).
 
 Listed so they are not forgotten. Not discussed, no decisions.
 
-- **Migration order.** No data to preserve, but the code still has to be
-  changed in a workable order. The sidebar showing the signed-in person's name
-  is the known place that reads the name fields today.
+- **The "Give this person a login" shortcut** on each row of the Employees
+  page, described at the end of Topic 5. An idea only.
+
+**Migration order** used to be listed here and no longer applies. There was
+never any data to preserve — every table was empty when this began — and the
+code was changed in a workable order as the work went along.
