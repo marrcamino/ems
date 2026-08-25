@@ -6,7 +6,7 @@
   import AlertCircleIcon from "@lucide/svelte/icons/alert-circle";
   import { toast } from "svelte-sonner";
   import { fade, slide } from "svelte/transition";
-  import { getOrgUnitContext } from "./context.svelte";
+  import { getOrgUnitContext } from "./context.svelte.js";
 
   const ctx = getOrgUnitContext();
   let node = $derived(ctx.orgUnitToEdit);

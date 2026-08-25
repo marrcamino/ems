@@ -16,7 +16,7 @@
   import { tick, untrack } from "svelte";
   import { toast } from "svelte-sonner";
   import { fade, slide } from "svelte/transition";
-  import { getOrgUnitContext } from "./context.svelte";
+  import { getOrgUnitContext } from "./context.svelte.js";
   import AssignedEmployeesDialog from "./assigned-employees-dialog.svelte";
   import OrgUnitAssignedEmployees from "./org-unit-assigned-employees.svelte";
 

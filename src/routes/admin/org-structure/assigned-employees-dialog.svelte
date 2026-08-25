@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import ScrollArea from "@/components/ui/scroll-area/scroll-area.svelte";
-  import { getOrgUnitContext } from "./context.svelte";
+  import { getOrgUnitContext } from "./context.svelte.js";
   import { initials } from "@/utils";
   import * as Avatar from "$lib/components/ui/avatar/index.js";
 

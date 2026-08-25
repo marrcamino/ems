@@ -2,7 +2,7 @@
   import * as Avatar from "$lib/components/ui/avatar/index.js";
   import Button from "@/components/ui/button/button.svelte";
   import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
-  import { getOrgUnitContext } from "./context.svelte";
+  import { getOrgUnitContext } from "./context.svelte.js";
   import { initials } from "@/utils";
 
   const MAX_AVATARS = 3;

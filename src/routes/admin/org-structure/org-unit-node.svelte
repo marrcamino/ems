@@ -6,7 +6,7 @@
     getOrgUnitContext,
     nextLevel,
     type TreeNode,
-  } from "./context.svelte";
+  } from "./context.svelte.js";
   import OrgUnitNode from "./org-unit-node.svelte";
 
   let { node }: { node: TreeNode } = $props();
