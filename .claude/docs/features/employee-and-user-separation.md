@@ -433,13 +433,78 @@ That does not require `admin:view_employees` — the key controls opening the
 Employees *page*, not reading employee names elsewhere. A user manager can still
 create logins normally.
 
-### Running the sync is deferred
+### Running the sync — done, but it may not be enough
 
 Adding keys to `PERMISSION_DEFS` changes no table, so the new keys reach the
-database only when `npm run sync-permissions` is run. The user has chosen to
-hold that off for now: every table is empty, and `scripts/create-admin.ts` does
-not work against the new schema yet, so there is no super-admin role for the
-sync to backfill. Both are done once the bootstrap path is repaired.
+database only when `npm run sync-permissions` is run. That was held off while
+`scripts/create-admin.ts` did not work against the new schema. The bootstrap
+path is now repaired, and **the user has run the sync**, so
+`admin:view_employees` and `admin:manage_employees` exist in the `permission`
+table.
+
+**Open — does the super-admin role actually hold them?**
+
+The locked RBAC decisions
+(`.claude/skills/rbac-design/SKILL.md`, "Permission sync") say the script has
+four steps, the third being: *backfill the super-admin role with any `admin:*`
+key it is missing — required, because that role is frozen and has no UI path to
+gain a new module.*
+
+`scripts/sync-permissions.ts` as written has only three steps: upsert the keys,
+report orphans, and re-normalize every role to its implied keys. There is no
+super-admin backfill. Re-normalizing does not help here, because nothing implies
+`admin:manage_employees` — implication only runs upward, from manage to view to
+`admin:view`.
+
+Whether the super-admin role holds the two new keys therefore depends on when
+that role was created, and **the user has checked: it holds them.** They can
+open the Employees page with their super-admin account, so `create-admin.ts`
+must have run after the keys were added to `PERMISSION_DEFS`. Nothing is broken
+right now.
+
+The gap in the script was still real, though, and would have bitten the next
+time an admin page was added: the super-admin role is frozen, so a key it does
+not already hold can never be granted through the interface — the only remedy
+would have been editing `role_permission` by hand in MySQL.
+
+### The missing step was added — settled
+
+The user agreed to fix it now rather than wait for a page to break.
+`scripts/sync-permissions.ts` now does four things instead of three, matching
+the locked decisions. The new third step:
+
+- finds the super-admin role by the permission it holds, `admin:manage_roles`,
+  never by name;
+- compares what it holds against every `admin:*` key defined in code;
+- inserts whatever is missing, inside one transaction;
+- names what it added, so the run is not silent;
+- and if no role holds that key at all — a fresh database where
+  `create-admin.ts` has not run — says so and skips, rather than failing.
+
+Staff keys are deliberately left out of the comparison. A user holding
+`admin:view` is sent to the admin area, where a staff key could never be used.
+
+The lookup that turns a key into its row number was moved above this step,
+since the re-normalizing step below needs the same thing and it is now read
+once for both.
+
+**Run and verified by the user.** The output was:
+
+```
+30 permission(s) synced, 0 new.
+"Super Admin" already holds every admin permission.
+All roles already hold their implied permissions.
+```
+
+Which is the expected result on this database: the two employee keys were
+already in the table from the earlier run, and the super-admin role already
+held them. Nothing was changed, which is what a correct backfill does when
+there is nothing to backfill.
+
+Worth noting for next time: the first attempt at this run showed no such line
+at all, because the fix was committed on `main` while the checkout was on
+`feature/employee-user`. Merging `main` into the feature branch was what made
+the new step reachable.
 
 ---
 
@@ -594,6 +659,28 @@ browser yet.
 5. **The three messages** — all rewritten to say the opposite of what they said,
    plus the comment in the employees context describing `leavingWithLogin`.
 
+### Tried against the running system — it works
+
+The user tested the whole path in a browser, and it behaved as designed:
+
+1. Added a person on the Employees page.
+2. Created a new role from one of the templates.
+3. Gave that person a login on the Users page.
+4. Signed in as them in a private window. It worked, and asked them to set
+   their own password — the temporary-password flow is intact.
+5. Back in the ordinary tab as super admin, marked them as no longer employed.
+6. Refreshed the private tab. It returned to the login page.
+
+Step 6 is the part that matters: the open session stopped working at the next
+request, rather than lasting until its eight-hour expiry.
+
+7. On that login page, typed the same person's correct username and password
+   again. The sign-in was refused, and the message appeared under the password
+   field.
+
+Steps 6 and 7 are two different pieces of code — one ends the session that
+already existed, the other refuses a new one — and both now work.
+
 ### Decided while building, worth revisiting
 
 - **The Active switch is disabled rather than forced off.** An account that was
@@ -687,25 +774,34 @@ Two `drizzle-kit push` runs, both done by the user:
 - `npm run create-admin` runs cleanly against the separated schema, and signing
   in and changing the password both work. This was checked after the first
   push, before the two admin pages existed.
+- **The Employees page, the Users page, and Topic 8 all work in a browser.** In
+  one sitting the user added a person, created a role from a template, gave
+  that person a login, signed in as them in a private window, set a password,
+  marked them as no longer employed from the admin tab, was returned to the
+  login page on the next refresh, and was then refused when signing in again
+  with the correct password.
+- `npm run sync-permissions` runs with the new backfill step and reports that
+  the super-admin role already holds every admin permission.
 
 ### Not tested yet
 
-- **The Employees page and the Users page have not been opened in a browser.**
-  They type-check and build, but no employee has been added and no account has
-  been made through them.
 - **`create-admin.ts` has not been re-run since position and tenure became
   required.** It was changed to write placeholders for both; that change is
-  unproven.
+  unproven. **Deliberately postponed** — the user has chosen to leave this for
+  later, since running it creates a second admin account on a database that
+  already has one.
 - **The Organizational Structure page has not been re-opened** since its
   assigned-people list was pointed at `employee`.
-- **Topic 8 has not been tried against a running system.** Nobody has been
-  marked as no longer employed and then attempted to sign in.
+Topic 8 itself is fully tested and needs nothing further.
 
 ### The next piece of work
 
-Nothing is chosen yet. Topic 8 is built. The largest thing still outstanding is
-that none of these pages has been opened in a browser, and `create-admin.ts` has
-not been re-run since position and tenure became required.
+Nothing is chosen yet. Topic 8 is built and proven in a browser. What remains
+is the short list under "Not tested yet" above, and the topics never opened —
+whether `employment_status` needs more than active and separated (Topic 3), the
+"Give this person a login" shortcut from the Employees page (Topic 5), and
+whether anything on the Employees page should change now that it has been used
+for real (Topic 7).
 
 ---
 
