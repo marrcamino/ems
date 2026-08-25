@@ -787,7 +787,9 @@ Two `drizzle-kit push` runs, both done by the user:
 
 - **`create-admin.ts` has not been re-run since position and tenure became
   required.** It was changed to write placeholders for both; that change is
-  unproven.
+  unproven. **Deliberately postponed** — the user has chosen to leave this for
+  later, since running it creates a second admin account on a database that
+  already has one.
 - **The Organizational Structure page has not been re-opened** since its
   assigned-people list was pointed at `employee`.
 Topic 8 itself is fully tested and needs nothing further.
