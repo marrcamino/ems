@@ -21,7 +21,10 @@ export const employee = mysqlTable("employee", {
   middleName: varchar("middle_name", { length: 100 }),
   lastName: varchar("last_name", { length: 100 }).notNull(),
   suffix: varchar("suffix", { length: 20 }),
-  positionTitle: varchar("position_title", { length: 100 }),
+  // Required: the office hires into a named position, so a person on file
+  // without one is not a real case. Contract of Service and Job Order staff
+  // hold no plantilla item but still have a position or a designation.
+  positionTitle: varchar("position_title", { length: 100 }).notNull(),
   orgUnitFk: bigint("org_unit_fk", {
     mode: "number",
     unsigned: true,
@@ -50,7 +53,7 @@ export const employee = mysqlTable("employee", {
     "contractual",
     "cos",
     "job_order",
-  ]),
+  ]).notNull(),
   // Whether the person still works here. Distinct from `user.account_status`,
   // which is only about whether a login may sign in.
   employmentStatus: mysqlEnum("employment_status", ["active", "separated"])

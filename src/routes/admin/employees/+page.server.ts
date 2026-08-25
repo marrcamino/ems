@@ -10,6 +10,7 @@ import {
   EMPLOYMENT_STATUS_VALUES,
   SEX_VALUES,
   TENURE_STATUS_VALUES,
+  type TenureStatus,
 } from "./labels";
 
 const NAME_MAX_LENGTH = 100;
@@ -86,12 +87,13 @@ function readEmployeeForm(form: FormData) {
     middleName: optionalText("middleName"),
     lastName: ((form.get("lastName") as string) ?? "").trim(),
     suffix: optionalText("suffix"),
-    positionTitle: optionalText("positionTitle"),
+    positionTitle: ((form.get("positionTitle") as string) ?? "").trim(),
     orgUnitFk: orgUnitFkRaw ? Number(orgUnitFkRaw) : null,
     birthDate: optionalText("birthDate"),
     sex: readChoice(form, "sex", SEX_VALUES),
     civilStatus: readChoice(form, "civilStatus", CIVIL_STATUS_VALUES),
     tenureStatus: readChoice(form, "tenureStatus", TENURE_STATUS_VALUES),
+
     employmentStatus: employmentStatus ?? "active",
   } as const;
 }
@@ -101,12 +103,17 @@ type EmployeeInput = ReturnType<typeof readEmployeeForm>;
 function validateEmployeeForm(input: EmployeeInput): string | null {
   if (!input.firstName) return "Enter a first name.";
   if (!input.lastName) return "Enter a last name.";
+  if (!input.positionTitle) return "Enter this person's position.";
+
+  // Required, not optional: everybody in the office is hired under one of
+  // these, Contract of Service and Job Order included.
+  if (input.tenureStatus === null) return "Choose how this person is hired.";
 
   if (
     input.firstName.length > NAME_MAX_LENGTH ||
     input.lastName.length > NAME_MAX_LENGTH ||
     (input.middleName?.length ?? 0) > NAME_MAX_LENGTH ||
-    (input.positionTitle?.length ?? 0) > NAME_MAX_LENGTH
+    input.positionTitle.length > NAME_MAX_LENGTH
   ) {
     return `Names and the position can be at most ${NAME_MAX_LENGTH} characters.`;
   }
@@ -135,6 +142,15 @@ function validateEmployeeForm(input: EmployeeInput): string | null {
   }
 
   return null;
+}
+
+/**
+ * The row as it goes into the table. Only reachable once
+ * validateEmployeeForm has passed, which is what rules out a missing tenure —
+ * the types cannot see that on their own.
+ */
+function toEmployeeValues(input: EmployeeInput) {
+  return { ...input, tenureStatus: input.tenureStatus as TenureStatus };
 }
 
 /**
@@ -210,7 +226,7 @@ export const actions: Actions = {
 
     // The admin is told about a repeated name in the dialog before saving, so
     // reaching here means they meant it.
-    const result = await db.insert(employee).values(input);
+    const result = await db.insert(employee).values(toEmployeeValues(input));
 
     const newRow = await readEmployeeRow(result[0].insertId);
     if (!newRow) {
@@ -250,7 +266,7 @@ export const actions: Actions = {
 
     await db
       .update(employee)
-      .set({ ...input, updatedAt: new Date() })
+      .set({ ...toEmployeeValues(input), updatedAt: new Date() })
       .where(eq(employee.employeePk, employeePk));
 
     const updatedRow = await readEmployeeRow(employeePk);

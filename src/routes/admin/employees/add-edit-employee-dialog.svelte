@@ -51,7 +51,11 @@
   const today = new Date().toISOString().slice(0, 10);
 
   const canSubmit = $derived(
-    !submitting && !!ctx.formFirstName.trim() && !!ctx.formLastName.trim(),
+    !submitting &&
+      !!ctx.formFirstName.trim() &&
+      !!ctx.formLastName.trim() &&
+      !!ctx.formPositionTitle.trim() &&
+      !!ctx.formTenureStatus,
   );
 </script>
 
@@ -201,17 +205,18 @@
           {/if}
 
           <div class="grid gap-2">
-            <Label for="positionTitle" class="gap-1">
-              Position
-              <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
-            </Label>
+            <Label for="positionTitle">Position</Label>
             <Input
               id="positionTitle"
               name="positionTitle"
+              required
               maxlength={100}
               placeholder="Administrative Officer II"
               bind:value={ctx.formPositionTitle}
             />
+            <p class="text-xs text-muted-foreground">
+              The position or designation this person was hired into.
+            </p>
           </div>
 
           <div class="grid gap-2">
@@ -253,26 +258,16 @@
           </div>
 
           <div class="grid gap-2">
-            <Label for="tenureStatus" class="gap-1">
-              Tenure
-              <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
-            </Label>
-            <Select.Root
-              type="single"
-              value={ctx.formTenureStatus || "none"}
-              onValueChange={(value) => {
-                ctx.formTenureStatus = value === "none" ? "" : value;
-              }}
-            >
+            <Label for="tenureStatus">Tenure</Label>
+            <Select.Root type="single" bind:value={ctx.formTenureStatus}>
               <Select.Trigger id="tenureStatus" class="w-full">
                 {ctx.formTenureStatus
                   ? TENURE_STATUS_LABELS[
                       ctx.formTenureStatus as keyof typeof TENURE_STATUS_LABELS
                     ]
-                  : "Not set"}
+                  : "Choose one"}
               </Select.Trigger>
               <Select.Content>
-                <Select.Item value="none" label="Not set">Not set</Select.Item>
                 {#each TENURE_STATUS_VALUES as value (value)}
                   <Select.Item {value} label={TENURE_STATUS_LABELS[value]}>
                     {TENURE_STATUS_LABELS[value]}

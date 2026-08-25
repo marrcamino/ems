@@ -63,7 +63,7 @@ export const columns = helper.columns([
   // search box. The username goes in for the same reason — somebody looking
   // up "jdelacruz" should land on the person it belongs to.
   helper.accessor(
-    (row) => `${row.positionTitle ?? ""} ${row.username ?? ""}`.trim(),
+    (row) => `${row.positionTitle} ${row.username ?? ""}`.trim(),
     { id: "details", header: "Details" },
   ),
 

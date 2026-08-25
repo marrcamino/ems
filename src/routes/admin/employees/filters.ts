@@ -28,7 +28,6 @@ export type EmployeeFilterId = "section" | "tenure" | "employment" | "login";
 export type EmployeeFilterState = Record<EmployeeFilterId, string[]>;
 
 export const NO_SECTION_LABEL = "No section";
-export const NO_TENURE_LABEL = "Not set";
 
 export function emptyEmployeeFilters(): EmployeeFilterState {
   return { section: [], tenure: [], employment: [], login: [] };
@@ -57,7 +56,7 @@ export function employeeSectionValue(employee: EmployeeRow): string {
 }
 
 export function employeeTenureValue(employee: EmployeeRow): string {
-  return employee.tenureStatus ?? "";
+  return employee.tenureStatus;
 }
 
 export function employeeEmploymentValue(employee: EmployeeRow): string {

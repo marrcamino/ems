@@ -19,10 +19,8 @@
     <span class="font-medium" class:text-muted-foreground={separated}>
       {fullName(employee)}
     </span>
-    {#if employee.positionTitle}
-      <span class="truncate text-xs text-muted-foreground">
-        {employee.positionTitle}
-      </span>
-    {/if}
+    <span class="truncate text-xs text-muted-foreground">
+      {employee.positionTitle}
+    </span>
   </div>
 </div>

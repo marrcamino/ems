@@ -236,9 +236,7 @@
                           {:else if person.employmentStatus !== "active"}
                             No longer employed
                           {:else}
-                            {person.positionTitle ??
-                              person.orgUnitName ??
-                              "No position recorded"}
+                            {person.positionTitle}
                           {/if}
                         </span>
                       </span>
