@@ -23,7 +23,8 @@ export const handle: Handle = async ({ event, resolve }) => {
     return guardOrResolve(event, resolve);
   }
 
-  const { session, user, permissions } = await validateSessionToken(token);
+  const { session, user, employee, permissions } =
+    await validateSessionToken(token);
 
   if (!session && !user) {
     deleteSessionTokenCookie(event);
@@ -50,7 +51,20 @@ export const handle: Handle = async ({ event, resolve }) => {
     ...loggedInUser
   } = user;
 
-  event.locals.user = loggedInUser;
+  // The person behind the login. Only the fields the app actually shows —
+  // birth date, sex, civil status and the rest stay on the server.
+  event.locals.user = {
+    ...loggedInUser,
+    employee: {
+      employeePk: employee.employeePk,
+      firstName: employee.firstName,
+      middleName: employee.middleName,
+      lastName: employee.lastName,
+      suffix: employee.suffix,
+      positionTitle: employee.positionTitle,
+      orgUnitFk: employee.orgUnitFk,
+    },
+  };
   event.locals.permissions = permissions;
 
   return guardOrResolve(event, resolve);

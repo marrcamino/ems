@@ -57,7 +57,7 @@ export const actions: Actions = {
       return fail(400, { error: "Invalid username or password." });
     }
 
-    if (found.status !== "active") {
+    if (found.accountStatus !== "active") {
       return fail(403, {
         error: "This account is inactive. Contact your administrator.",
       });
