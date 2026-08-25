@@ -1,7 +1,7 @@
 // src/routes/admin/org-units/+page.server.ts
 import { can } from "$lib/rbac/access";
 import { db } from "$lib/server/db";
-import { orgUnit, user } from "$lib/server/db/schema";
+import { employee, orgUnit } from "$lib/server/db/schema";
 import type { OrgUnit } from "@/types";
 import { error, fail } from "@sveltejs/kit";
 import { and, asc, eq } from "drizzle-orm";
@@ -145,15 +145,15 @@ export const actions: Actions = {
       });
     }
 
-    const [linkedUser] = await db
-      .select({ pk: user.userPk })
-      .from(user)
-      .where(eq(user.orgUnitFk, orgUnitPk));
+    const [linkedEmployee] = await db
+      .select({ pk: employee.employeePk })
+      .from(employee)
+      .where(eq(employee.orgUnitFk, orgUnitPk));
 
-    if (linkedUser) {
+    if (linkedEmployee) {
       return fail(409, {
         error:
-          "One or more users are assigned to this item and it can't be deleted. You can mark it inactive from the edit menu instead.",
+          "One or more employees are assigned to this item and it can't be deleted. You can mark it inactive from the edit menu instead.",
       });
     }
 
