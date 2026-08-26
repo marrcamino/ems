@@ -183,6 +183,14 @@ async function main() {
         // so the row cannot be written without them, but this script has no
         // way of knowing the real ones — whoever runs it corrects the record
         // on the Employees page afterwards.
+        //
+        // The birthday is deliberately left empty rather than filled with a
+        // placeholder date. The Employees page requires it of every person it
+        // saves, because the duplicate check is anchored on it, so a made-up
+        // date here would be a false value in the one field that check trusts.
+        // Empty says what is true: nobody knows this person's birthday yet.
+        // It stops being empty the moment this record is corrected, which the
+        // warning printed at the end asks for.
         const [employeeInsert] = await connection.query<mysql.ResultSetHeader>(
           `
           INSERT INTO employee
@@ -222,7 +230,7 @@ async function main() {
     );
     p.log.warn("The user must change this password on first login.");
     p.log.warn(
-      'This account was filed under the placeholder name "Admin User", position "System Administrator", tenure "Permanent". Correct it on the Employees page after signing in.',
+      'This account was saved under the placeholder name "Admin User", position "System Administrator", tenure "Permanent", and with no birthday. Correct it on the Employees page after signing in — the birthday is what tells two people with the same name apart.',
     );
     p.outro(color.green("Done."));
   } finally {
