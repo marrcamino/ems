@@ -113,7 +113,7 @@ lists are *called* is Topic 3.
 They were optional at first only because they had been optional on the old
 `user` table and were carried across unchanged. The user asked why, and then
 corrected the reasoning behind it: the office hires a person *into* a named
-position, so somebody on file with no position at all is not a real case.
+position, so somebody in the records with no position at all is not a real case.
 Contract of Service and Job Order staff hold no plantilla item, but they still
 have a position or a designation.
 
@@ -522,11 +522,16 @@ the new step reachable.
 
 ### Status
 
-**Built as recommended, still open to change — and this is the next topic to
-discuss.** The user asked to go ahead with the recommendation rather than
-discuss it first, and said they wanted to talk about it later. So nothing here
-is locked: it is what was built, not what was agreed. They have now used the
-page for real, and have asked to open this topic in a fresh session.
+**Settled.** The page was built on a "go ahead" rather than after a discussion,
+so nothing on it had ever been agreed. That is why the topic was reopened in a
+later session. By then the user had used the page for real work and reported
+that the columns, the search and the filters all work as they need them to.
+Those are agreed as built.
+
+**One part had to be reopened and is now closed too.** The user remembered the
+duplicate-name rule and said plainly that adding the same person twice must not
+be allowed — warning and letting the save through was wrong. That became Topic
+7a below, which is settled, built and tested.
 
 ### The problem
 
@@ -535,7 +540,7 @@ facts appear as columns in the list, and which are only visible when you open
 one person to edit them. The employee record now holds personal things —
 birthday, sex, civil status — that were never on the old Users page.
 
-### What was built — five columns
+### The five columns
 
 | Column | What it shows |
 |---|---|
@@ -560,7 +565,7 @@ question the separation creates — *who in this office still has no account?*
 Without it an admin would have to open both pages and compare them by hand.
 An empty one links to the Users page.
 
-### Also decided while building, worth revisiting
+### Also decided while building, and kept
 
 - **COS and Job Order are shortened in the table** and spelled out in full in
   a tooltip, because "Contract of Service" does not fit in a column.
@@ -571,9 +576,387 @@ An empty one links to the Users page.
   account row is still left alone, but that person can no longer sign in and is
   signed out at once. The messages that said otherwise were rewritten. Read
   Topic 8 rather than this line.
-- **A repeated name is a warning, not a refusal.** Two people can genuinely
-  share a name in a small office, but the usual cause is the same person being
-  added twice.
+- **A repeated name is a warning, not a refusal.** This was the reasoning at
+  the time: two people can genuinely share a name in a small office, so the
+  save was allowed to go through. **The user has since rejected this.** Adding
+  the same person twice must be refused, not merely flagged. See Topic 7a.
+
+---
+
+## Topic 7a — Stopping the same person being added twice
+
+### Status
+
+**Settled, built and tested.** What identifies a person, how the birth date is
+handled, what happens on each kind of match, how somebody returning to the
+office is handled, and the wording of every message are all decided below and
+approved by the user.
+
+The type check and the production build pass, the three scenarios were run
+against the live database with the test rows cleaned up afterwards, and the
+user has since used the pages in a browser and found no problem.
+
+### The problem
+
+The Employees page warns when a new person has the same name as somebody
+already in the system, and then lets the save go through anyway. The user has used
+the page for real and rejected that: adding the same person twice must be
+**refused**, not flagged.
+
+Getting there needs an answer to a harder question — what actually identifies a
+person? A name is not enough:
+
+- Two people in one office can genuinely share a name.
+- A woman commonly takes a new surname when she marries, so the same person can
+  appear under two different surnames years apart.
+- Somebody who left the office can come back, and their old record is still in
+  the system, marked as no longer employed.
+
+### The approach the user had tried before, and why we are not repeating it
+
+On another system the user built a checker that compared the surname, then the
+first name, then the suffix (Jr., Sr.), with a separate branch for women that
+allowed for a changed surname — a branch that only ran when the sex field said
+female.
+
+The user themselves spotted the weakness: **sex can be entered wrongly.** One
+mistyped field and the whole check behaves differently for that person, silently.
+That branch is dropped.
+
+### Decision — the birth date is the anchor, not the name
+
+A birth date never changes. Marriage does not change it. It is the same for a
+man or a woman, the same for Permanent and for Job Order, and the same for
+somebody who left and came back. Two people in one office sharing a full name
+*and* a birth date is close to impossible.
+
+Anchoring on it removes the need to read the sex field at all.
+
+| What matches an existing record | Outcome |
+| --- | --- |
+| First name + last name + birth date, and that person is **still employed** | **The save is stopped.** This is the same person, already active. |
+| First name + last name + birth date, and that person is **no longer employed** | **The save is stopped, and bringing them back is offered instead.** See the returning-person decision below. |
+| Birth date matches, surname differs | **Possible match, shown to the admin, save allowed.** This is the married-name case. |
+| Full name matches, but one of the two records has no birth date | **Possible match, shown to the admin, save allowed.** |
+
+The first two rows are both exact matches and both stop a second record being
+created. They differ in what the admin is offered afterwards, which is why they
+are listed apart.
+
+The check looks at **every** employee record, including people marked as no
+longer employed. Somebody returning to the office must be found, not added a
+second time.
+
+### Decision — the birth date is required of people, but the column stays optional
+
+The birth date was optional in Topic 2. For it to anchor the check it has to be
+present, so:
+
+- **The Employees form requires it**, and the server checks it too, not only the
+  browser. Every person a human adds therefore has one.
+- **The database column stays nullable.**
+
+The reason for that split is `scripts/create-admin.ts`, which creates the very
+first administrator on an empty database. It writes a placeholder person —
+"Admin User", position "System Administrator", tenure "Permanent" — because it
+cannot know the real details. Two alternatives were considered and rejected:
+
+- **Write a fake date such as 1900-01-01.** Worse than leaving it empty. Empty
+  means "we do not know"; a fake date means "we know, and it is 1900" — a false
+  value sitting in the one field the duplicate check trusts.
+- **Have the script ask for a real birth date.** Inconsistent: that row is
+  already entirely placeholders, so asking for one true fact in the middle of
+  them is odd, and it comes before anyone can even sign in.
+
+Leaving it empty also keeps the third rule in the table above alive rather than
+making it dead code. If the column could never be empty, "one of the two records
+has no birth date" would never happen.
+
+The gap is small and closes by itself. The setup script already tells whoever
+runs it to correct that placeholder record on the Employees page, and doing so
+goes through the form, which requires a birth date. So the empty value exists
+only between first setup and that first correction.
+
+### Speed is not a concern
+
+The user raised it. This office is at most a few hundred records, and the check
+is a single indexed lookup. It will feel instant. No special design is needed
+for it.
+
+### Decision — an exact match blocks, a possible match only warns
+
+The two outcomes are treated differently on purpose.
+
+**An exact match refuses the save.** First name, last name and birth date all
+agreeing means it is the same person, and a second row for them is wrong.
+
+**A possible match lets the save go through, but not silently.** The admin is
+shown who the possible match is, before the record is saved, so they can compare
+the two and decide. The user's reasoning is that a possible match is genuinely
+ambiguous — the office can hold two different people whose records look alike —
+so the system should inform rather than stand in the way.
+
+### Decision — editing a person is checked the same way
+
+Renaming somebody, or correcting their birth date, can collide with a record
+already in the system just as adding can. So an edit runs the same check and gets the
+same two outcomes: exact match refuses, possible match warns and continues.
+
+The record being edited is of course left out of its own comparison, or every
+edit would match itself.
+
+### Decision — what the warning has to say
+
+The user's requirement is that the message states the problem **and** what can
+be done about it, in plain words. It must not simply announce that something
+looks similar and leave the admin to work out the rest.
+
+The point the message has to get across is that **either record may be the wrong
+one**. Perhaps the person already in the system was saved by mistake. Perhaps the one
+being entered now is the mistake. The admin is the only one who can tell, so the
+message asks them to check both records rather than implying the new one is at
+fault.
+
+The user's own phrasing for the heart of it: *"Please check both information."*
+The wording that came out of this is written out in full further down, under
+"the wording of the messages", and was approved unchanged.
+
+### Decision — somebody returning to the office
+
+Their existing record has its employment status set back to **active**. That is
+the whole of it.
+
+No history of when they left and came back is kept. The user was explicit that
+this is a personnel-system feature and does not belong here — the same limit set
+in Topic 2 and Topic 3. This is an environmental management system.
+
+### Decision — an exact match on somebody who has left offers to bring them back
+
+The refusal and the returning-person rule had to meet somewhere, because an
+admin whose colleague rejoins the office does not think "I will reactivate her".
+They think "she is joining us again" and open the add form. The exact-match rule
+then stops them, and without a way forward that is the moment somebody changes a
+spelling to force the save through — creating the very duplicate the check
+exists to prevent.
+
+So when the exact match is a person marked **no longer employed**, the form
+shows an alert offering **"Bring this person back"**.
+
+**The alert stays inside the form.** Nothing navigates away, nothing redirects.
+The admin has a filled-in form on screen and must not lose it.
+
+**It carries one action and a way out.** The action brings the person back. The
+dismiss is there because the admin may realise they mistyped the birth date, or
+that this is a different person after all — an alert with no way out leaves them
+accepting something they may not want.
+
+If the matched person is **still active**, there is nothing to offer. It is a
+plain refusal saying the person is already in the system.
+
+### Decision — bringing somebody back also saves what was typed
+
+The button does not only flip the employment status to active. It also applies
+the details the admin has just typed.
+
+The reason is that people rarely return to the same job. Somebody who left as
+Contract of Service may come back as Permanent, in a different section. The
+admin has already typed the current details into the form, so throwing them away
+would leave the record showing a job the person no longer holds, and would rely
+on the admin remembering to go and correct it afterwards — the same half-finished
+pattern that Topic 8 had to fix.
+
+The fields that can change this way are **position title, section, tenure
+status, and civil status**. Civil status matters more than it first appears: a
+woman may have married while away, which is the same circumstance behind the
+changed-surname rule above.
+
+Name and birth date are not in that list. An exact match means they already
+agree, by definition.
+
+**The alert says what will actually change**, field by field, as old and new —
+for example that the tenure goes from Contract of Service to Permanent. Only
+fields that genuinely differ are listed; if nothing else differs, the alert says
+so plainly rather than showing an empty list. The point is that the admin can
+see what they are agreeing to before they agree to it.
+
+### Decision — the wording of the messages
+
+Approved by the user with no changes. The names below are examples; the real
+values come from the records being compared.
+
+A note on one word that was rejected. An earlier draft said a person was
+"already on file". The user objected that "file" sounds like a paper folder or
+a computer file, so the sentence reads as though it is about a document rather
+than about a person. Everything now says **"already in the system"**, and that
+correction applies to any wording added later.
+
+**1. Refusal — the person is already there and still employed.**
+
+> **This person is already in the system**
+>
+> Juan Dela Cruz, born 12 March 1990, is already recorded and is still
+> employed. The same person cannot be added twice.
+>
+> *Already recorded as:*
+> Engineer II · Environmental Monitoring Section · Permanent
+>
+> If you think this is a different person, please check both records. The birth
+> date on one of them may have been typed wrongly.
+>
+> `Close`
+
+The matched person's details appear inside the message so the two can be
+compared without leaving the form.
+
+**2a. Warning — same birth date, different surname.**
+
+> **Someone with the same birth date is already in the system**
+>
+> The person you are adding has the same birth date as someone already
+> recorded, but a different surname.
+>
+> *Already recorded as:*
+> Maria Santos · born 5 June 1988 · Administrative Officer II · Finance Section
+>
+> This may be the same person, if her surname changed after she married. It may
+> also be two different people. Please check both records before you continue.
+>
+> `Go back and check`   `Yes, this is a different person`
+
+**2b. Warning — same name, and one record has no birth date.**
+
+> **Someone with the same name is already in the system**
+>
+> Juan Dela Cruz is already recorded, but that record has no birth date, so the
+> same person cannot be told apart from a different one.
+>
+> *Already recorded as:*
+> Engineer II · Environmental Monitoring Section · Permanent
+>
+> Please check both records before you continue.
+>
+> `Go back and check`   `Yes, this is a different person`
+
+The two possible-match situations get their own message rather than sharing one
+that tries to cover both, because the reason for the doubt is different each
+time and the admin needs to know which one they are looking at.
+
+The second button states the decision the admin is making — *"Yes, this is a
+different person"* — rather than saying "Save anyway". Pressing past a warning
+and confirming a belief are different acts, and the label should be the second
+one.
+
+**3. Bring this person back.**
+
+> **This person worked here before**
+>
+> Maria Santos, born 5 June 1988, is already in the system and is marked as no
+> longer employed. You do not need to add her again. You can bring her record
+> back instead.
+>
+> *These details will be updated:*
+> Position: Administrative Aide IV → Administrative Officer II
+> Tenure: Contract of Service → Permanent
+> Section: Not assigned → Finance Section
+>
+> `Cancel`   `Bring this person back`
+
+When nothing else differs, the list of changes is replaced by one sentence:
+
+> Nothing else will change. The details you entered are the same as the ones
+> already recorded.
+
+**On the edit form the wording shifts**, because nothing is being added. For
+example, "The same person cannot be added twice" becomes "These changes would
+make this person the same as someone already recorded." The meaning and the
+buttons stay the same.
+
+### What was built
+
+All of the above, in one commit on `feature/employee-user`:
+
+- **`src/routes/admin/employees/duplicate-check.ts`** — the matching rules,
+  written once and run in two places: live in the dialog as the admin types,
+  and again in the server actions, which cannot be bypassed.
+- **`duplicate-alert.svelte`** — the three messages, shown inside the form.
+- **`+page.server.ts`** — the birth date is now required, an exact match is
+  refused in `create` and `update`, and a new `reinstate` action brings a
+  returning person back.
+- **`context.svelte.ts`** — the live check replaces the old name-only warning.
+- **`scripts/create-admin.ts`** — a note recording why its placeholder row
+  keeps an empty birthday rather than a made-up date.
+
+The type check and the production build both pass. The matching rules were
+also run against a set of made-up people covering every rule, including two
+who share a birthday and a record with no birth date at all.
+
+### Four things decided while building — worth a look
+
+These follow from the decisions above but were not discussed, so they are
+listed apart rather than folded in as though they had been agreed.
+
+**A possible match is now about the whole name, not only the surname.** The
+rule was written as "birth date matches, surname differs". As built it is
+"birth dates match, the name is not exactly the same", which also catches a
+first name written differently — "Ma." instead of "Maria", which is common.
+The surname case still works exactly as described.
+
+**Bringing somebody back is offered only while adding.** On the edit form an
+exact match is a *different* row, so bringing it back would write the edited
+person's details over that other person. There the match is simply refused,
+and the admin is told to open that record instead.
+
+**The check is skipped on an edit that leaves the name and birthday alone.**
+Two people can genuinely share a birthday. Without this, correcting a typo in
+one of their positions would raise the same possible-match question on every
+save — a question already settled when the record was created. The same skip
+was put in the server action, where it also prevents an admin being trapped:
+if two matching records somehow already existed, neither could be edited.
+
+**The possible-match message has one button, not two.** The approved wording
+had "Go back and check" beside "Yes, this is a different person". Inside the
+form the first has nothing to do — the admin corrects the fields directly —
+so it was left out. The Save button stays switched off until "Yes, this is a
+different person" is pressed, which is what makes the answer explicit.
+
+### Checked against the real database
+
+The three scenarios were run against the live database rather than against
+made-up data, using the same matching rules the page uses. Test rows were
+created, checked, and deleted again, leaving the table with the two rows it
+started with.
+
+| Scenario | Result |
+| --- | --- |
+| Adding the same person a second time | Exact match, and the person is still employed — refused, nothing offered |
+| Marking that person as no longer employed, then adding them again | Exact match, and the person has left — bringing them back is offered |
+| Editing somebody without touching their name or birthday | The check is skipped, as intended |
+| Adding somebody who shares a birthday with two existing people | Possible match, save allowed once answered |
+| Same name, different birthday | No match — treated as two different people |
+
+**One assumption was worth checking on its own.** The whole comparison rests on
+the stored birthday being text in the same shape the browser's date field
+submits. A plain read of the column through the MySQL driver returns a date
+object at 16:00 UTC — which, read carelessly, is the day before. Drizzle's
+`mode: "string"` on that column is what avoids it, and a query through the
+app's own schema was run to confirm: it returns `"2002-05-27"`, a string, and
+re-entering the person exactly as stored is correctly refused.
+
+### Used in a browser — nothing left open
+
+The user clicked through the pages and reported no problem. That covers the
+part the database run could not reach: the alerts appearing and disappearing as
+the fields are typed, the "Bring this person back" button submitting, and the
+Save button switching on only once the possible-match question is answered.
+
+Topic 7a is finished.
+
+One thing to expect rather than be surprised by: the placeholder "Admin User"
+row still has no birthday, so the first time it is edited the form will ask for
+one. That is the intended behaviour, not a fault.
+
+The four points decided while building, listed above, were seen on screen and
+left as they are.
 
 ---
 
@@ -801,6 +1184,9 @@ Two `drizzle-kit push` runs, both done by the user:
 - **The Organizational Structure page works.** Adding a unit, renaming a
   section, and deleting a unit were all tried after the context import was
   repaired.
+- **The duplicate-person check works.** Its rules were run against the live
+  database, and the user then used the Employees page in a browser and found
+  no problem. See Topic 7a.
 
 ### Merged and pushed
 
@@ -815,16 +1201,16 @@ running system, and the results are in "Verified by the user" above.
 
 ### The next piece of work
 
-**Topic 7 — whether the Employees page shows the right things.** The user has
-asked to open this one in a fresh session. Nothing on that page was ever agreed:
-it was built on a "go ahead" rather than after a discussion, and the user has
-now used it for real.
+**Nothing.** Topic 7a was the last outstanding work, and it is designed,
+agreed, built, checked against the live database, and used in a browser. No
+migration was needed — `birth_date` stays nullable, and the requirement lives
+in the form and the server action.
 
-After that, one idea remains — the **"Give this person a login"** shortcut
-described at the end of Topic 5. It has never been discussed and is not a
-decision.
+One idea has still never been discussed: the **"Give this person a login"**
+shortcut described at the end of Topic 5. It is not a decision, and no work on
+it is planned.
 
-Everything else in this document is settled, built, and tested.
+Everything in this document is settled, built, and tested.
 
 ---
 

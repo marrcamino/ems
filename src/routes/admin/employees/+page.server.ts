@@ -6,6 +6,12 @@ import { error, fail } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
 import {
+  alreadyEmployedMessage,
+  findDuplicate,
+  nameWithBirthDate,
+  wouldDuplicateMessage,
+} from "./duplicate-check";
+import {
   CIVIL_STATUS_VALUES,
   EMPLOYMENT_STATUS_VALUES,
   SEX_VALUES,
@@ -122,26 +128,84 @@ function validateEmployeeForm(input: EmployeeInput): string | null {
     return `The suffix can be at most ${SUFFIX_MAX_LENGTH} characters.`;
   }
 
-  if (input.birthDate !== null) {
-    // The browser sends "YYYY-MM-DD" from a date input. Parsed with an
-    // explicit UTC midnight so the check does not move the day.
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.birthDate)) {
-      return "Enter the birthday as a date, or leave it blank.";
-    }
+  // Required of every person, because it is what the duplicate check is
+  // anchored on. The column itself stays nullable: scripts/create-admin.ts
+  // writes one placeholder row before anybody can sign in, and leaving that
+  // row's birthday empty is more honest than inventing a date for it.
+  if (input.birthDate === null) {
+    return "Enter this person's birthday. It is what tells two people with the same name apart.";
+  }
 
-    const parsed = new Date(`${input.birthDate}T00:00:00Z`);
-    if (Number.isNaN(parsed.getTime())) {
-      return "That birthday isn't a real date.";
-    }
-    if (parsed.getTime() > Date.now()) {
-      return "The birthday can't be in the future.";
-    }
-    if (parsed.getUTCFullYear() < EARLIEST_BIRTH_YEAR) {
-      return "Check the year of the birthday.";
-    }
+  // The browser sends "YYYY-MM-DD" from a date input. Parsed with an
+  // explicit UTC midnight so the check does not move the day.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.birthDate)) {
+    return "Enter the birthday as a date.";
+  }
+
+  const parsed = new Date(`${input.birthDate}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return "That birthday isn't a real date.";
+  }
+  if (parsed.getTime() > Date.now()) {
+    return "The birthday can't be in the future.";
+  }
+  if (parsed.getUTCFullYear() < EARLIEST_BIRTH_YEAR) {
+    return "Check the year of the birthday.";
   }
 
   return null;
+}
+
+/**
+ * Everybody the new or edited record has to be compared against: the whole
+ * table, people who no longer work here included. Somebody returning to the
+ * office must be recognised rather than added a second time.
+ *
+ * Reading the lot is deliberate. This is one office of at most a few hundred
+ * rows, so a single unfiltered read is cheaper than the several indexed
+ * queries the three matching rules would otherwise need.
+ */
+async function readComparablePeople() {
+  return db
+    .select({
+      employeePk: employee.employeePk,
+      firstName: employee.firstName,
+      lastName: employee.lastName,
+      birthDate: employee.birthDate,
+      employmentStatus: employee.employmentStatus,
+    })
+    .from(employee);
+}
+
+/**
+ * The server's own duplicate check, returning the sentence to refuse with or
+ * null to carry on.
+ *
+ * The dialog runs the same rules and offers the admin a way forward, but it
+ * can be bypassed, so an exact match is stopped here too. Only exact matches
+ * are stopped: a possible match is something the admin is allowed to overrule,
+ * and by the time a request arrives they already have.
+ */
+async function refuseIfDuplicate(
+  input: EmployeeInput,
+  ignoreEmployeePk: number | null,
+  wording: "create" | "update",
+): Promise<string | null> {
+  const found = findDuplicate(
+    input,
+    await readComparablePeople(),
+    ignoreEmployeePk,
+  );
+
+  if (found?.kind !== "exact") return null;
+
+  if (found.person.employmentStatus !== "active") {
+    return `${nameWithBirthDate(found.person)} is already in the system, marked as no longer employed. Open that person's record and set them back to employed instead of adding them again.`;
+  }
+
+  return wording === "create"
+    ? alreadyEmployedMessage(found.person)
+    : wouldDuplicateMessage(found.person);
 }
 
 /**
@@ -240,8 +304,11 @@ export const actions: Actions = {
     const badSection = await validateSection(input);
     if (badSection) return fail(400, { error: badSection });
 
-    // The admin is told about a repeated name in the dialog before saving, so
-    // reaching here means they meant it.
+    const duplicate = await refuseIfDuplicate(input, null, "create");
+    if (duplicate) return fail(409, { error: duplicate });
+
+    // A possible match is deliberately not stopped. The dialog showed it and
+    // the admin answered that these are two different people.
     const result = await db.insert(employee).values(toEmployeeValues(input));
 
     const newRow = await readEmployeeRow(result[0].insertId);
@@ -280,6 +347,24 @@ export const actions: Actions = {
     const badSection = await validateSection(input, existing.orgUnitFk);
     if (badSection) return fail(400, { error: badSection });
 
+    // Renaming somebody, or correcting their birthday, can collide with a
+    // record already in the system just as adding can. This row is left out of
+    // its own comparison, or every edit would match itself.
+    //
+    // Skipped entirely when the three identifying fields are untouched. Such
+    // an edit cannot create a new collision, and checking anyway would trap an
+    // admin trying to correct one of two records that already match — they
+    // would be refused on both, with no way to fix either.
+    const identityUnchanged =
+      input.firstName === existing.firstName &&
+      input.lastName === existing.lastName &&
+      input.birthDate === existing.birthDate;
+
+    if (!identityUnchanged) {
+      const duplicate = await refuseIfDuplicate(input, employeePk, "update");
+      if (duplicate) return fail(409, { error: duplicate });
+    }
+
     await db
       .update(employee)
       .set({ ...toEmployeeValues(input), updatedAt: new Date() })
@@ -302,6 +387,76 @@ export const actions: Actions = {
     }
 
     return { success: true, updatedRow };
+  },
+
+  /**
+   * Bringing back somebody who used to work here.
+   *
+   * An admin whose colleague rejoins the office does not think "I will set her
+   * back to employed" — they open the add form and type her details. The
+   * duplicate check stops that save, and this action is the way forward it
+   * offers instead: the record already in the system is set back to employed,
+   * and the details just typed are written over it, because people rarely
+   * return to the same job.
+   *
+   * Without this the admin would be at a dead end, and the way around a dead
+   * end is to change a spelling until the save goes through — creating the
+   * very duplicate the check exists to prevent.
+   */
+  reinstate: async ({ request, locals }) => {
+    if (!can(locals.permissions, "admin:manage_employees")) {
+      return fail(403, {
+        error: "You do not have permission to edit employees.",
+      });
+    }
+
+    const form = await request.formData();
+    const employeePk = Number(form.get("employeePk"));
+    const input = readEmployeeForm(form);
+
+    const [existing] = await db
+      .select()
+      .from(employee)
+      .where(eq(employee.employeePk, employeePk));
+
+    if (!existing) {
+      return fail(404, { error: "That employee no longer exists." });
+    }
+
+    if (existing.employmentStatus === "active") {
+      return fail(409, {
+        error: "That person is already marked as employed.",
+      });
+    }
+
+    const invalid = validateEmployeeForm(input);
+    if (invalid) return fail(400, { error: invalid });
+
+    const badSection = await validateSection(input, existing.orgUnitFk);
+    if (badSection) return fail(400, { error: badSection });
+
+    // Somebody else in the table could match exactly as well. This one is left
+    // out because it is the record being brought back.
+    const duplicate = await refuseIfDuplicate(input, employeePk, "update");
+    if (duplicate) return fail(409, { error: duplicate });
+
+    await db
+      .update(employee)
+      .set({
+        ...toEmployeeValues(input),
+        employmentStatus: "active",
+        updatedAt: new Date(),
+      })
+      .where(eq(employee.employeePk, employeePk));
+
+    const updatedRow = await readEmployeeRow(employeePk);
+    if (!updatedRow) {
+      return fail(500, {
+        error: "The change was saved but the employee could not be read back.",
+      });
+    }
+
+    return { success: true, updatedRow, reinstated: true };
   },
 
   /**

@@ -11,9 +11,10 @@
   import type { OrgUnit } from "$lib/types";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
   import { capitalize } from "@/utils";
-  import { Info, TriangleAlert } from "@lucide/svelte/icons";
+  import { Info } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
   import { getEmployeesContext, type EmployeeRow } from "./context.svelte.js";
+  import DuplicateAlert from "./duplicate-alert.svelte";
   import {
     CIVIL_STATUS_LABELS,
     CIVIL_STATUS_VALUES,
@@ -55,7 +56,14 @@
       !!ctx.formFirstName.trim() &&
       !!ctx.formLastName.trim() &&
       !!ctx.formPositionTitle.trim() &&
-      !!ctx.formTenureStatus,
+      !!ctx.formTenureStatus &&
+      !!ctx.formBirthDate &&
+      // An exact match is never saved as a new or renamed person. Where the
+      // matched person has left, the way forward is the button inside the
+      // alert instead of this one.
+      ctx.duplicateFinding?.kind !== "exact" &&
+      // A possible match may be saved, but only once it has been answered.
+      (!ctx.possibleMatch || ctx.confirmedDifferentPerson),
   );
 </script>
 
@@ -77,15 +85,27 @@
           const isEditing = ctx.mode === "edit";
 
           if (result.type === "success") {
-            if (!isEditing && result.data?.newRow) {
-              ctx.addEmployee(result.data.newRow as EmployeeRow);
-            }
+            // Which row came back matters more than which mode the dialog was
+            // in: bringing somebody back happens from the add form but updates
+            // a row that already exists.
+            const data = result.data as
+              | {
+                  newRow?: EmployeeRow;
+                  updatedRow?: EmployeeRow;
+                  reinstated?: boolean;
+                }
+              | undefined;
 
-            if (isEditing && result.data?.updatedRow) {
-              ctx.updateEmployee(result.data.updatedRow as EmployeeRow);
-            }
+            if (data?.newRow) ctx.addEmployee(data.newRow);
+            if (data?.updatedRow) ctx.updateEmployee(data.updatedRow);
 
-            toast.success(isEditing ? "Changes saved" : "Employee added");
+            toast.success(
+              data?.reinstated
+                ? "This person is employed again"
+                : isEditing
+                  ? "Changes saved"
+                  : "Employee added",
+            );
             ctx.addEditDialog = false;
           }
 
@@ -194,16 +214,29 @@
             </div>
           </div>
 
-          {#if ctx.nameAlreadyUsed}
-            <Alert.Root variant="info">
-              <TriangleAlert />
-              <Alert.Title>Somebody with this name is already listed</Alert.Title>
-              <Alert.Description>
-                Two people can share a name, so you can still save this. Check
-                the list first in case this person was already added.
-              </Alert.Description>
-            </Alert.Root>
-          {/if}
+          <!--
+            The birthday sits with the names rather than with the personal
+            details, because it is no longer a personal detail: it is what
+            tells two people with the same name apart, and the check below
+            reads it.
+          -->
+          <div class="grid gap-2">
+            <Label for="birthDate">Birthday</Label>
+            <Input
+              id="birthDate"
+              name="birthDate"
+              type="date"
+              required
+              max={today}
+              bind:value={ctx.formBirthDate}
+            />
+            <p class="text-xs text-muted-foreground">
+              Needed so this person can be told apart from anybody else with
+              the same name.
+            </p>
+          </div>
+
+          <DuplicateAlert {submitting} />
 
           <div class="grid gap-2">
             <Label for="positionTitle">Position</Label>
@@ -284,24 +317,13 @@
 
           <!--
             Personal details, kept out of the table on purpose: nobody scans a
-            staff list looking for a birthday, and these do not need to sit on
-            screen where anybody walking past can read them.
+            staff list looking for these, and they do not need to sit on screen
+            where anybody walking past can read them.
           -->
           <div class="grid gap-3 rounded-lg border p-3">
             <span class="text-xs font-medium text-muted-foreground uppercase">
               Personal details (optional)
             </span>
-
-            <div class="grid gap-2">
-              <Label for="birthDate">Birthday</Label>
-              <Input
-                id="birthDate"
-                name="birthDate"
-                type="date"
-                max={today}
-                bind:value={ctx.formBirthDate}
-              />
-            </div>
 
             <div class="grid gap-2 sm:grid-cols-2">
               <div class="grid gap-2">

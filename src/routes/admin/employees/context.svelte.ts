@@ -1,7 +1,23 @@
 import type { Employee, OrgUnit } from "$lib/types";
 import { fullName, makeContext } from "@/utils";
 import { untrack } from "svelte";
-import { EMPLOYMENT_STATUS_VALUES } from "./labels";
+import { findDuplicate, type DuplicateFinding } from "./duplicate-check";
+import {
+  CIVIL_STATUS_LABELS,
+  EMPLOYMENT_STATUS_VALUES,
+  TENURE_STATUS_LABELS,
+  type TenureStatus,
+} from "./labels";
+
+/** One line of the "These details will be updated" list. */
+export interface BringBackChange {
+  label: string;
+  from: string;
+  to: string;
+}
+
+const NOT_SET = "Not set";
+const NOT_ASSIGNED = "Not assigned";
 
 /**
  * A person as the table shows them: the employee row with the section name
@@ -60,22 +76,122 @@ export class EmployeesContext {
   );
 
   /**
-   * Whether somebody with this exact first and last name is already on file.
-   * Two people in a small office can genuinely share a name, so this is only
-   * ever a warning — but the usual cause is the same person being added a
-   * second time, which is worth catching before the row exists.
+   * Whether the three fields that identify a person still hold exactly what
+   * was stored. Only meaningful while editing.
+   *
+   * When they are untouched there is nothing new to check. Two people can
+   * genuinely share a birthday, and without this an admin correcting a typo in
+   * one of their positions would be asked to answer the same possible-match
+   * question on every single save — a question they already settled when the
+   * record was created.
    */
-  nameAlreadyUsed = $derived.by(() => {
-    const first = this.formFirstName.trim().toLowerCase();
-    const last = this.formLastName.trim().toLowerCase();
-    if (!first || !last) return false;
+  identityUnchanged = $derived(
+    this.employeeToEdit !== null &&
+      this.formFirstName.trim() === this.employeeToEdit.firstName &&
+      this.formLastName.trim() === this.employeeToEdit.lastName &&
+      (this.formBirthDate || null) === this.employeeToEdit.birthDate,
+  );
 
-    return this.employees.some(
-      (person) =>
-        person.employeePk !== this.employeeToEdit?.employeePk &&
-        person.firstName.toLowerCase() === first &&
-        person.lastName.toLowerCase() === last,
-    );
+  /**
+   * Whether the person being typed in is already in the system, and how
+   * certain that is. Runs live as the fields change, so the admin is told
+   * before pressing save rather than after. The server runs the same rules
+   * again, because this one can be bypassed.
+   */
+  duplicateFinding: DuplicateFinding<EmployeeRow> | null = $derived(
+    this.identityUnchanged
+      ? null
+      : findDuplicate(
+          {
+            firstName: this.formFirstName,
+            lastName: this.formLastName,
+            birthDate: this.formBirthDate || null,
+          },
+          this.employees,
+          this.employeeToEdit?.employeePk ?? null,
+        ),
+  );
+
+  /**
+   * The exact match is somebody who has left, and a new person is being added
+   * — so the way forward is to bring that record back rather than to make a
+   * second one.
+   *
+   * Only offered while adding. On the edit form the match is a *different*
+   * row, and bringing it back would write this person's details over that
+   * other person. There the match is simply refused.
+   */
+  canBringBack = $derived(
+    this.mode === "add" &&
+      this.duplicateFinding?.kind === "exact" &&
+      this.duplicateFinding.person.employmentStatus === "separated",
+  );
+
+  /** An exact match with nothing to offer: the admin must change what they typed. */
+  blockedByDuplicate = $derived(
+    this.duplicateFinding?.kind === "exact" && !this.canBringBack,
+  );
+
+  /**
+   * A match that might be the same person and might not. The save is allowed,
+   * but only once the admin has said which it is.
+   */
+  possibleMatch: DuplicateFinding<EmployeeRow> | null = $derived(
+    this.duplicateFinding !== null && this.duplicateFinding.kind !== "exact"
+      ? this.duplicateFinding
+      : null,
+  );
+
+  /** Set when the admin answers that the possible match is somebody else. */
+  confirmedDifferentPerson = $state(false);
+
+  /**
+   * What "Bring this person back" would change on the stored record, so the
+   * admin can see what they are agreeing to before agreeing to it. Only
+   * fields that genuinely differ appear; an empty list is shown as a sentence
+   * saying nothing else changes, rather than as an empty list.
+   */
+  bringBackChanges: BringBackChange[] = $derived.by(() => {
+    if (!this.canBringBack || !this.duplicateFinding) return [];
+    const person = this.duplicateFinding.person;
+
+    const typedSection = this.formOrgUnitFk
+      ? (this.orgUnitByPk(Number(this.formOrgUnitFk))?.orgUnitName ??
+        NOT_ASSIGNED)
+      : NOT_ASSIGNED;
+
+    const candidates: BringBackChange[] = [
+      {
+        label: "Position",
+        from: person.positionTitle,
+        to: this.formPositionTitle.trim(),
+      },
+      {
+        label: "Section",
+        from: person.orgUnitName ?? NOT_ASSIGNED,
+        to: typedSection,
+      },
+      {
+        label: "Tenure",
+        from: TENURE_STATUS_LABELS[person.tenureStatus],
+        to: this.formTenureStatus
+          ? TENURE_STATUS_LABELS[this.formTenureStatus as TenureStatus]
+          : NOT_SET,
+      },
+      {
+        label: "Civil status",
+        from: person.civilStatus
+          ? CIVIL_STATUS_LABELS[person.civilStatus]
+          : NOT_SET,
+        to: this.formCivilStatus
+          ? CIVIL_STATUS_LABELS[
+              this.formCivilStatus as keyof typeof CIVIL_STATUS_LABELS
+            ]
+          : NOT_SET,
+      },
+    ];
+
+    return candidates.filter((change) => change.from !== change.to);
   });
 
   /**
@@ -111,6 +227,16 @@ export class EmployeesContext {
         this.formIsEmployed = this.employeeToEdit.employmentStatus === "active";
       });
     });
+
+    // A different match is a different question, so an answer given about the
+    // previous one does not carry over to it.
+    $effect(() => {
+      this.duplicateFinding?.person.employeePk;
+
+      untrack(() => {
+        this.confirmedDifferentPerson = false;
+      });
+    });
   }
 
   resetFormInputValues() {
@@ -126,6 +252,7 @@ export class EmployeesContext {
     this.formCivilStatus = "";
     this.formTenureStatus = "";
     this.formIsEmployed = true;
+    this.confirmedDifferentPerson = false;
   }
 
   /** The value the hidden employmentStatus field submits. */
