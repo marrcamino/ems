@@ -592,9 +592,9 @@ handled, what happens on each kind of match, how somebody returning to the
 office is handled, and the wording of every message are all decided below and
 approved by the user.
 
-**No code has been changed for any of it.** This whole topic is still a design
-waiting to be implemented, which makes it the one part of this document that
-describes the future rather than what the running system does.
+**Built, but not yet tried in a browser.** The type check and the production
+build pass, and the matching rules were run against made-up people covering
+every case. Nobody has used the screens yet.
 
 ### The problem
 
@@ -870,10 +870,60 @@ example, "The same person cannot be added twice" becomes "These changes would
 make this person the same as someone already recorded." The meaning and the
 buttons stay the same.
 
+### What was built
+
+All of the above, in one commit on `feature/employee-user`:
+
+- **`src/routes/admin/employees/duplicate-check.ts`** — the matching rules,
+  written once and run in two places: live in the dialog as the admin types,
+  and again in the server actions, which cannot be bypassed.
+- **`duplicate-alert.svelte`** — the three messages, shown inside the form.
+- **`+page.server.ts`** — the birth date is now required, an exact match is
+  refused in `create` and `update`, and a new `reinstate` action brings a
+  returning person back.
+- **`context.svelte.ts`** — the live check replaces the old name-only warning.
+- **`scripts/create-admin.ts`** — a note recording why its placeholder row
+  keeps an empty birthday rather than a made-up date.
+
+The type check and the production build both pass. The matching rules were
+also run against a set of made-up people covering every rule, including two
+who share a birthday and a record with no birth date at all.
+
+### Four things decided while building — worth a look
+
+These follow from the decisions above but were not discussed, so they are
+listed apart rather than folded in as though they had been agreed.
+
+**A possible match is now about the whole name, not only the surname.** The
+rule was written as "birth date matches, surname differs". As built it is
+"birth dates match, the name is not exactly the same", which also catches a
+first name written differently — "Ma." instead of "Maria", which is common.
+The surname case still works exactly as described.
+
+**Bringing somebody back is offered only while adding.** On the edit form an
+exact match is a *different* row, so bringing it back would write the edited
+person's details over that other person. There the match is simply refused,
+and the admin is told to open that record instead.
+
+**The check is skipped on an edit that leaves the name and birthday alone.**
+Two people can genuinely share a birthday. Without this, correcting a typo in
+one of their positions would raise the same possible-match question on every
+save — a question already settled when the record was created. The same skip
+was put in the server action, where it also prevents an admin being trapped:
+if two matching records somehow already existed, neither could be edited.
+
+**The possible-match message has one button, not two.** The approved wording
+had "Go back and check" beside "Yes, this is a different person". Inside the
+form the first has nothing to do — the admin corrects the fields directly —
+so it was left out. The Save button stays switched off until "Yes, this is a
+different person" is pressed, which is what makes the answer explicit.
+
 ### Still open
 
-Nothing. Topic 7a is fully decided. What has not happened yet is the building —
-no code has been changed for any of it.
+Nothing is undecided. What is left is for the user to try it in a browser: add
+a person twice, add somebody who shares a birthday with an existing person,
+mark somebody as no longer employed and then add them again, and edit a person
+without touching their name.
 
 ---
 
@@ -1115,21 +1165,23 @@ running system, and the results are in "Verified by the user" above.
 
 ### The next piece of work
 
-**Building Topic 7a — stopping the same person being added twice.** The design
-is fully settled and approved, and none of it exists in the code yet. This is
-the only outstanding work in this document.
+**Trying Topic 7a in a browser.** It is designed, agreed and built, and no
+migration was needed — `birth_date` stays nullable in the database, and the
+requirement lives in the form and the server action.
 
-It touches: the `employee` schema and a migration (`birth_date` gains no
-database constraint, but the form and the server action now require it), the add
-and edit paths under `src/routes/admin/employees/`, and
-`scripts/create-admin.ts`, which keeps writing its placeholder row with no birth
-date.
+What is left is for the user to use it: add a person twice, add somebody who
+shares a birthday with an existing person, mark somebody as no longer employed
+and then add them again to see the "Bring this person back" offer, and edit a
+person without touching their name to confirm no warning appears. Four points
+decided while building are listed at the end of Topic 7a and may want changing
+once they have been seen on screen.
 
 One idea remains that has never been discussed — the **"Give this person a
 login"** shortcut described at the end of Topic 5. It is not a decision, and no
 work on it is planned.
 
 Everything else in this document is settled, built, and tested.
+Topic 7a is settled and built, and is the only part not yet tried in a browser.
 
 ---
 
