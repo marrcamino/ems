@@ -592,9 +592,10 @@ handled, what happens on each kind of match, how somebody returning to the
 office is handled, and the wording of every message are all decided below and
 approved by the user.
 
-**Built, but not yet tried in a browser.** The type check and the production
-build pass, and the matching rules were run against made-up people covering
-every case. Nobody has used the screens yet.
+**Built and checked against the real database, but not yet used in a browser.**
+The type check and the production build pass, and the three scenarios were run
+against the live data with the test rows cleaned up afterwards. What has not
+happened is somebody opening the dialog and using it.
 
 ### The problem
 
@@ -918,12 +919,40 @@ form the first has nothing to do — the admin corrects the fields directly —
 so it was left out. The Save button stays switched off until "Yes, this is a
 different person" is pressed, which is what makes the answer explicit.
 
+### Checked against the real database
+
+The three scenarios were run against the live database rather than against
+made-up data, using the same matching rules the page uses. Test rows were
+created, checked, and deleted again, leaving the table with the two rows it
+started with.
+
+| Scenario | Result |
+| --- | --- |
+| Adding the same person a second time | Exact match, and the person is still employed — refused, nothing offered |
+| Marking that person as no longer employed, then adding them again | Exact match, and the person has left — bringing them back is offered |
+| Editing somebody without touching their name or birthday | The check is skipped, as intended |
+| Adding somebody who shares a birthday with two existing people | Possible match, save allowed once answered |
+| Same name, different birthday | No match — treated as two different people |
+
+**One assumption was worth checking on its own.** The whole comparison rests on
+the stored birthday being text in the same shape the browser's date field
+submits. A plain read of the column through the MySQL driver returns a date
+object at 16:00 UTC — which, read carelessly, is the day before. Drizzle's
+`mode: "string"` on that column is what avoids it, and a query through the
+app's own schema was run to confirm: it returns `"2002-05-27"`, a string, and
+re-entering the person exactly as stored is correctly refused.
+
 ### Still open
 
-Nothing is undecided. What is left is for the user to try it in a browser: add
-a person twice, add somebody who shares a birthday with an existing person,
-mark somebody as no longer employed and then add them again, and edit a person
-without touching their name.
+**Nobody has clicked through the pages in a browser yet.** The rules are
+verified against real data, but the dialog itself — the alerts appearing and
+disappearing as fields are typed, the "Bring this person back" button actually
+submitting, the Save button switching on after the possible-match question is
+answered — has only been type-checked and built, not used.
+
+Also worth knowing: the placeholder "Admin User" row still has no birthday, so
+the first time it is edited the form will require one. That is the intended
+behaviour, not a fault.
 
 ---
 
@@ -1165,14 +1194,13 @@ running system, and the results are in "Verified by the user" above.
 
 ### The next piece of work
 
-**Trying Topic 7a in a browser.** It is designed, agreed and built, and no
-migration was needed — `birth_date` stays nullable in the database, and the
-requirement lives in the form and the server action.
+**Using Topic 7a in a browser.** It is designed, agreed, built, and its rules
+are checked against the live database. No migration was needed — `birth_date`
+stays nullable, and the requirement lives in the form and the server action.
 
-What is left is for the user to use it: add a person twice, add somebody who
-shares a birthday with an existing person, mark somebody as no longer employed
-and then add them again to see the "Bring this person back" offer, and edit a
-person without touching their name to confirm no warning appears. Four points
+What is left is the screen itself: watching the alerts appear as the fields are
+typed, pressing "Bring this person back", and confirming the Save button
+switches on only after the possible-match question is answered. Four points
 decided while building are listed at the end of Topic 7a and may want changing
 once they have been seen on screen.
 
@@ -1181,7 +1209,8 @@ login"** shortcut described at the end of Topic 5. It is not a decision, and no
 work on it is planned.
 
 Everything else in this document is settled, built, and tested.
-Topic 7a is settled and built, and is the only part not yet tried in a browser.
+Topic 7a is settled and built, and its rules are checked against the live
+database; the screen itself has not been used yet.
 
 ---
 
