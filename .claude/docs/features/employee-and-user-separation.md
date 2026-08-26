@@ -522,16 +522,16 @@ the new step reachable.
 
 ### Status
 
-**Mostly settled, with one part reopened.** The page was built on a "go ahead"
-rather than after a discussion, so nothing on it had ever been agreed. That is
-why the topic was reopened in a later session. By then the user had used the
-page for real work and reported that the columns, the search and the filters all
-work as they need them to. Those are now agreed.
+**Settled.** The page was built on a "go ahead" rather than after a discussion,
+so nothing on it had ever been agreed. That is why the topic was reopened in a
+later session. By then the user had used the page for real work and reported
+that the columns, the search and the filters all work as they need them to.
+Those are agreed as built.
 
-**One part is not.** The user then remembered the duplicate-name rule and said
-plainly that adding the same person twice must not be allowed. Warning and
-letting the save through is wrong. Topic 7a below is that discussion, and it is
-open.
+**One part had to be reopened and is now closed too.** The user remembered the
+duplicate-name rule and said plainly that adding the same person twice must not
+be allowed — warning and letting the save through was wrong. That became Topic
+7a below, which is settled, built and tested.
 
 ### The problem
 
@@ -587,15 +587,14 @@ An empty one links to the Users page.
 
 ### Status
 
-**Settled — not yet built.** What identifies a person, how the birth date is
+**Settled, built and tested.** What identifies a person, how the birth date is
 handled, what happens on each kind of match, how somebody returning to the
 office is handled, and the wording of every message are all decided below and
 approved by the user.
 
-**Built and checked against the real database, but not yet used in a browser.**
-The type check and the production build pass, and the three scenarios were run
-against the live data with the test rows cleaned up afterwards. What has not
-happened is somebody opening the dialog and using it.
+The type check and the production build pass, the three scenarios were run
+against the live database with the test rows cleaned up afterwards, and the
+user has since used the pages in a browser and found no problem.
 
 ### The problem
 
@@ -719,7 +718,8 @@ message asks them to check both records rather than implying the new one is at
 fault.
 
 The user's own phrasing for the heart of it: *"Please check both information."*
-The exact wording is still to be drafted.
+The wording that came out of this is written out in full further down, under
+"the wording of the messages", and was approved unchanged.
 
 ### Decision — somebody returning to the office
 
@@ -942,17 +942,21 @@ object at 16:00 UTC — which, read carelessly, is the day before. Drizzle's
 app's own schema was run to confirm: it returns `"2002-05-27"`, a string, and
 re-entering the person exactly as stored is correctly refused.
 
-### Still open
+### Used in a browser — nothing left open
 
-**Nobody has clicked through the pages in a browser yet.** The rules are
-verified against real data, but the dialog itself — the alerts appearing and
-disappearing as fields are typed, the "Bring this person back" button actually
-submitting, the Save button switching on after the possible-match question is
-answered — has only been type-checked and built, not used.
+The user clicked through the pages and reported no problem. That covers the
+part the database run could not reach: the alerts appearing and disappearing as
+the fields are typed, the "Bring this person back" button submitting, and the
+Save button switching on only once the possible-match question is answered.
 
-Also worth knowing: the placeholder "Admin User" row still has no birthday, so
-the first time it is edited the form will require one. That is the intended
-behaviour, not a fault.
+Topic 7a is finished.
+
+One thing to expect rather than be surprised by: the placeholder "Admin User"
+row still has no birthday, so the first time it is edited the form will ask for
+one. That is the intended behaviour, not a fault.
+
+The four points decided while building, listed above, were seen on screen and
+left as they are.
 
 ---
 
@@ -1180,6 +1184,9 @@ Two `drizzle-kit push` runs, both done by the user:
 - **The Organizational Structure page works.** Adding a unit, renaming a
   section, and deleting a unit were all tried after the context import was
   repaired.
+- **The duplicate-person check works.** Its rules were run against the live
+  database, and the user then used the Employees page in a browser and found
+  no problem. See Topic 7a.
 
 ### Merged and pushed
 
@@ -1194,23 +1201,16 @@ running system, and the results are in "Verified by the user" above.
 
 ### The next piece of work
 
-**Using Topic 7a in a browser.** It is designed, agreed, built, and its rules
-are checked against the live database. No migration was needed — `birth_date`
-stays nullable, and the requirement lives in the form and the server action.
+**Nothing.** Topic 7a was the last outstanding work, and it is designed,
+agreed, built, checked against the live database, and used in a browser. No
+migration was needed — `birth_date` stays nullable, and the requirement lives
+in the form and the server action.
 
-What is left is the screen itself: watching the alerts appear as the fields are
-typed, pressing "Bring this person back", and confirming the Save button
-switches on only after the possible-match question is answered. Four points
-decided while building are listed at the end of Topic 7a and may want changing
-once they have been seen on screen.
+One idea has still never been discussed: the **"Give this person a login"**
+shortcut described at the end of Topic 5. It is not a decision, and no work on
+it is planned.
 
-One idea remains that has never been discussed — the **"Give this person a
-login"** shortcut described at the end of Topic 5. It is not a decision, and no
-work on it is planned.
-
-Everything else in this document is settled, built, and tested.
-Topic 7a is settled and built, and its rules are checked against the live
-database; the screen itself has not been used yet.
+Everything in this document is settled, built, and tested.
 
 ---
 
