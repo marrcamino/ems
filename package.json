@@ -42,7 +42,9 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.7.0",
+    "@dagrejs/dagre": "^3.1.1",
     "@tanstack/svelte-table": "^9.1.2",
+    "@xyflow/svelte": "^1.6.5",
     "drizzle-orm": "^0.45.2",
     "mode-watcher": "^1.1.0",
     "mysql2": "^3.23.2"
