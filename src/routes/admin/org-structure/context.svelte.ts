@@ -44,6 +44,11 @@ export class OrgUnitContext {
   deleteAlertDialog = $state(false);
   orgUnitToEdit: OrgUnit | null = $state(null);
 
+  // Drag-to-move: the thing being moved and the parent it was dropped onto.
+  moveDialog = $state(false);
+  orgUnitToMove: OrgUnit | null = $state(null);
+  moveTargetParent: OrgUnit | null = $state(null);
+
   // For add-edit-org-dialog
   mode: "edit" | "add" = $derived(this.orgUnitToEdit !== null ? "edit" : "add");
   formLevel = $state("");

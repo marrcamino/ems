@@ -1,18 +1,21 @@
 <script lang="ts">
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Button } from "$lib/components/ui/button";
+  import { Checkbox } from "$lib/components/ui/checkbox";
   import * as Empty from "$lib/components/ui/empty/index.js";
+  import { Label } from "$lib/components/ui/label";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  import { SvelteFlowProvider } from "@xyflow/svelte";
   import { LayoutPanelTop, Plus } from "@lucide/svelte";
   import { onMount } from "svelte";
+  import { getGlobalContext } from "../../global-context.svelte.js";
   import AddEditOrgUnitDialog from "./add-edit-org-unit-dialog.svelte";
   import { setOrgUnitContext } from "./context.svelte.js";
   import DeleteAlertDialog from "./delete-alert-dialog.svelte";
-  import OrgUnitNode from "./org-unit-node.svelte";
-  import { Checkbox } from "$lib/components/ui/checkbox";
-  import { Label } from "$lib/components/ui/label";
-  import { getGlobalContext } from "../../global-context.svelte.js";
+  import MoveOrgUnitDialog from "./move-org-unit-dialog.svelte";
+  import OrgChart from "./org-chart.svelte";
+
   let { data } = $props();
 
   const ctx = setOrgUnitContext();
@@ -29,7 +32,7 @@
 </svelte:head>
 
 <header
-  class="flex h-16 shrink-0 items-center gap-2 sticky top-0 bg-background rounded-t-xl"
+  class="flex h-16 shrink-0 items-center gap-2 sticky top-0 bg-background rounded-t-xl z-20"
 >
   <div class="flex items-center gap-2 px-4 w-full">
     <Sidebar.Trigger class="-ms-1" />
@@ -58,19 +61,29 @@
 </header>
 <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
   {#if ctx.orgUnits.length}
-    <div class="border-b pb-4 pt-2 px-0.5">
+    <div
+      class="flex flex-wrap items-center justify-between gap-3 border-b pb-4 pt-2 px-0.5"
+    >
       <div class="flex items-center gap-3">
         <Checkbox id="show-inactive" bind:checked={ctx.showInactiveOrgUnit} />
         <Label for="show-inactive">Show inactive division/section/unit</Label>
       </div>
+
+      {#if gblCtx.can("admin:manage_org_units")}
+        <p class="text-sm text-muted-foreground">
+          Drag a box onto the one it should belong to. You will be asked to
+          confirm before anything changes.
+        </p>
+      {/if}
     </div>
 
-    <div class="overflow-x-auto px-6 py-10">
-      <ul class="flex justify-center">
-        {#each ctx.orgUnitTree as node (node.orgUnitPk)}
-          <OrgUnitNode {node} />
-        {/each}
-      </ul>
+    <div
+      // class="h-[calc(100dvh-10rem)] min-h-105 overflow-hidden rounded-xl border"
+      class="h-full overflow-hidden rounded-xl border"
+    >
+      <SvelteFlowProvider>
+        <OrgChart />
+      </SvelteFlowProvider>
     </div>
   {:else}
     <Empty.Root class="border border-dashed">
@@ -98,3 +111,4 @@
 
 <AddEditOrgUnitDialog />
 <DeleteAlertDialog />
+<MoveOrgUnitDialog />

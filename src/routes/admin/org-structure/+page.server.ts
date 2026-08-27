@@ -7,6 +7,7 @@ import { error, fail } from "@sveltejs/kit";
 import { and, asc, eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
 import { nextLevel } from "./context.svelte.js";
+import { moveRejectionReason } from "./move-rules.js";
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!can(locals.permissions, "admin:view_org_units")) {
@@ -163,5 +164,52 @@ export const actions: Actions = {
     } catch (err) {
       return fail(409, { error: "This item is in use and can't be deleted." });
     }
+  },
+
+  // Drag-to-move on the chart. The same rules run here as in the browser, so
+  // a move that the chart refuses can not be forced through by hand either.
+  move: async ({ request, locals }) => {
+    if (!can(locals.permissions, "admin:manage_org_units")) {
+      throw fail(403, "You do not have permission to manage this page.");
+    }
+
+    const form = await request.formData();
+    const orgUnitPk = Number(form.get("orgUnitPk"));
+    const newParentFk = Number(form.get("newParentFk"));
+
+    if (!orgUnitPk || !newParentFk) {
+      return fail(400, { error: "Nothing was picked to move." });
+    }
+
+    const [moving] = await db
+      .select()
+      .from(orgUnit)
+      .where(eq(orgUnit.orgUnitPk, orgUnitPk));
+
+    const [target] = await db
+      .select()
+      .from(orgUnit)
+      .where(eq(orgUnit.orgUnitPk, newParentFk));
+
+    if (!moving || !target) {
+      return fail(404, {
+        error: "That item is no longer there. Refresh the page and try again.",
+      });
+    }
+
+    const reason = moveRejectionReason(moving, target);
+    if (reason) return fail(409, { error: reason });
+
+    await db
+      .update(orgUnit)
+      .set({ parentFk: newParentFk })
+      .where(eq(orgUnit.orgUnitPk, orgUnitPk));
+
+    const [movedRow] = await db
+      .select()
+      .from(orgUnit)
+      .where(eq(orgUnit.orgUnitPk, orgUnitPk));
+
+    return { success: true, movedRow };
   },
 };
