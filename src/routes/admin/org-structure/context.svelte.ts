@@ -15,15 +15,29 @@ export function nextLevel(level: OrgUnit["level"]) {
 function buildTree(
   flat: OrgUnit[],
   parentFk: number | null = null,
-  status: "active-only" | "all" = "all",
+  include: "active-only" | "all" = "all",
 ): TreeNode[] {
   return flat
     .filter((row) => row.parentFk === parentFk)
-    .filter((row) => status === "active-only" || row.status === "active")
+    .filter((row) => include === "all" || row.status === "active")
     .map((row) => ({
       ...row,
-      children: buildTree(flat, row.orgUnitPk, status),
+      children: buildTree(flat, row.orgUnitPk, include),
     }));
+}
+
+export type OrgUnitView = "canvas" | "table";
+
+/**
+ * Which of the two views somebody last used. Kept in the browser rather than
+ * the database: it is a personal habit, not a setting for the whole office,
+ * and the page must still open sensibly when it can't be read.
+ */
+const VIEW_KEY = "ems:org-structure-view";
+
+function storedView(): OrgUnitView {
+  if (typeof localStorage === "undefined") return "canvas";
+  return localStorage.getItem(VIEW_KEY) === "table" ? "table" : "canvas";
 }
 
 type NonOfficeOrgUnit = Exclude<OrgUnit["level"], "office">;
@@ -33,11 +47,12 @@ export class OrgUnitContext {
   rawOrgUnits: OrgUnit[] = $state([]);
   orgUnits: OrgUnit[] = $state([]);
   showInactiveOrgUnit = $state(false);
+  view: OrgUnitView = $state(storedView());
   orgUnitTree = $derived(
     buildTree(
       this.orgUnits,
       null,
-      this.showInactiveOrgUnit ? "active-only" : "all",
+      this.showInactiveOrgUnit ? "all" : "active-only",
     ),
   );
   addEditDialog = $state(false);
@@ -67,6 +82,18 @@ export class OrgUnitContext {
   assignedEmployeesLoading = $state(false);
 
   constructor() {
+    // Remember the view for next time. Writing can throw when the browser is
+    // set to keep no site data, and losing the preference is not worth an
+    // error, so the failure is swallowed.
+    $effect(() => {
+      const view = this.view;
+      try {
+        localStorage.setItem(VIEW_KEY, view);
+      } catch {
+        // ignore
+      }
+    });
+
     // Form level and parent fk trigger
     $effect(() => {
       this.formLevel;

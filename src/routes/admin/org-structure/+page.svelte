@@ -15,6 +15,8 @@
   import DeleteAlertDialog from "./delete-alert-dialog.svelte";
   import MoveOrgUnitDialog from "./move-org-unit-dialog.svelte";
   import OrgChart from "./org-chart.svelte";
+  import OrgTable from "./org-table.svelte";
+  import ViewSwitch from "./view-switch.svelte";
 
   let { data } = $props();
 
@@ -66,25 +68,29 @@
     >
       <div class="flex items-center gap-3">
         <Checkbox id="show-inactive" bind:checked={ctx.showInactiveOrgUnit} />
-        <Label for="show-inactive">Show inactive division/section/unit</Label>
+        <Label for="show-inactive">Show inactive divisions, sections and units</Label>
       </div>
 
-      {#if gblCtx.can("admin:manage_org_units")}
-        <p class="text-sm text-muted-foreground">
-          Drag a box onto the one it should belong to. You will be asked to
-          confirm before anything changes.
-        </p>
-      {/if}
+      <div class="flex items-center gap-3">
+        {#if ctx.view === "canvas" && gblCtx.can("admin:manage_org_units")}
+          <p class="hidden text-sm text-muted-foreground lg:block">
+            Drag a box onto the one it should belong to. You will be asked to
+            confirm before anything changes.
+          </p>
+        {/if}
+        <ViewSwitch />
+      </div>
     </div>
 
-    <div
-      // class="h-[calc(100dvh-10rem)] min-h-105 overflow-hidden rounded-xl border"
-      class="h-full overflow-hidden rounded-xl border"
-    >
-      <SvelteFlowProvider>
-        <OrgChart />
-      </SvelteFlowProvider>
-    </div>
+    {#if ctx.view === "canvas"}
+      <div class="h-full overflow-hidden rounded-xl border">
+        <SvelteFlowProvider>
+          <OrgChart />
+        </SvelteFlowProvider>
+      </div>
+    {:else}
+      <OrgTable />
+    {/if}
   {:else}
     <Empty.Root class="border border-dashed">
       <Empty.Header class="max-w-md">

@@ -38,6 +38,30 @@
   const FIT_VIEW = { padding: 0.2, maxZoom: 1 };
 
   /**
+   * Boxes are added and removed through the dialogs, never with the keyboard,
+   * and there is nothing here to rubber-band select, so these three keys are
+   * switched off.
+   *
+   * The obvious way to switch a key off is to pass null, but @xyflow/svelte
+   * 1.6.5 turns null into an empty string and registers it as a shortcut
+   * anyway. Its shortcut library then complains, once per key press, that a
+   * trigger has no key — so holding a key down fills the console. Naming a
+   * key that no keyboard can produce avoids the complaint and disables the
+   * shortcut just as firmly, because a shortcut only runs when the key
+   * matches the one that was pressed.
+   *
+   * Nothing else in the library reads these three props; the rest of it works
+   * from flags that stay switched off. Once xyflow handles null properly this
+   * can go back to being null.
+   */
+  const IMPOSSIBLE_KEY = "xyflow-key-disabled";
+  const NO_KEYBOARD_SHORTCUTS = {
+    deleteKey: IMPOSSIBLE_KEY,
+    selectionKey: IMPOSSIBLE_KEY,
+    multiSelectionKey: IMPOSSIBLE_KEY,
+  };
+
+  /**
    * Positions always come from the layout, never from where somebody happened
    * to let go of the mouse. Re-running this is also how a dropped box snaps
    * back into place.
@@ -189,7 +213,7 @@
   }
 </script>
 
-<div bind:this={flowWrapper} class="h-full w-full">
+<div bind:this={flowWrapper} class="size-full">
   <SvelteFlow
     bind:nodes
     bind:edges
@@ -198,25 +222,31 @@
     nodesDraggable={canManage}
     nodesConnectable={false}
     elementsSelectable={false}
-    deleteKey={null}
-    selectionKey={null}
-    multiSelectionKey={null}
+    {...NO_KEYBOARD_SHORTCUTS}
     nodeDragThreshold={4}
     minZoom={0.2}
     maxZoom={1.75}
     fitView
     fitViewOptions={FIT_VIEW}
-    proOptions={{ hideAttribution: true }}
     onnodedrag={handleDrag}
     onnodedragstop={handleDragStop}
     class="bg-background"
   >
     <Background patternColor="var(--muted-foreground)" gap={20} />
-    <!-- The buttons themselves are square. Rounding the group and clipping it
-         is what gives the zoom and fit-view stack its curved corners. -->
+
     <Controls
       showLock={false}
       class="overflow-hidden rounded-sm [&_button:last-child]:border-b-0"
     />
   </SvelteFlow>
 </div>
+
+<style>
+  :global(.svelte-flow__attribution) {
+    z-index: -1 !important;
+    pointer-events: none !important;
+    border: none !important;
+    width: 1px !important;
+    height: 1px !important;
+  }
+</style>
