@@ -2,6 +2,12 @@
 import { can } from "$lib/rbac/access";
 import { db } from "$lib/server/db";
 import { employee, orgUnit, session, user } from "$lib/server/db/schema";
+import {
+  createEmployee,
+  reinstateEmployee,
+  separateEmployee,
+  updateEmployee,
+} from "$lib/server/employee-history";
 import { error, fail } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
@@ -21,6 +27,7 @@ import {
 
 const NAME_MAX_LENGTH = 100;
 const SUFFIX_MAX_LENGTH = 20;
+const SHORT_FORM_MAX_LENGTH = 50;
 
 /** A person born before this is almost certainly a typo in the year. */
 const EARLIEST_BIRTH_YEAR = 1900;
@@ -95,6 +102,7 @@ function readEmployeeForm(form: FormData) {
     lastName: ((form.get("lastName") as string) ?? "").trim(),
     suffix: optionalText("suffix"),
     positionTitle: ((form.get("positionTitle") as string) ?? "").trim(),
+    positionShortForm: optionalText("positionShortForm"),
     orgUnitFk: orgUnitFkRaw ? Number(orgUnitFkRaw) : null,
     birthDate: optionalText("birthDate"),
     sex: readChoice(form, "sex", SEX_VALUES),
@@ -127,6 +135,13 @@ function validateEmployeeForm(input: EmployeeInput): string | null {
 
   if ((input.suffix?.length ?? 0) > SUFFIX_MAX_LENGTH) {
     return `The suffix can be at most ${SUFFIX_MAX_LENGTH} characters.`;
+  }
+
+  // Left optional on purpose. Nobody already in the system has one, and
+  // requiring it here would block an admin from correcting a birthday
+  // until they had invented a short form for that person.
+  if ((input.positionShortForm?.length ?? 0) > SHORT_FORM_MAX_LENGTH) {
+    return `The short form can be at most ${SHORT_FORM_MAX_LENGTH} characters.`;
   }
 
   // Required of every person, because it is what the duplicate check is
@@ -310,9 +325,12 @@ export const actions: Actions = {
 
     // A possible match is deliberately not stopped. The dialog showed it and
     // the admin answered that these are two different people.
-    const result = await db.insert(employee).values(toEmployeeValues(input));
+    const employeePk = await createEmployee(
+      toEmployeeValues(input),
+      locals.user?.userPk ?? null,
+    );
 
-    const newRow = await readEmployeeRow(result[0].insertId);
+    const newRow = await readEmployeeRow(employeePk);
     if (!newRow) {
       return fail(500, {
         error: "The employee was saved but could not be read back.",
@@ -366,10 +384,11 @@ export const actions: Actions = {
       if (duplicate) return fail(409, { error: duplicate });
     }
 
-    await db
-      .update(employee)
-      .set({ ...toEmployeeValues(input), updatedAt: new Date() })
-      .where(eq(employee.employeePk, employeePk));
+    await updateEmployee(
+      employeePk,
+      toEmployeeValues(input),
+      locals.user?.userPk ?? null,
+    );
 
     // The editor can be the place somebody is marked as no longer employed,
     // just as the menu action can, so it signs them out the same way.
@@ -441,14 +460,11 @@ export const actions: Actions = {
     const duplicate = await refuseIfDuplicate(input, employeePk, "update");
     if (duplicate) return fail(409, { error: duplicate });
 
-    await db
-      .update(employee)
-      .set({
-        ...toEmployeeValues(input),
-        employmentStatus: "active",
-        updatedAt: new Date(),
-      })
-      .where(eq(employee.employeePk, employeePk));
+    await reinstateEmployee(
+      employeePk,
+      toEmployeeValues(input),
+      locals.user?.userPk ?? null,
+    );
 
     const updatedRow = await readEmployeeRow(employeePk);
     if (!updatedRow) {
@@ -484,10 +500,7 @@ export const actions: Actions = {
       return fail(404, { error: "That employee no longer exists." });
     }
 
-    await db
-      .update(employee)
-      .set({ employmentStatus: "separated", updatedAt: new Date() })
-      .where(eq(employee.employeePk, employeePk));
+    await separateEmployee(employeePk, locals.user?.userPk ?? null);
 
     const updatedRow = await readEmployeeRow(employeePk);
     if (!updatedRow) {
