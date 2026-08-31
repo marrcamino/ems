@@ -25,6 +25,12 @@ export const employee = mysqlTable("employee", {
   // without one is not a real case. Contract of Service and Job Order staff
   // hold no plantilla item but still have a position or a designation.
   positionTitle: varchar("position_title", { length: 100 }).notNull(),
+  // The short form printed on documents, for example "AO-I/Supply Officer"
+  // for "Administrative Officer I (Supply Officer)". The boxes on the paper
+  // forms are too small for a full title. Nullable because it has to be
+  // typed by hand and nobody has typed one yet. This is the current copy;
+  // every version of it also lives on `employee_history`.
+  positionShortForm: varchar("position_short_form", { length: 50 }),
   orgUnitFk: bigint("org_unit_fk", {
     mode: "number",
     unsigned: true,

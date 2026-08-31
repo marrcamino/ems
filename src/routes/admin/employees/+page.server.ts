@@ -37,6 +37,7 @@ const employeeRowColumns = {
   lastName: employee.lastName,
   suffix: employee.suffix,
   positionTitle: employee.positionTitle,
+  positionShortForm: employee.positionShortForm,
   orgUnitFk: employee.orgUnitFk,
   orgUnitName: orgUnit.orgUnitName,
   orgUnitAbbr: orgUnit.abbr,
