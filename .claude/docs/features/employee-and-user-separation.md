@@ -22,9 +22,18 @@ Carried over from that decision, already agreed and not up for discussion here:
 - **user** — login details only, linked to an employee. Not every employee has
   a user row.
 - The name fields move out of `user`.
-- A signatory row links to an **employee**, never to a user directly.
-- The signatory row keeps its own typed name and position title. Those are
-  never read live from the employee record.
+- Anybody signing a document is an **employee**, never a user directly.
+
+**Two of the points carried over here have since been overturned**, on 27 August
+2026, once somebody looked at a real fuel document. They used to say that a
+signatory row links to an employee and keeps its own typed name and position
+title, never read from the employee record.
+
+There is no signatory row at all now, and no typed title: a document points at a
+version of the employee, and the name and title are read from that version. The
+correction changes nothing about the separation this document designs, and
+Topic 9 below is where those versions live. The signatory document explains why
+the original assumption was wrong.
 
 ---
 
@@ -323,9 +332,10 @@ and `index.ts` which now exports `employee`.
 change the database, so the user ran `drizzle-kit push` by hand. It completed
 with no problem.
 
-Shown here in its **final** shape, after the second push that made
-`position_title` and `tenure_status` required. See "Applied to the database"
-near the end for both runs.
+Shown here as it stands after the third change, which added
+`position_short_form` and the `employee_history` table. See "Applied to the
+database" near the end, which also explains why that change was made with plain
+SQL rather than a push.
 
 ```sql
 CREATE TABLE `employee` (
@@ -335,6 +345,7 @@ CREATE TABLE `employee` (
 	`last_name` varchar(100) NOT NULL,
 	`suffix` varchar(20),
 	`position_title` varchar(100) NOT NULL,
+	`position_short_form` varchar(50),
 	`org_unit_fk` bigint unsigned,
 	`birth_date` date,
 	`sex` enum('male','female'),
@@ -365,6 +376,30 @@ CREATE TABLE `user` (
 	CONSTRAINT `user_username_unique` UNIQUE(`username`)
 );
 ```
+
+`employee_history` was added later and is described in Topic 9, together with
+the reason its foreign key cascades where every other one restricts:
+
+```sql
+CREATE TABLE `employee_history` (
+	`employee_history_pk` bigint unsigned AUTO_INCREMENT NOT NULL,
+	`employee_fk` bigint unsigned NOT NULL,
+	`first_name` varchar(100) NOT NULL,
+	`middle_name` varchar(100),
+	`last_name` varchar(100) NOT NULL,
+	`suffix` varchar(20),
+	`position_title` varchar(100) NOT NULL,
+	`position_short_form` varchar(50),
+	`valid_from` date NOT NULL,
+	`valid_until` date,
+	`created_by_fk` bigint unsigned,
+	`created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT `employee_history_employee_history_pk` PRIMARY KEY(`employee_history_pk`)
+);
+```
+
+`employee_fk` references `employee` with `ON DELETE cascade`; `created_by_fk`
+references `user`.
 
 `user_employee_fk_unique` is what enforces one login per employee.
 
@@ -1094,6 +1129,220 @@ already existed, the other refuses a new one — and both now work.
 
 ---
 
+## Topic 9 — Keeping every version of a person's name and position
+
+### Status
+
+**Settled and built, 31 August 2026.** Designed in the signatory discussion,
+built here, tested in a browser by the user the same day.
+
+### The problem
+
+A printed document has to keep showing the name and the position title that
+were on it the day it was filed. If a Trip Ticket pointed at the employee
+record itself, then a woman who married and changed her surname would silently
+change every document she had ever signed, and a promotion would rewrite last
+year's paperwork.
+
+So documents point at a **version** of a person rather than at the person, and
+something has to hold those versions.
+
+### Decision — a second table, with `employee` keeping the current copy
+
+`employee_history` holds one row per version of a person's name and position
+title, with the dates that version was in use. `employee` keeps its own name
+and position columns as the current copy, so an ordinary lookup of somebody
+stays one simple read instead of a search through history.
+
+The two can disagree, and if they ever did, a document would print something
+different from what the Employees page shows and nobody could tell which was
+right. The whole arrangement therefore rests on one discipline: **both tables
+are always written in the same transaction, by one function.**
+
+The columns:
+
+| column | why |
+| --- | --- |
+| `employee_history_pk` | the value a document will store |
+| `employee_fk` | which person this is a version of |
+| `first_name`, `middle_name`, `last_name`, `suffix` | the name in this version |
+| `position_title` | the full title in this version |
+| `position_short_form` | what is actually printed, for example `AO-I/Supply Officer` |
+| `valid_from`, `valid_until` | the first and last day this version was correct |
+| `created_by_fk` | who made this version |
+| `created_at` | bookkeeping only, never used to choose a version |
+
+### Why this one foreign key cascades, when everything else restricts
+
+`employee_fk` deletes with `onDelete: cascade`, which is the opposite of the
+`restrict` used everywhere else in this schema.
+
+With `restrict`, every employee would have become undeletable the moment they
+got their first version, which is immediately after the backfill. The delete
+button on the Employees page would have started failing for everybody,
+including somebody added by mistake five minutes earlier.
+
+The protection still arrives, just from the other side. When documents exist, a
+document will hold a history row with `restrict`. Deleting an employee will
+then try to cascade into a row a document is holding, the database will refuse
+the whole delete, and the person stays — which is correct, because somebody
+named on a filed document must not disappear.
+
+### Why the short form is allowed to be empty
+
+The boxes on the paper forms are small, so the documents never print a full
+position title. Somebody has to type the short form by hand, because no rule
+worth trusting turns "Administrative Officer I (Supply Officer)" into
+"AO-I/Supply Officer".
+
+Nobody already in the system has one, so a column that refused to be empty
+would have made the backfill impossible without inventing values, and would
+have blocked an admin from correcting a birthday until they had invented an
+abbreviation for that person. The rule that it must be filled in belongs to the
+document that prints it.
+
+**Write this down for the report work:** a document that prints a short form
+must refuse to print when the short form is missing, rather than printing a
+blank line.
+
+### Decision — who made a version is recorded; the correction log is not built
+
+The user chose to add `created_by_fk` and to leave the rest for later.
+
+The signatory document describes a second table, `employee_history_correction`,
+logging spelling fixes, and an editor offering two clearly worded choices
+instead of one Save button: "Fix a spelling mistake", which edits the version in
+place so every document using it is corrected at once, and "This person's name
+changed", which ends the version and starts a new one.
+
+Neither was built, because the log has nothing to record until that screen
+exists. The consequence is real and should not be forgotten: **a spelling fix
+currently behaves like a name change.** Correcting "Olivar" to "Olaivar" closes
+the misspelled version and opens a corrected one, so a document filed before
+the fix keeps pointing at the misspelling. Nothing is lost — the wrong version
+is still there — but finishing this means building the two buttons, the log,
+and a warning naming how many documents a fix would change, all together.
+
+### Decision — every existing employee starts from a fixed early date
+
+`scripts/backfill-employee-history.ts` gave everybody already on file their
+first version. It is safe to run twice, because it skips anybody who already
+has one.
+
+The date those versions start from was a real decision, and the reasoning
+matters more than the value. A document does not ask who is employed today. It
+asks **who was valid on the date written on the paper**, and paper is always
+typed into the system after it was signed. If a backfilled version had started
+on the day the script happened to run, then a slip filed the week before would
+have found nobody and could not have been completed. That is the normal case,
+not an unusual one.
+
+So every backfilled version starts on **2000-01-01**. This is not a claim that
+anybody was employed in 2000. It only means no document old enough to matter
+falls outside the version. Topic 8 of the signatory document already settled
+that reports for periods before the system goes live are not needed, so nothing
+is lost, and the honest-looking alternative — each person's own `created_at` —
+would have broken ordinary back-dated entry from the first day.
+
+### Decision — changes from now on take effect today, with no date field
+
+The same question comes back for changes made from now on, and the user chose
+the simpler answer: a change takes effect on the day it is saved. No screen
+gained a date field, and nobody doing data entry has to understand any of this.
+
+The alternative, a typed "takes effect from" date, records what actually
+happened, including a promotion entered a month late. It was turned down
+because two new fields would have to be explained, and a mistyped date creates
+a person who cannot be picked on the documents they really signed, with nothing
+on screen to show why. If back-dated entry turns out to be needed, the fix is
+one field and a backfill.
+
+### How the dates work, which is the fiddly part
+
+`valid_until` is **inclusive**: it is the last day the version was still
+correct, not the first day it was wrong. Everything else follows from that.
+
+- **A printed field changes.** The old version's `valid_until` becomes
+  *yesterday* and the new version starts *today*. Closing the old one today
+  instead would leave both versions valid today, and a document filed today
+  would match the same person twice.
+- **Somebody is marked as no longer employed.** Their open version closes
+  *today*, because today was still a working day. No new version is opened, and
+  that is what stops them appearing as a choice on documents filed after they
+  left.
+- **Nothing printed changed.** No new version. Editing a birthday or a civil
+  status must not make one.
+
+Two same-day exceptions keep the table clean. Both exist because a version that
+only ever covered today cannot be what any document points at.
+
+- **A version that began today is corrected in place** rather than replaced.
+  Closing it yesterday would leave a row whose end came before its beginning.
+- **A version closed earlier today is reopened** when the person is brought
+  back the same day, rather than a second one being started from today.
+
+The second of those was **a bug found in testing, not foresight**. The first
+browser test separated and reinstated a test person on the same day, and the
+check query showed two versions both covering 31 August 2026. The rule was
+added and the retest showed one.
+
+### What was built
+
+- `src/lib/server/db/schema/employee-history.ts` — the table above.
+- `position_short_form` added to `employee`, nullable, beside `position_title`.
+- `scripts/backfill-employee-history.ts`, run as
+  `npm run backfill-employee-history`.
+- `src/lib/server/employee-history.ts` — the only place either table is
+  written, holding `createEmployee`, `updateEmployee`, `separateEmployee` and
+  `reinstateEmployee`. Each runs entirely inside one `db.transaction`. If a
+  second place ever needs to change somebody's name, it calls these.
+- The `create`, `update`, `separate` and `reinstate` actions on
+  `src/routes/admin/employees/+page.server.ts` now go through those functions
+  and pass the signed-in user as the version's author. `delete` is unchanged:
+  the cascade removes the versions, and the protection arrives later from the
+  document side.
+- The add and edit dialog gained one optional field, labelled "Short form
+  printed on forms", with the real example under it.
+
+### Applying it to the database, and a warning about `drizzle-kit push`
+
+**`drizzle-kit push` cannot be used on this project as it stands.** Asked to
+add the new table, it also offered to repair drift left from earlier work, and
+its way of adding a `NOT NULL` rule to a MySQL column is to `TRUNCATE` the
+table first. Run with `--force` it attempted exactly that on `employee`. The
+data survived only because `user` holds a foreign key onto `employee` and MySQL
+refused the truncate. Nothing was written, and the counts were checked
+afterwards.
+
+The change was applied instead as plain SQL: `CREATE TABLE employee_history`
+with its two foreign keys, `ALTER TABLE employee ADD position_short_form`, and
+the two `MODIFY` statements that finally made `position_title` and
+`tenure_status` `NOT NULL` in the database as the schema file had claimed for
+some time. None of those reads or deletes a row.
+
+### Verified by the user, in a browser
+
+All of it, on 31 August 2026, on a throwaway test person so that neither real
+record could be locked out — both existing employees hold a login, and marking
+somebody as no longer employed signs them out and refuses their next sign-in.
+
+- Adding a person creates their first version.
+- Renaming somebody across days closes the old version the day before and opens
+  a new one. Confirmed on a real record, whose version had run from 2000-01-01
+  and was closed on 2026-08-30 when a short form was typed in.
+- Editing only a civil status creates no version.
+- Marking somebody as no longer employed closes their open version.
+- Bringing them back opens one, or reopens the same-day one.
+- Deleting a person removes their versions with them.
+- `created_by_fk` records the signed-in admin on every version made this way.
+
+Four queries were run against the live database after each round: every version
+listed, open versions per person, whether `employee` and its open version
+disagree anywhere, and whether any two versions of one person cover the same
+day. The last two returned nothing, which is what they must do.
+
+---
+
 ## Progress — what has been changed in code
 
 ### Done
@@ -1154,6 +1403,11 @@ already existed, the other refuses a new one — and both now work.
   "Person has left" badge and the disabled Active switch on the Users page, and
   the three messages that said the opposite.
 
+- **Employee history** — Topic 9, in full: the `employee_history` table, the
+  `position_short_form` column on `employee`, the one-time backfill script, the
+  write path in `src/lib/server/employee-history.ts`, the four actions rewired
+  to it, and the short form field on the add and edit dialog.
+
 `npm run check` reports **0 errors**, down from 54. `npm run build` succeeds.
 
 ### Applied to the database
@@ -1162,7 +1416,18 @@ Two `drizzle-kit push` runs, both done by the user:
 
 1. The separation itself — the new `employee` table, and `user` rewritten to
    hold only login columns.
-2. `position_title` and `tenure_status` made `NOT NULL`.
+2. `position_title` and `tenure_status` made `NOT NULL` in the schema files.
+
+A third change, on 31 August 2026, was applied as **plain SQL rather than a
+push**: `employee_history` created with its two foreign keys,
+`position_short_form` added to `employee`, and the two `NOT NULL` rules above
+finally applied to the live columns, which run 2 had changed only in the schema
+files.
+
+**`drizzle-kit push` should not be run on this project again without reading
+Topic 9 first.** It adds a `NOT NULL` rule to a MySQL column by emptying the
+table, and with `--force` it attempted that on `employee`. Only a foreign key
+from `user` stopped it.
 
 ### Verified by the user
 
@@ -1187,6 +1452,11 @@ Two `drizzle-kit push` runs, both done by the user:
 - **The duplicate-person check works.** Its rules were run against the live
   database, and the user then used the Employees page in a browser and found
   no problem. See Topic 7a.
+- **Employee history works.** On 31 August 2026 the user added, renamed,
+  edited, separated, reinstated and deleted a test person in a browser, and the
+  four check queries were run against the live database after each round. One
+  bug was found this way and fixed. The detail is in Topic 9 under "Verified by
+  the user, in a browser".
 
 ### Merged and pushed
 
@@ -1194,23 +1464,33 @@ The work reached `main` in two merge bubbles: `feature/employee-user` for the
 separation itself, and `feature/org-unit` for the Organizational Structure
 fix, which belongs to that area rather than to this feature.
 
+**Topic 9 is not merged yet.** Its three commits sit on `feature/employee-user`,
+which was brought up to date with `main` before the work started. Merging it
+into `main` with `--no-ff`, and pushing, are the user's to do.
+
 ### Not tested yet
 
 Nothing is left. Every item that was on this list has been tried against a
-running system, and the results are in "Verified by the user" above.
+running system, and the results are in "Verified by the user" above, Topic 9
+included.
 
 ### The next piece of work
 
-**Nothing.** Topic 7a was the last outstanding work, and it is designed,
-agreed, built, checked against the live database, and used in a browser. No
-migration was needed — `birth_date` stays nullable, and the requirement lives
-in the form and the server action.
+Two things are known and neither is urgent.
+
+**Nobody has a short form yet.** Every version in the table has
+`position_short_form` empty, because it has to be typed by hand. Nothing breaks
+while it is empty, and the first document that prints one will be the thing
+that forces the typing. That document does not exist.
+
+**A spelling fix still behaves like a name change**, which is the opposite of
+what the signatory design asks for. Fixing it means building three parts
+together — the two-button editor, the `employee_history_correction` log, and a
+warning naming how many documents a fix would change. See Topic 9.
 
 One idea has still never been discussed: the **"Give this person a login"**
 shortcut described at the end of Topic 5. It is not a decision, and no work on
 it is planned.
-
-Everything in this document is settled, built, and tested.
 
 ---
 
@@ -1220,6 +1500,9 @@ Listed so they are not forgotten. Not discussed, no decisions.
 
 - **The "Give this person a login" shortcut** on each row of the Employees
   page, described at the end of Topic 5. An idea only.
+- **Somewhere to see a person's history.** No screen shows the versions at all;
+  they exist only in the database. Nothing needs one yet, and it was never
+  asked for.
 
 **Migration order** used to be listed here and no longer applies. There was
 never any data to preserve — every table was empty when this began — and the
