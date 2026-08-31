@@ -13,7 +13,8 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "create-admin": "tsx scripts/create-admin.ts",
     "sync-permissions": "tsx scripts/sync-permissions.ts",
-    "reset-admin-password": "tsx scripts/reset-admin-password.ts"
+    "reset-admin-password": "tsx scripts/reset-admin-password.ts",
+    "backfill-employee-history": "tsx scripts/backfill-employee-history.ts"
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.3.0",

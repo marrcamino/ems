@@ -254,6 +254,25 @@
           </div>
 
           <div class="grid gap-2">
+            <Label for="positionShortForm" class="gap-1">
+              Short form printed on forms
+              <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
+            </Label>
+            <Input
+              id="positionShortForm"
+              name="positionShortForm"
+              maxlength={50}
+              placeholder="AO-I/Supply Officer"
+              bind:value={ctx.formPositionShortForm}
+            />
+            <p class="text-xs text-muted-foreground">
+              The shortened position printed on documents, because the boxes
+              on the paper forms are small. Administrative Officer I
+              &lpar;Supply Officer&rpar; is printed as AO-I/Supply Officer.
+            </p>
+          </div>
+
+          <div class="grid gap-2">
             <Label for="section" class="gap-1">
               Section
               <span class="text-muted-foreground">&lpar;Optional&rpar;</span>

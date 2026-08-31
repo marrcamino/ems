@@ -55,6 +55,7 @@ export class EmployeesContext {
   formLastName = $state("");
   formSuffix = $state("");
   formPositionTitle = $state("");
+  formPositionShortForm = $state("");
   formOrgUnitFk = $state("");
   formBirthDate = $state("");
   formSex = $state("");
@@ -217,6 +218,8 @@ export class EmployeesContext {
         this.formLastName = this.employeeToEdit.lastName;
         this.formSuffix = this.employeeToEdit.suffix ?? "";
         this.formPositionTitle = this.employeeToEdit.positionTitle ?? "";
+        this.formPositionShortForm =
+          this.employeeToEdit.positionShortForm ?? "";
         this.formOrgUnitFk = this.employeeToEdit.orgUnitFk
           ? String(this.employeeToEdit.orgUnitFk)
           : "";
@@ -246,6 +249,7 @@ export class EmployeesContext {
     this.formLastName = "";
     this.formSuffix = "";
     this.formPositionTitle = "";
+    this.formPositionShortForm = "";
     this.formOrgUnitFk = "";
     this.formBirthDate = "";
     this.formSex = "";
