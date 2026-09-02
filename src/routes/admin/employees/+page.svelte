@@ -17,10 +17,12 @@
   import type { ColumnFiltersState } from "@tanstack/table-core";
   import { untrack } from "svelte";
   import { getGlobalContext } from "../../global-context.svelte.js";
+  import AddChangeDialog from "./add-change-dialog.svelte";
   import AddEditEmployeeDialog from "./add-edit-employee-dialog.svelte";
   import { columns, features, HIDDEN_COLUMNS } from "./columns.js";
   import { setEmployeesContext } from "./context.svelte.js";
   import DeleteAlertDialog from "./delete-alert-dialog.svelte";
+  import NamePositionHistorySheet from "./name-position-history-sheet.svelte";
   import EmployeesToolbar from "./employees-toolbar.svelte";
   import { buildEmployeeFacets, emptyEmployeeFilters } from "./filters.js";
 
@@ -39,6 +41,7 @@
   untrack(() => {
     ctx.employees = data.employees;
     ctx.orgUnits = data.orgUnits;
+    ctx.documentCounts = data.documentCounts;
   });
 
   const facets = $derived(buildEmployeeFacets(ctx.employees));
@@ -250,4 +253,6 @@
 </div>
 
 <AddEditEmployeeDialog />
+<AddChangeDialog />
+<NamePositionHistorySheet />
 <DeleteAlertDialog />

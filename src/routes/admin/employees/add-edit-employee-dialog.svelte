@@ -11,7 +11,7 @@
   import type { OrgUnit } from "$lib/types";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
   import { capitalize } from "@/utils";
-  import { Info } from "@lucide/svelte/icons";
+  import { Info, TriangleAlert } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
   import { getEmployeesContext, type EmployeeRow } from "./context.svelte.js";
   import DuplicateAlert from "./duplicate-alert.svelte";
@@ -151,6 +151,34 @@
         <input type="hidden" name="tenureStatus" value={ctx.formTenureStatus} />
 
         <div class="grid gap-4">
+          <!--
+            Shown only when something a document prints has been changed, so an
+            ordinary edit to a birthday or a civil status stays silent. It does
+            not block the save: if the admin reads it and carries on, that is
+            their decision, and the point is that they were told.
+          -->
+          {#if ctx.mode === "edit" && ctx.printedFieldsChanged}
+            <Alert.Root variant="warning">
+              <TriangleAlert />
+              <Alert.Title>This corrects the name everywhere</Alert.Title>
+              <Alert.Description>
+                {#if ctx.documentsAffectedByEdit === 0}
+                  No document uses this name yet, so nothing else changes.
+                {:else if ctx.documentsAffectedByEdit === 1}
+                  1 document already uses this name, and it will show the
+                  corrected name straight away.
+                {:else}
+                  {ctx.documentsAffectedByEdit} documents already use this name,
+                  and all of them will show the corrected name straight away.
+                {/if}
+                <br /><br />
+                If this person's name or position really changed, close this and
+                use "Add name or position change" instead, so older documents keep
+                the wording they were filed with.
+              </Alert.Description>
+            </Alert.Root>
+          {/if}
+
           {#if ctx.leavingWithLogin}
             <Alert.Root variant="info">
               <Info />
@@ -230,45 +258,37 @@
               max={today}
               bind:value={ctx.formBirthDate}
             />
-            <p class="text-xs text-muted-foreground">
-              Needed so this person can be told apart from anybody else with
-              the same name.
-            </p>
           </div>
 
           <DuplicateAlert {submitting} />
 
           <div class="grid gap-2">
-            <Label for="positionTitle">Position</Label>
+            <Label for="positionTitle">Position title</Label>
             <Input
               id="positionTitle"
               name="positionTitle"
               required
               maxlength={100}
-              placeholder="Administrative Officer II"
+              placeholder="Administrative Officer III (Records Officer II)"
               bind:value={ctx.formPositionTitle}
             />
-            <p class="text-xs text-muted-foreground">
-              The position or designation this person was hired into.
-            </p>
           </div>
 
           <div class="grid gap-2">
             <Label for="positionShortForm" class="gap-1">
-              Short form printed on forms
+              Abbreviated position title
               <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
             </Label>
             <Input
               id="positionShortForm"
               name="positionShortForm"
               maxlength={50}
-              placeholder="AO-I/Supply Officer"
+              placeholder="AO III (Records Officer II)"
               bind:value={ctx.formPositionShortForm}
             />
             <p class="text-xs text-muted-foreground">
-              The shortened position printed on documents, because the boxes
-              on the paper forms are small. Administrative Officer I
-              &lpar;Supply Officer&rpar; is printed as AO-I/Supply Officer.
+              Used where space is limited — ID badges, tables, org charts, and
+              printouts.
             </p>
           </div>
 
@@ -328,10 +348,6 @@
                 {/each}
               </Select.Content>
             </Select.Root>
-            <p class="text-xs text-muted-foreground">
-              How this person is hired. Contract of Service and Job Order staff
-              belong here too.
-            </p>
           </div>
 
           <!--

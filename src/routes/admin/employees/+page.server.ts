@@ -1,8 +1,17 @@
 // src/routes/admin/employees/+page.server.ts
 import { can } from "$lib/rbac/access";
 import { db } from "$lib/server/db";
-import { employee, orgUnit, session, user } from "$lib/server/db/schema";
 import {
+  employee,
+  employeeHistory,
+  orgUnit,
+  session,
+  user,
+} from "$lib/server/db/schema";
+import {
+  addEmployeeVersion,
+  correctEmployeeVersion,
+  countDocumentsUsingOpenVersions,
   createEmployee,
   reinstateEmployee,
   separateEmployee,
@@ -115,6 +124,52 @@ function readEmployeeForm(form: FormData) {
 
 type EmployeeInput = ReturnType<typeof readEmployeeForm>;
 
+/**
+ * The six fields a document prints, read on their own. The "record a change"
+ * dialog asks for nothing else: a marriage or a promotion changes what is
+ * printed, never a birthday or a section.
+ */
+function readPrintedForm(form: FormData) {
+  const optionalText = (field: string) =>
+    ((form.get(field) as string) ?? "").trim() || null;
+
+  return {
+    firstName: ((form.get("firstName") as string) ?? "").trim(),
+    middleName: optionalText("middleName"),
+    lastName: ((form.get("lastName") as string) ?? "").trim(),
+    suffix: optionalText("suffix"),
+    positionTitle: ((form.get("positionTitle") as string) ?? "").trim(),
+    positionShortForm: optionalText("positionShortForm"),
+  };
+}
+
+type PrintedInput = ReturnType<typeof readPrintedForm>;
+
+function validatePrintedForm(input: PrintedInput): string | null {
+  if (!input.firstName) return "Enter a first name.";
+  if (!input.lastName) return "Enter a last name.";
+  if (!input.positionTitle) return "Enter this person's position.";
+
+  if (
+    input.firstName.length > NAME_MAX_LENGTH ||
+    input.lastName.length > NAME_MAX_LENGTH ||
+    (input.middleName?.length ?? 0) > NAME_MAX_LENGTH ||
+    input.positionTitle.length > NAME_MAX_LENGTH
+  ) {
+    return `Names and the position can be at most ${NAME_MAX_LENGTH} characters.`;
+  }
+
+  if ((input.suffix?.length ?? 0) > SUFFIX_MAX_LENGTH) {
+    return `The suffix can be at most ${SUFFIX_MAX_LENGTH} characters.`;
+  }
+
+  if ((input.positionShortForm?.length ?? 0) > SHORT_FORM_MAX_LENGTH) {
+    return `The short form can be at most ${SHORT_FORM_MAX_LENGTH} characters.`;
+  }
+
+  return null;
+}
+
 function validateEmployeeForm(input: EmployeeInput): string | null {
   if (!input.firstName) return "Enter a first name.";
   if (!input.lastName) return "Enter a last name.";
@@ -203,7 +258,7 @@ async function readComparablePeople() {
  * and by the time a request arrives they already have.
  */
 async function refuseIfDuplicate(
-  input: EmployeeInput,
+  input: { firstName: string; lastName: string; birthDate: string | null },
   ignoreEmployeePk: number | null,
   wording: "create" | "update",
 ): Promise<string | null> {
@@ -300,7 +355,15 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from(orgUnit)
     .orderBy(asc(orgUnit.orgUnitName));
 
-  return { employees, orgUnits };
+  // How many filed documents already print each person's current name and
+  // position. The editor warns with this number before writing over it.
+  // Always zero today — see countDocumentsUsingOpenVersions, which is written
+  // to be replaced when the first document exists.
+  const documentCounts = await countDocumentsUsingOpenVersions(
+    employees.map((person) => person.employeePk),
+  );
+
+  return { employees, orgUnits, documentCounts };
 };
 
 export const actions: Actions = {
@@ -407,6 +470,159 @@ export const actions: Actions = {
     }
 
     return { success: true, updatedRow };
+  },
+
+  /**
+   * Recording something that really changed — a marriage, a promotion.
+   *
+   * The opposite of `update`, and the reason the two are separate actions
+   * rather than one save with a question attached. `update` writes over the
+   * person's current entry, because what was there was never correct.
+   * This one closes that entry and starts a new one, because what was there
+   * was correct until now, and every document already filed has to go on
+   * showing it.
+   *
+   * Only the six printed fields are sent. A birthday or a section is not
+   * something documents print, so changing one is an ordinary edit.
+   */
+  addChange: async ({ request, locals }) => {
+    if (!can(locals.permissions, "admin:manage_employees")) {
+      return fail(403, {
+        error: "You do not have permission to edit employees.",
+      });
+    }
+
+    const form = await request.formData();
+    const employeePk = Number(form.get("employeePk"));
+    const input = readPrintedForm(form);
+
+    const [existing] = await db
+      .select()
+      .from(employee)
+      .where(eq(employee.employeePk, employeePk));
+
+    if (!existing) {
+      return fail(404, { error: "That employee no longer exists." });
+    }
+
+    // Somebody who has left has no current entry to close. Opening a new one
+    // would make them a valid choice on documents filed after they left,
+    // which is exactly what marking them as no longer employed prevented.
+    if (existing.employmentStatus !== "active") {
+      return fail(409, {
+        error:
+          "This person is marked as no longer employed, so a change can't be recorded for them. Set them back to employed first.",
+      });
+    }
+
+    const invalid = validatePrintedForm(input);
+    if (invalid) return fail(400, { error: invalid });
+
+    const nameUnchanged =
+      input.firstName === existing.firstName &&
+      input.lastName === existing.lastName;
+
+    if (!nameUnchanged) {
+      const duplicate = await refuseIfDuplicate(
+        { ...input, birthDate: existing.birthDate },
+        employeePk,
+        "update",
+      );
+      if (duplicate) return fail(409, { error: duplicate });
+    }
+
+    await addEmployeeVersion(
+      employeePk,
+      {
+        ...input,
+        orgUnitFk: existing.orgUnitFk,
+        birthDate: existing.birthDate,
+        sex: existing.sex,
+        civilStatus: existing.civilStatus,
+        tenureStatus: existing.tenureStatus,
+        employmentStatus: existing.employmentStatus,
+      },
+      locals.user?.userPk ?? null,
+    );
+
+    const updatedRow = await readEmployeeRow(employeePk);
+    if (!updatedRow) {
+      return fail(500, {
+        error: "The change was saved but the employee could not be read back.",
+      });
+    }
+
+    return { success: true, updatedRow };
+  },
+
+  /**
+   * Repairing one entry in a person's name and position history, named
+   * directly. This is what the history panel saves, and the only way to reach
+   * an entry that has already been closed.
+   *
+   * A closed entry is not what the person is called today, so repairing one
+   * says nothing about their current details and the table on this page does
+   * not change. Repairing the current entry does change them, and the row is
+   * sent back so the table follows.
+   */
+  correctEntry: async ({ request, locals }) => {
+    if (!can(locals.permissions, "admin:manage_employees")) {
+      return fail(403, {
+        error: "You do not have permission to edit employees.",
+      });
+    }
+
+    const form = await request.formData();
+    const employeeHistoryPk = Number(form.get("employeeHistoryPk"));
+    const input = readPrintedForm(form);
+
+    const [entry] = await db
+      .select()
+      .from(employeeHistory)
+      .where(eq(employeeHistory.employeeHistoryPk, employeeHistoryPk));
+
+    if (!entry) {
+      return fail(404, { error: "That entry no longer exists." });
+    }
+
+    const invalid = validatePrintedForm(input);
+    if (invalid) return fail(400, { error: invalid });
+
+    // Only checked when the entry being repaired is the current one, because
+    // only that one decides who the person is now. Two closed entries holding
+    // the same name is ordinary: it is the same person, twice.
+    if (entry.validUntil === null) {
+      const nameUnchanged =
+        input.firstName === entry.firstName &&
+        input.lastName === entry.lastName;
+
+      if (!nameUnchanged) {
+        const [person] = await db
+          .select({ birthDate: employee.birthDate })
+          .from(employee)
+          .where(eq(employee.employeePk, entry.employeeFk));
+
+        const duplicate = await refuseIfDuplicate(
+          { ...input, birthDate: person?.birthDate ?? null },
+          entry.employeeFk,
+          "update",
+        );
+        if (duplicate) return fail(409, { error: duplicate });
+      }
+    }
+
+    const changed = await correctEmployeeVersion(
+      employeeHistoryPk,
+      input,
+      locals.user?.userPk ?? null,
+    );
+
+    const updatedRow =
+      entry.validUntil === null
+        ? await readEmployeeRow(entry.employeeFk)
+        : undefined;
+
+    return { success: true, changed, updatedRow };
   },
 
   /**

@@ -1,7 +1,8 @@
 /**
  * src/lib/server/employee-history.ts
  *
- * The only place `employee` and `employee_history` are written.
+ * The only place `employee`, `employee_history` and
+ * `employee_history_correction` are written.
  *
  * `employee` holds the current copy of a person's name and position title so
  * that an ordinary lookup stays one simple read. `employee_history` holds
@@ -15,11 +16,28 @@
  * right. Everything here therefore runs inside one transaction, and any other
  * code that needs to change a person's name calls these functions rather than
  * writing either table itself.
+ *
+ * A name changes for two opposite reasons, and this file keeps them apart:
+ *
+ * - **Something was typed wrong.** It was never correct, so the version is
+ *   written over and every document already using it is repaired at once.
+ *   `updateEmployee` does this for the current version;
+ *   `correctEmployeeVersion` does it for any single version, including a
+ *   closed one. Both write a row to `employee_history_correction`, because
+ *   writing over a version otherwise leaves no trace of what was there.
+ * - **Something really changed.** A marriage, a promotion. The current version
+ *   is closed and a new one starts, so documents filed earlier keep the old
+ *   wording. `addEmployeeVersion` does this, and writes nothing to the
+ *   correction log, because the new version already records who made it.
+ *
+ * Which of the two happened is not something this file can work out, and it
+ * does not try. The screen the person used decides it: editing an employee
+ * repairs, and the separate "add a change" action records a change.
  */
 
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { db } from "./db";
-import { employee, employeeHistory } from "./db/schema";
+import { employee, employeeHistory, employeeHistoryCorrection } from "./db/schema";
 
 /** The handle drizzle hands to the body of `db.transaction(...)`. */
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -35,7 +53,7 @@ export type EmployeeWriteValues = Omit<
  * version; changing a birthday or a civil status does not, because no
  * document prints those.
  */
-type VersionedFields = {
+export type VersionedFields = {
   firstName: string;
   middleName: string | null;
   lastName: string;
@@ -44,7 +62,40 @@ type VersionedFields = {
   positionShortForm: string | null;
 };
 
-function versionedFieldsOf(values: EmployeeWriteValues): VersionedFields {
+/**
+ * The same six fields, paired with the database column each one is called in
+ * `employee_history_correction.field`. The log is read by typing SQL by hand,
+ * so it names columns the way a SQL query does.
+ */
+const VERSIONED_FIELD_COLUMNS = {
+  firstName: "first_name",
+  middleName: "middle_name",
+  lastName: "last_name",
+  suffix: "suffix",
+  positionTitle: "position_title",
+  positionShortForm: "position_short_form",
+} as const;
+
+const VERSIONED_FIELD_NAMES = Object.keys(
+  VERSIONED_FIELD_COLUMNS,
+) as (keyof VersionedFields)[];
+
+/**
+ * Anything that carries the six printed fields — a form's values, or a row
+ * already in `employee_history`. Both are pulled through `versionedFieldsOf`
+ * so that a comparison between them is always like for like, with an absent
+ * middle name and an empty one treated as the same thing.
+ */
+type VersionedFieldsSource = {
+  firstName: string;
+  middleName?: string | null;
+  lastName: string;
+  suffix?: string | null;
+  positionTitle: string;
+  positionShortForm?: string | null;
+};
+
+function versionedFieldsOf(values: VersionedFieldsSource): VersionedFields {
   return {
     firstName: values.firstName,
     middleName: values.middleName ?? null,
@@ -119,18 +170,18 @@ async function findOpenVersion(tx: Transaction, employeePk: number) {
   return row;
 }
 
-function differsFromVersion(
-  open: typeof employeeHistory.$inferSelect,
-  fields: VersionedFields,
-): boolean {
-  return (
-    open.firstName !== fields.firstName ||
-    open.middleName !== fields.middleName ||
-    open.lastName !== fields.lastName ||
-    open.suffix !== fields.suffix ||
-    open.positionTitle !== fields.positionTitle ||
-    open.positionShortForm !== fields.positionShortForm
-  );
+/** Which of the six printed fields differ, and what they are changing from. */
+function changedFields(
+  before: VersionedFields,
+  after: VersionedFields,
+): { field: keyof VersionedFields; oldValue: string | null; newValue: string | null }[] {
+  return VERSIONED_FIELD_NAMES.filter(
+    (field) => before[field] !== after[field],
+  ).map((field) => ({
+    field,
+    oldValue: before[field],
+    newValue: after[field],
+  }));
 }
 
 async function openVersion(
@@ -165,11 +216,54 @@ async function closeVersion(
 }
 
 /**
- * Brings this person's versions in line with what was just saved. Shared by
- * editing and by bringing somebody back, because both end in the same
- * question: what should be open now?
+ * Writes new wording over a version that already exists, and records what was
+ * lost. Returns the number of fields that actually changed, which is zero when
+ * the caller passed the same wording that was already there.
  *
- * Four cases, in the order they are handled:
+ * The dates are not touched. A repair is a claim that this version was always
+ * meant to read this way, so the days it covers do not move, and every
+ * document pointing at it reads the new wording immediately.
+ *
+ * The log rows are written in the same transaction as the update, so the table
+ * cannot end up describing a repair that did not happen, or missing one that
+ * did.
+ */
+async function writeOverVersion(
+  tx: Transaction,
+  version: typeof employeeHistory.$inferSelect,
+  fields: VersionedFields,
+  correctedByFk: number | null,
+  { log }: { log: boolean } = { log: true },
+): Promise<number> {
+  const changes = changedFields(versionedFieldsOf(version), fields);
+  if (changes.length === 0) return 0;
+
+  await tx
+    .update(employeeHistory)
+    .set(fields)
+    .where(eq(employeeHistory.employeeHistoryPk, version.employeeHistoryPk));
+
+  if (log) {
+    await tx.insert(employeeHistoryCorrection).values(
+      changes.map((change) => ({
+        employeeHistoryFk: version.employeeHistoryPk,
+        field: VERSIONED_FIELD_COLUMNS[change.field],
+        oldValue: change.oldValue,
+        newValue: change.newValue,
+        correctedByFk,
+      })),
+    );
+  }
+
+  return changes.length;
+}
+
+/**
+ * Brings this person's versions in line with what was just saved by the
+ * employee editor, which is the screen for **repairing** something typed
+ * wrong.
+ *
+ * Three cases, in the order they are handled:
  *
  * 1. The person no longer works here. Their open version is closed today and
  *    no new one is started. This is what stops them appearing as a choice on
@@ -179,23 +273,27 @@ async function closeVersion(
  *    because an old document must keep pointing at what was true when it was
  *    filed. The exception is a version closed earlier the same day, which is
  *    reopened rather than replaced — see the comment where that is done.
- * 3. They work here, have an open version, and nothing printable changed.
- *    Nothing happens. Editing a birthday must not make a new version.
- * 4. Something printable changed. The old version's last valid day becomes
- *    yesterday and a new one starts today, so exactly one version matches any
- *    given date.
+ * 3. They work here and have an open version. It is written over with what was
+ *    typed, and each changed field is recorded in the correction log. Nothing
+ *    happens if none of the six printed fields differ, so editing a birthday
+ *    still makes no version and writes no log row.
  *
- * Case 4 has one exception, handled inside it: a version that only started
- * today is corrected in place rather than replaced. Closing it yesterday
- * would leave a row whose end came before its beginning, and that version was
- * never the truth on an earlier date, so there is nothing a document could
- * have pointed at.
+ * Case 3 is where this differs from what the code used to do. It used to close
+ * the open version and start a new one, which is right for a marriage and
+ * wrong for a typing mistake, and this screen is now only ever used for the
+ * mistake. A marriage goes through `addEmployeeVersion` instead.
+ *
+ * Only the open version is touched. If the same mistake also sits on a closed
+ * version, that version keeps it, and a document dated inside its range keeps
+ * printing it, until somebody repairs that version from the history screen
+ * with `correctEmployeeVersion`. This was a deliberate decision: an edit
+ * changes only the row the person is looking at.
  */
 async function syncVersions(
   tx: Transaction,
   employeePk: number,
   values: EmployeeWriteValues,
-  createdByFk: number | null,
+  actorUserPk: number | null,
 ) {
   const open = await findOpenVersion(tx, employeePk);
   const stillEmployed = (values.employmentStatus ?? "active") === "active";
@@ -218,30 +316,22 @@ async function syncVersions(
     if (closedToday) {
       await tx
         .update(employeeHistory)
-        .set({ ...versionedFieldsOf(values), validUntil: null, createdByFk })
+        .set({
+          ...versionedFieldsOf(values),
+          validUntil: null,
+          createdByFk: actorUserPk,
+        })
         .where(
           eq(employeeHistory.employeeHistoryPk, closedToday.employeeHistoryPk),
         );
       return;
     }
 
-    await openVersion(tx, employeePk, values, on, createdByFk);
+    await openVersion(tx, employeePk, values, on, actorUserPk);
     return;
   }
 
-  const fields = versionedFieldsOf(values);
-  if (!differsFromVersion(open, fields)) return;
-
-  if (open.validFrom >= on) {
-    await tx
-      .update(employeeHistory)
-      .set({ ...fields, createdByFk })
-      .where(eq(employeeHistory.employeeHistoryPk, open.employeeHistoryPk));
-    return;
-  }
-
-  await closeVersion(tx, open.employeeHistoryPk, dayBefore(on));
-  await openVersion(tx, employeePk, values, on, createdByFk);
+  await writeOverVersion(tx, open, versionedFieldsOf(values), actorUserPk);
 }
 
 /**
@@ -274,8 +364,12 @@ export async function createEmployee(
 }
 
 /**
- * Saves an edit. A change to a printable field makes a new version; a change
- * to anything else does not.
+ * Saves an edit made on the employee editor, which is the screen for repairing
+ * something typed wrong.
+ *
+ * A change to a printed field writes over the person's current version and is
+ * recorded in the correction log. A change to anything else touches no version
+ * at all.
  */
 export async function updateEmployee(
   employeePk: number,
@@ -289,6 +383,104 @@ export async function updateEmployee(
       .where(eq(employee.employeePk, employeePk));
 
     await syncVersions(tx, employeePk, values, createdByFk);
+  });
+}
+
+/**
+ * Records something that really changed — a marriage, a promotion. The current
+ * version ends yesterday, a new one starts today, and `employee` is updated to
+ * match the new one.
+ *
+ * Nothing is written to the correction log. Nothing was written over: the old
+ * wording is still there on the closed version, which still records who made
+ * it, and documents filed before today go on reading it. That is the whole
+ * point of this action.
+ *
+ * Two cases are handled before the ordinary one:
+ *
+ * - **Nothing printed actually changed.** No version is made. Somebody opened
+ *   the dialog, changed their mind, and saved; that is not a change worth
+ *   recording.
+ * - **The current version began today.** Closing it yesterday would leave a row
+ *   whose last valid day came before its first. That version was never the
+ *   truth on any earlier date, so no document can be pointing at it, and it is
+ *   written over instead. No log row is written for the same reason: nothing
+ *   that any document could have used was lost.
+ */
+export async function addEmployeeVersion(
+  employeePk: number,
+  values: EmployeeWriteValues,
+  createdByFk: number | null,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const open = await findOpenVersion(tx, employeePk);
+    const fields = versionedFieldsOf(values);
+    const on = today();
+
+    await tx
+      .update(employee)
+      .set({ ...values, updatedAt: new Date() })
+      .where(eq(employee.employeePk, employeePk));
+
+    if (!open) {
+      await openVersion(tx, employeePk, values, on, createdByFk);
+      return;
+    }
+
+    if (changedFields(versionedFieldsOf(open), fields).length === 0) return;
+
+    if (open.validFrom >= on) {
+      await writeOverVersion(tx, open, fields, createdByFk, { log: false });
+      return;
+    }
+
+    await closeVersion(tx, open.employeeHistoryPk, dayBefore(on));
+    await openVersion(tx, employeePk, values, on, createdByFk);
+  });
+}
+
+/**
+ * Repairs one version, named directly, which is what the Name and position
+ * history screen does. Works on a closed version as well as the current one,
+ * and it is the only way to reach a closed one.
+ *
+ * If the version being repaired is the current one, `employee` is updated to
+ * match, because those two hold the same wording and must never disagree. If
+ * it is a closed version, `employee` is left alone: a closed version is not
+ * what the person is called today, so repairing it says nothing about their
+ * current name.
+ *
+ * Returns how many fields were actually changed, so the caller can tell a real
+ * repair from a save that changed nothing.
+ */
+export async function correctEmployeeVersion(
+  employeeHistoryPk: number,
+  fields: VersionedFields,
+  correctedByFk: number | null,
+): Promise<number> {
+  return db.transaction(async (tx) => {
+    const [version] = await tx
+      .select()
+      .from(employeeHistory)
+      .where(eq(employeeHistory.employeeHistoryPk, employeeHistoryPk));
+
+    if (!version) {
+      throw new Error(
+        `No name and position entry with id ${employeeHistoryPk}.`,
+      );
+    }
+
+    const changed = await writeOverVersion(tx, version, fields, correctedByFk);
+    if (changed === 0) return 0;
+
+    if (version.validUntil === null) {
+      await tx
+        .update(employee)
+        .set({ ...fields, updatedAt: new Date() })
+        .where(eq(employee.employeePk, version.employeeFk));
+    }
+
+    return changed;
   });
 }
 
@@ -336,4 +528,45 @@ export async function reinstateEmployee(
     { ...values, employmentStatus: "active" },
     createdByFk,
   );
+}
+
+/**
+ * For each of these people, how many filed documents name their current
+ * version — the wording the employee editor would write over.
+ *
+ * **This function exists to be replaced.** No document table has been built
+ * yet, so nothing can be pointing at a version and the honest answer today is
+ * zero for everybody. Whoever builds the first document that names a signatory
+ * must come back here and count its rows, grouped by the person whose version
+ * they hold. Nothing else needs to change: the screens already ask this
+ * question and already word their warning around the answer.
+ *
+ * It takes the whole list rather than one person at a time so that replacing
+ * it means writing one grouped query, rather than discovering that the
+ * Employees page runs one query per row.
+ *
+ * The question is asked even though the answer is always zero, because paper
+ * is typed into the system after it was signed. A slip filed next week can
+ * carry last week's date, so the choice between repairing a version and
+ * starting a new one matters long before any document exists.
+ */
+export async function countDocumentsUsingOpenVersions(
+  employeePks: number[],
+): Promise<Record<number, number>> {
+  return Object.fromEntries(employeePks.map((employeePk) => [employeePk, 0]));
+}
+
+/**
+ * The same count, asked about named versions rather than about people. The
+ * history panel needs this one, because there it is a closed version that is
+ * about to be written over and the person's current version is not involved.
+ *
+ * **Replace it at the same time as `countDocumentsUsingOpenVersions`.** Both
+ * answer one question — how many filed documents hold this
+ * `employee_history_pk` — and both return zero until a document table exists.
+ */
+export async function countDocumentsUsingVersions(
+  employeeHistoryPks: number[],
+): Promise<Record<number, number>> {
+  return Object.fromEntries(employeeHistoryPks.map((pk) => [pk, 0]));
 }

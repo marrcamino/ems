@@ -2,7 +2,14 @@
   import { enhance } from "$app/forms";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-  import { EllipsisVertical, Pencil, Trash2, UserMinus } from "@lucide/svelte/icons";
+  import {
+    CalendarPlus,
+    EllipsisVertical,
+    History,
+    Pencil,
+    Trash2,
+    UserMinus,
+  } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
   import { getGlobalContext } from "../../global-context.svelte.js";
   import {
@@ -79,7 +86,26 @@
         <Pencil /> Edit
       </DropdownMenu.Item>
 
+      <DropdownMenu.Item onclick={() => ctx.openHistoryFor(employee)}>
+        <History /> Name and position history
+      </DropdownMenu.Item>
+
       {#if employed}
+        <!--
+          Deliberately a separate action rather than a choice inside Edit.
+          Edit repairs something typed wrong, everywhere it appears; this
+          records something that really changed, from today onwards. The menu
+          item somebody picks is what says which of the two they meant.
+        -->
+        <DropdownMenu.Item
+          onclick={() => {
+            ctx.employeeToChange = employee;
+            ctx.addChangeDialog = true;
+          }}
+        >
+          <CalendarPlus /> Add name or position change
+        </DropdownMenu.Item>
+
         <DropdownMenu.Item onclick={() => separateForm?.requestSubmit()}>
           <UserMinus /> Mark as no longer employed
         </DropdownMenu.Item>
