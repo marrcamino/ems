@@ -1209,19 +1209,17 @@ blank line.
 
 The user chose to add `created_by_fk` and to leave the rest for later.
 
-The signatory document describes a second table, `employee_history_correction`,
-logging spelling fixes, and an editor offering two clearly worded choices
-instead of one Save button: "Fix a spelling mistake", which edits the version in
-place so every document using it is corrected at once, and "This person's name
-changed", which ends the version and starts a new one.
+The signatory document also describes a second table,
+`employee_history_correction`, logging spelling fixes, and a screen that can tell
+a spelling fix apart from a real name change.
 
-Neither was built, because the log has nothing to record until that screen
+Neither was built, because the log has nothing to record until such a screen
 exists. The consequence is real and should not be forgotten: **a spelling fix
 currently behaves like a name change.** Correcting "Olivar" to "Olaivar" closes
 the misspelled version and opens a corrected one, so a document filed before
 the fix keeps pointing at the misspelling. Nothing is lost — the wrong version
-is still there — but finishing this means building the two buttons, the log,
-and a warning naming how many documents a fix would change, all together.
+is still there — but repairing it properly is the whole of **Topic 10**, which
+is designed and not yet built.
 
 ### Decision — every existing employee starts from a fixed early date
 
@@ -1484,13 +1482,288 @@ while it is empty, and the first document that prints one will be the thing
 that forces the typing. That document does not exist.
 
 **A spelling fix still behaves like a name change**, which is the opposite of
-what the signatory design asks for. Fixing it means building three parts
-together — the two-button editor, the `employee_history_correction` log, and a
-warning naming how many documents a fix would change. See Topic 9.
+what the signatory design asks for. **Topic 10 designs the repair** and is
+finished apart from three small open questions listed at the end of it. Building
+it means three places on screen, the `employee_history_correction` log, and a
+warning naming how many documents a fix would change.
 
 One idea has still never been discussed: the **"Give this person a login"**
 shortcut described at the end of Topic 5. It is not a decision, and no work on
 it is planned.
+---
+
+## Topic 10 — Repairing a mistake instead of starting a new version
+
+### Status
+
+**Designed and built, 1-2 September 2026.** The shape was reworked during the
+design, after the user proposed a better one; what this topic said before is
+described under "The shape this replaced" so the reasoning is not lost. What was
+built is listed at the end, under "What was built".
+
+The user tested the first two doors in a browser and reported them working. The
+history panel is built but not yet tested.
+
+A word about vocabulary. Topic 9 calls a row in `employee_history` a **version**,
+and that word stays in the code and in this document. On screen the same thing is
+called an **entry**, because "entry" is what a clerk recognises. They are the same
+row.
+
+### The problem
+
+A name changes for two opposite reasons, and they need opposite behaviour.
+
+A typing mistake was never correct, so the document already using it should be
+repaired. A marriage is not a mistake, so documents filed before it must keep the
+old surname. Today `updateEmployee` treats both the same: it always closes the
+old version and opens a new one, which is right for the marriage and wrong for
+the mistake. The consequence is written down at the end of Topic 9 and has not
+changed.
+
+The same split applies to the **position title**, not only the name. A mistyped
+title should be repaired; a promotion should not. Both live in the same version
+row, so one action governs both.
+
+### Decision — the fork is two separate actions, not a question at save time
+
+**Proposed by the user, and it replaced my design.** The screen does not ask
+anything at save time. Instead the two cases are two different things a person
+can choose to do, before they start typing.
+
+| the person wants to | they use | what happens to the versions |
+| --- | --- | --- |
+| fix something typed wrong | the existing **Edit employee** dialog | the open version is written over |
+| record something that really changed | a new **Add name or position change** action | the open version is closed, a new one starts |
+| fix something typed wrong on an older, closed version | the new **Name and position history** screen | that one version is written over |
+
+Why this is better than the question-at-save-time design it replaced. My version
+put both jobs in one dialog, so the dialog had to work out which of the two was
+happening, count documents, and interrupt with a question the person met by
+surprise halfway through saving. The user's objection was about that complexity,
+and their fix removes it: the button somebody pressed already says which case it
+is, so nothing has to be inferred and nothing has to be asked. The edit dialog
+goes back to doing one job.
+
+### Decision — what these are called on screen
+
+**"Name and position history"**, chosen by the user from four plain candidates.
+Rejected: *"Name history"*, which promises less than the screen shows, since the
+position title is in there too; *"Change history"*, which does not say change of
+what and would make people expect birthdays to be listed; and *"Employee
+history"*, which sounds like it means when somebody was hired and when they left,
+which is not what is stored.
+
+Two formal names were also rejected, and the reason matters for future naming.
+**"Service Record"** is the real Civil Service Commission document and was the
+most accurate name available, but a real Service Record also carries salary,
+appointment status and appointment dates, none of which this system stores. The
+user did not want it, and did not want the civil service process reproduced
+either — it was useful only as an idea. **"Record of name and position"** was
+rejected as still too complicated. The rule they gave is that the words must be
+understandable to anybody without explanation.
+
+### Decision — a correction changes only the version being looked at
+
+The edit dialog writes over **the open version only** — the one row whose
+`valid_until` is empty. It never touches a closed version. A closed version is
+corrected from the history screen, one at a time, deliberately.
+
+**This overturns an earlier decision in this same topic**, which said a repair
+should reach every version holding the same wrong value. That is no longer the
+design.
+
+The concern with the user's rule was put to them and they kept their answer, so
+it is settled. Recorded here because it is a real cost and somebody should not
+rediscover it as a bug: a document reads whichever version covers **its own
+date**, not the open one. So if "Olivar" sits on a closed version as well, a slip
+dated inside that closed version's range still prints "Olivar" until somebody
+opens the history screen and corrects that version too.
+
+The user's reasoning is that editing history is a deliberate act and belongs on
+the screen where history lives, rather than happening invisibly from a dialog
+about somebody's personal details. Nothing is hidden: the history screen shows
+every version, so a person who mistyped a surname can see the other versions
+still carrying it.
+
+### Decision — the copy on `employee` and the open version follow each other
+
+They hold the same six printed fields, and they are two copies of one thing.
+
+- Editing the person in the **Edit employee** dialog updates the open version.
+- Editing the **open version** on the history screen updates the person.
+
+Both directions run in one transaction, which is the discipline Topic 9 already
+rests on. Nothing new is required for this; it is what
+`src/lib/server/employee-history.ts` already does, described from the other side.
+
+### Decision — the history screen is part of this feature, not a later idea
+
+It used to be listed at the end of this document under "Topics not opened yet",
+as something nothing needed yet. Under the new shape it is required, because it
+is the only way to reach a closed version at all. That bullet has been removed.
+
+### Decision — the warning stays, and it now has two jobs
+
+It appears in the **Edit employee** dialog when a printed field has been changed,
+and it does not block the save. The user was explicit about this: if an admin
+reads the warning and proceeds anyway, that is their mistake, and the point is
+that they were told.
+
+The two jobs:
+
+1. **Name the number.** *"3 documents already use this name. All 3 will show the
+   corrected name straight away."* When nothing uses it: *"No document uses this
+   name yet, so nothing else changes."* The line is kept at zero rather than
+   hidden, because silence would read as "nothing to think about here" when the
+   choice still matters.
+2. **Point at the other action.** If the name genuinely changed, this dialog is
+   the wrong place, so the warning names the **Add name or position change**
+   action.
+
+**The count is zero today, and the code must be honest about that.** No document
+table exists, so nothing points at a version yet. The count comes from one small
+function whose job is to be replaced: it returns 0 now, and gets its real query
+when the first document naming a signatory is built. Whoever builds that document
+must come back to this function; nothing else needs to change.
+
+**Why a warning is needed even at zero.** Paper is always typed into the system
+after it was signed, so a slip filed next week can carry last week's date. If a
+misspelling is handled by starting a new version, the misspelled version stays in
+the table covering every earlier date, and that back-dated slip finds the
+misspelled name.
+
+### Decision — the log lives in the database only, for now
+
+`employee_history_correction` is written whenever a version is written over, from
+either place, and is shown on no screen. The user chose this over a panel in the
+employee editor and over a page listing every repair.
+
+Its columns are as the signatory document describes: which version, which field,
+the old value, the new value, who did it, and when. Under the new shape a repair
+touches one version, so a repair writes one row per changed field.
+
+The reasoning for building it now and showing it later is that the log fills up
+from the day it is built either way, so a screen built later still shows every
+repair back to the first one.
+
+To see who repaired what, run this in MySQL Workbench:
+
+```sql
+SELECT c.corrected_at, u.username, c.field, c.old_value, c.new_value
+FROM employee_history_correction c
+JOIN user u ON u.user_pk = c.corrected_by_fk
+ORDER BY c.corrected_at DESC;
+```
+
+### The shape this replaced
+
+Kept so the reasoning is not lost, and so nobody proposes it again without
+knowing it was considered.
+
+The screen was to keep its single **Save** button. When the save noticed that a
+printed field had changed, a question appeared before anything was written, with
+two answers the user chose from three candidates: **"Fix a mistake in what was
+typed"** and **"Record a change that happened"**. The wording deliberately
+avoided the words "spelling" and "name", because the signatory document's
+original pair — "Fix a spelling mistake" and "This person's name changed" — reads
+wrong when what was edited is the position title.
+
+That wording is now unused, because there is no question to answer. If the two
+actions ever need a sentence explaining them, these two are the ones that were
+tested against a non-technical reader.
+
+**Topic 1 of the signatory document still describes the two-button screen** and
+has not been brought in line with this. It should be, before that document is
+trusted again.
+
+### Decision — no separate permission, for now
+
+`admin:manage_employees` governs all three doors. Anybody allowed to edit an
+employee may also repair a name and use the history screen.
+
+An earlier version of this topic added a second key, `admin:correct_employees`,
+so that repairing filed paperwork could be granted separately from ordinary
+employee editing. It was dropped, and the reasoning is worth keeping because the
+question will come back.
+
+Adding the key would have taken something away that roles already have. Anybody
+who can edit an employee today can edit a name, and after the change they could
+not until somebody ticked a new box on their role. That is a real cost paid on
+day one, against a risk that is small in this office: two people hold logins, and
+every repair is already attributed in `employee_history_correction`.
+
+It is also the easy direction to reverse. Adding the key later means one entry in
+`PERMISSION_DEFS`, one guard on the edit action and one on the history screen,
+and ticking a box on the roles that should keep the ability. Removing a key that
+roles already depend on is the harder direction, so starting without it is the
+cheaper mistake to make.
+
+**Decided by Claude, not by the user**, who was asked and said the question was
+too technical to answer. It is recorded here so it can be overruled: if repairs
+should be restricted, say so and the key goes in. The description it would carry
+in the role editor, in plain words, is *"Repair a name or position that was typed
+wrong, including on documents that already use it."*
+
+### Decision — the history is its own panel, slid in from the side
+
+Chosen by the user, who also named the component: shadcn-svelte's **sheet**, a
+panel that slides in from the edge of the screen rather than a dialog in the
+middle of it.
+
+It opens from its own item in the row menu, **"Name and position history"**,
+beside Edit rather than inside it. The reasoning the user agreed with is that
+the employee editor is already long, and that keeping the two apart matches what
+the rest of this topic builds: the editor fixes what the person is called now,
+the panel fixes what they were called before.
+
+A sheet suits it better than a dialog because the content is a list of unknown
+length. It is also read far more often than it is written, so it is worth
+opening without the weight of a modal.
+
+What it shows, one card per entry, newest first: the dates the entry was in use,
+the name, the position title, the short form or a line saying none was typed in,
+and which login added it. The current entry carries a badge reading "In use now".
+Each card has a **"Correct this"** button that turns that card into fields, one
+entry at a time.
+
+The entries are fetched when the panel opens rather than loaded with the page.
+Almost nobody opens it, and loading every person's whole history in order to
+draw a table of names would read far more than the page needs.
+
+### Still to decide
+
+**What the new action is called.** It was built as **"Add name or position
+change"**, which is my wording rather than the user's *"Add name and position
+history"*. Theirs matches the panel's title; mine names what the action
+produces, and the user has not objected to it since it appeared on screen.
+Renaming it is one line in `employee-actions-cell.svelte`.
+
+One gap found while drawing the flowchart is still open: **what the admin is
+shown if the save itself fails.** Nothing lands, which is correct, but no
+message has been designed and the generic "Something went wrong." is what
+appears today.
+
+### What was built
+
+- `src/lib/server/db/schema/employee-history-correction.ts` — the log table,
+  applied to the database as plain SQL by the user, since `drizzle-kit push`
+  remains unsafe here for the reasons in Topic 9.
+- `src/lib/server/employee-history.ts` — reworked. `updateEmployee` now writes
+  over the open version and logs each changed field instead of closing the
+  version and opening a new one. `addEmployeeVersion` and
+  `correctEmployeeVersion` are new, and are doors 2 and 3.
+  `countDocumentsUsingOpenVersions` and `countDocumentsUsingVersions` are the
+  two stubs that return zero and are written to be replaced together when the
+  first document exists.
+- `src/routes/admin/employees/+page.server.ts` — two new actions, `addChange`
+  and `correctEntry`, and the load now carries the per-person document counts
+  the warning names.
+- `src/routes/admin/employees/[employee_pk]/history/+server.ts` — the panel's
+  own read, listing every version of one person with who added it.
+- `add-change-dialog.svelte` and `name-position-history-sheet.svelte` — doors 2
+  and 3 on screen. The row menu gained an item for each.
+- The employee editor gained the warning, which appears only when one of the six
+  printed fields has been changed and never blocks the save.
 
 ---
 
@@ -1500,9 +1773,6 @@ Listed so they are not forgotten. Not discussed, no decisions.
 
 - **The "Give this person a login" shortcut** on each row of the Employees
   page, described at the end of Topic 5. An idea only.
-- **Somewhere to see a person's history.** No screen shows the versions at all;
-  they exist only in the database. Nothing needs one yet, and it was never
-  asked for.
 
 **Migration order** used to be listed here and no longer applies. There was
 never any data to preserve — every table was empty when this began — and the
