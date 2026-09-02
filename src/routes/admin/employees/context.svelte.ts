@@ -9,6 +9,24 @@ import {
   type TenureStatus,
 } from "./labels";
 
+/**
+ * One version of a person's name and position, as the history panel lists it.
+ * The same row the code calls a version and the screen calls an entry.
+ */
+export type HistoryEntry = {
+  employeeHistoryPk: number;
+  firstName: string;
+  middleName: string | null;
+  lastName: string;
+  suffix: string | null;
+  positionTitle: string;
+  positionShortForm: string | null;
+  validFrom: string;
+  validUntil: string | null;
+  createdByUsername: string | null;
+  documentCount: number;
+};
+
 /** One line of the "These details will be updated" list. */
 export interface BringBackChange {
   label: string;
@@ -44,7 +62,38 @@ export class EmployeesContext {
 
   addEditDialog = $state(false);
   deleteAlertDialog = $state(false);
+  addChangeDialog = $state(false);
+  historySheet = $state(false);
+  correctEntryDialog = $state(false);
   employeeToEdit: EmployeeRow | null = $state(null);
+  employeeToChange: EmployeeRow | null = $state(null);
+  employeeForHistory: EmployeeRow | null = $state(null);
+
+  /** Fetched when the panel opens, not loaded with the page. */
+  historyEntries: HistoryEntry[] = $state([]);
+  historyLoading = $state(false);
+  historyError: string | null = $state(null);
+
+  /**
+   * Which entry is open for editing, if any. One at a time: two entries being
+   * edited at once would let somebody save contradicting wording without
+   * seeing that they had.
+   */
+  editingEntryPk: number | null = $state(null);
+
+  entryFirstName = $state("");
+  entryMiddleName = $state("");
+  entryLastName = $state("");
+  entrySuffix = $state("");
+  entryPositionTitle = $state("");
+  entryPositionShortForm = $state("");
+
+  /**
+   * How many filed documents already print each person's current name and
+   * position, keyed by employee. Seeded from the page load. Always zero until
+   * a document that names a signatory exists.
+   */
+  documentCounts: Record<number, number> = $state({});
 
   mode: "edit" | "add" = $derived(
     this.employeeToEdit !== null ? "edit" : "add",
@@ -62,6 +111,16 @@ export class EmployeesContext {
   formCivilStatus = $state("");
   formTenureStatus = $state("");
   formIsEmployed = $state(true);
+
+  // The "record a change" dialog keeps its own fields. It asks only for what a
+  // document prints, and it must not share state with the editor, because the
+  // two do opposite things to the person's history.
+  changeFirstName = $state("");
+  changeMiddleName = $state("");
+  changeLastName = $state("");
+  changeSuffix = $state("");
+  changePositionTitle = $state("");
+  changePositionShortForm = $state("");
 
   orgUnitByPk(orgUnitPk: number): OrgUnit | undefined {
     return this.orgUnits.find((unit) => unit.orgUnitPk === orgUnitPk);
@@ -206,6 +265,127 @@ export class EmployeesContext {
       hasLogin(this.employeeToEdit),
   );
 
+  /**
+   * Whether the editor is about to change something a document prints — the
+   * four name fields, the position title, or the short form.
+   *
+   * This is what decides whether the warning appears. Editing a birthday, a
+   * sex or a civil status changes nothing any document shows, so it saves
+   * silently, which is most edits.
+   */
+  printedFieldsChanged = $derived.by(() => {
+    const person = this.employeeToEdit;
+    if (!person) return false;
+
+    const text = (value: string) => value.trim() || null;
+
+    return (
+      this.formFirstName.trim() !== person.firstName ||
+      text(this.formMiddleName) !== (person.middleName ?? null) ||
+      this.formLastName.trim() !== person.lastName ||
+      text(this.formSuffix) !== (person.suffix ?? null) ||
+      this.formPositionTitle.trim() !== person.positionTitle ||
+      text(this.formPositionShortForm) !== (person.positionShortForm ?? null)
+    );
+  });
+
+  /** Documents already printing the wording the editor would write over. */
+  documentsAffectedByEdit = $derived(
+    this.employeeToEdit
+      ? (this.documentCounts[this.employeeToEdit.employeePk] ?? 0)
+      : 0,
+  );
+
+  /**
+   * Whether the "record a change" dialog holds anything new. Saving it
+   * unchanged would close a perfectly good entry and open an identical one,
+   * so the button stays disabled until something differs.
+   */
+  /** The entry currently being edited in the history panel. */
+  editingEntry: HistoryEntry | null = $derived(
+    this.historyEntries.find(
+      (entry) => entry.employeeHistoryPk === this.editingEntryPk,
+    ) ?? null,
+  );
+
+  /** Whether the entry being edited holds anything different from what is stored. */
+  entryIsDifferent = $derived.by(() => {
+    const entry = this.editingEntry;
+    if (!entry) return false;
+
+    const text = (value: string) => value.trim() || null;
+
+    return (
+      this.entryFirstName.trim() !== entry.firstName ||
+      text(this.entryMiddleName) !== entry.middleName ||
+      this.entryLastName.trim() !== entry.lastName ||
+      text(this.entrySuffix) !== entry.suffix ||
+      this.entryPositionTitle.trim() !== entry.positionTitle ||
+      text(this.entryPositionShortForm) !== entry.positionShortForm
+    );
+  });
+
+  /**
+   * Opens one entry for editing, filled in with what it holds now.
+   * Passing null closes whichever was open.
+   */
+  startEditingEntry(entry: HistoryEntry | null) {
+    this.editingEntryPk = entry?.employeeHistoryPk ?? null;
+    this.entryFirstName = entry?.firstName ?? "";
+    this.entryMiddleName = entry?.middleName ?? "";
+    this.entryLastName = entry?.lastName ?? "";
+    this.entrySuffix = entry?.suffix ?? "";
+    this.entryPositionTitle = entry?.positionTitle ?? "";
+    this.entryPositionShortForm = entry?.positionShortForm ?? "";
+  }
+
+  /** Puts a repaired entry back into the list without refetching the lot. */
+  replaceHistoryEntry(updated: HistoryEntry) {
+    this.historyEntries = this.historyEntries.map((entry) =>
+      entry.employeeHistoryPk === updated.employeeHistoryPk ? updated : entry,
+    );
+  }
+
+  async openHistoryFor(person: EmployeeRow) {
+    this.employeeForHistory = person;
+    this.historySheet = true;
+    this.historyEntries = [];
+    this.historyError = null;
+    this.startEditingEntry(null);
+    this.historyLoading = true;
+
+    try {
+      const response = await fetch(
+        `/admin/employees/${person.employeePk}/history`,
+      );
+      if (!response.ok) throw new Error();
+
+      const body = (await response.json()) as { entries: HistoryEntry[] };
+      this.historyEntries = body.entries;
+    } catch {
+      this.historyError =
+        "The history could not be read. Close this and try again.";
+    } finally {
+      this.historyLoading = false;
+    }
+  }
+
+  changeIsDifferent = $derived.by(() => {
+    const person = this.employeeToChange;
+    if (!person) return false;
+
+    const text = (value: string) => value.trim() || null;
+
+    return (
+      this.changeFirstName.trim() !== person.firstName ||
+      text(this.changeMiddleName) !== (person.middleName ?? null) ||
+      this.changeLastName.trim() !== person.lastName ||
+      text(this.changeSuffix) !== (person.suffix ?? null) ||
+      this.changePositionTitle.trim() !== person.positionTitle ||
+      text(this.changePositionShortForm) !== (person.positionShortForm ?? null)
+    );
+  });
+
   constructor() {
     $effect(() => {
       this.employeeToEdit;
@@ -228,6 +408,24 @@ export class EmployeesContext {
         this.formCivilStatus = this.employeeToEdit.civilStatus ?? "";
         this.formTenureStatus = this.employeeToEdit.tenureStatus ?? "";
         this.formIsEmployed = this.employeeToEdit.employmentStatus === "active";
+      });
+    });
+
+    // The change dialog opens showing what the person is called now, so the
+    // admin edits the wording rather than typing it again from nothing.
+    $effect(() => {
+      this.employeeToChange;
+
+      untrack(() => {
+        if (!this.employeeToChange) return;
+
+        this.changeFirstName = this.employeeToChange.firstName;
+        this.changeMiddleName = this.employeeToChange.middleName ?? "";
+        this.changeLastName = this.employeeToChange.lastName;
+        this.changeSuffix = this.employeeToChange.suffix ?? "";
+        this.changePositionTitle = this.employeeToChange.positionTitle;
+        this.changePositionShortForm =
+          this.employeeToChange.positionShortForm ?? "";
       });
     });
 
@@ -257,6 +455,24 @@ export class EmployeesContext {
     this.formTenureStatus = "";
     this.formIsEmployed = true;
     this.confirmedDifferentPerson = false;
+  }
+
+  resetHistoryPanel() {
+    this.correctEntryDialog = false;
+    this.employeeForHistory = null;
+    this.historyEntries = [];
+    this.historyError = null;
+    this.startEditingEntry(null);
+  }
+
+  resetChangeInputValues() {
+    this.employeeToChange = null;
+    this.changeFirstName = "";
+    this.changeMiddleName = "";
+    this.changeLastName = "";
+    this.changeSuffix = "";
+    this.changePositionTitle = "";
+    this.changePositionShortForm = "";
   }
 
   /** The value the hidden employmentStatus field submits. */
