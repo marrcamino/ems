@@ -9,7 +9,7 @@
   const tenure = $derived(employee.tenureStatus);
 </script>
 
-<Tooltip.Root>
+<Tooltip.Root delayDuration={150}>
   <Tooltip.Trigger>
     {#snippet child({ props })}
       <Badge {...props} variant="outline">{TENURE_STATUS_SHORT[tenure]}</Badge>
