@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Avatar from "$lib/components/ui/avatar/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import { initials } from "@/utils";
+  import { nameInitials } from "@/utils";
   import { fullName, getUsersContext, type UserRow } from "./context.svelte.js";
 
   let { user }: { user: UserRow } = $props();
@@ -15,7 +15,9 @@
 
 <div class="flex items-center gap-3">
   <Avatar.Root class="size-8">
-    <Avatar.Fallback class="text-xs">{initials(user.employee)}</Avatar.Fallback>
+    <Avatar.Fallback class="text-xs"
+      >{nameInitials(user.employee)}</Avatar.Fallback
+    >
   </Avatar.Root>
 
   <div class="grid min-w-0 gap-0.5">

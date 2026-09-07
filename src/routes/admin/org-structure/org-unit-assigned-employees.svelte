@@ -3,7 +3,7 @@
   import Button from "@/components/ui/button/button.svelte";
   import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
   import { getOrgUnitContext } from "./context.svelte.js";
-  import { initials } from "@/utils";
+  import { nameInitials } from "@/utils";
 
   const MAX_AVATARS = 3;
   const ctx = getOrgUnitContext();
@@ -39,9 +39,9 @@
       <div class="flex -space-x-3">
         {#each visibleEmployees as employee (employee.employeePk)}
           <Avatar.Root class="size-7">
-            <Avatar.Fallback class="text-[10px]"
-              >{initials(employee)}</Avatar.Fallback
-            >
+            <Avatar.Fallback class="text-[10px]">
+              {nameInitials(employee)}
+            </Avatar.Fallback>
           </Avatar.Root>
         {/each}
       </div>

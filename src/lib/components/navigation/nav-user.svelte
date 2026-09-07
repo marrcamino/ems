@@ -5,7 +5,7 @@
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { useSidebar } from "$lib/components/ui/sidebar/index.js";
   import type { SessionUser } from "$lib/types";
-  import { fullName, initials } from "$lib/utils";
+  import { fullName, nameInitials } from "$lib/utils";
   import ChevronsUpDownIcon from "@lucide/svelte/icons/chevrons-up-down";
   import KeyRoundIcon from "@lucide/svelte/icons/key-round";
   import LogOutIcon from "@lucide/svelte/icons/log-out";
@@ -49,7 +49,7 @@
           >
             <Avatar.Root class="size-8 rounded-full">
               <Avatar.Fallback class="rounded-full text-xs">
-                {initials(user.employee)}
+                {nameInitials(user.employee)}
               </Avatar.Fallback>
             </Avatar.Root>
             <div
@@ -74,7 +74,7 @@
           <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
             <Avatar.Root class="size-8">
               <Avatar.Fallback class="text-xs">
-                {initials(user.employee)}
+                {nameInitials(user.employee)}
               </Avatar.Fallback>
             </Avatar.Root>
             <div class="grid flex-1 text-start text-sm leading-tight">

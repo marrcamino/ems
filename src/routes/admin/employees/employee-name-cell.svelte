@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as Avatar from "$lib/components/ui/avatar/index.js";
-  import { initials } from "@/utils";
+  import { nameInitials } from "@/utils";
   import { fullName, type EmployeeRow } from "./context.svelte.js";
 
   let { employee }: { employee: EmployeeRow } = $props();
@@ -11,7 +11,7 @@
 <div class="flex items-center gap-3">
   <Avatar.Root class="size-8">
     <Avatar.Fallback class="text-xs" data-dimmed={separated ? "" : null}>
-      {initials(employee)}
+      {nameInitials(employee)}
     </Avatar.Fallback>
   </Avatar.Root>
 

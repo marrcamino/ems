@@ -41,7 +41,7 @@ export function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export function initials<T extends { firstName: string; lastName: string }>(
+export function nameInitials<T extends { firstName: string; lastName: string }>(
   user: T,
 ) {
   return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();

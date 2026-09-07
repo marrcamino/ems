@@ -2,7 +2,7 @@
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import ScrollArea from "@/components/ui/scroll-area/scroll-area.svelte";
   import { getOrgUnitContext } from "./context.svelte.js";
-  import { initials } from "@/utils";
+  import { nameInitials } from "@/utils";
   import * as Avatar from "$lib/components/ui/avatar/index.js";
 
   const ctx = getOrgUnitContext();
@@ -21,7 +21,7 @@
                   <li class="flex items-center gap-3 py-2">
                     <Avatar.Root class="h-8 w-8">
                       <Avatar.Fallback class="text-xs"
-                        >{initials(employee)}</Avatar.Fallback
+                        >{nameInitials(employee)}</Avatar.Fallback
                       >
                     </Avatar.Root>
                     <span class="text-sm"
