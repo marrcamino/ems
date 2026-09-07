@@ -151,6 +151,10 @@ export const PERMISSION_DEFS = {
       view: "Access the Organizational Structure page",
       manage: "Add, edit, delete, and deactivate organizational units",
     },
+    settings: {
+      view: "Access the Settings page",
+      manage: "Change system settings",
+    },
   },
 } as const satisfies Record<string, ModuleDef>;
 

@@ -30,8 +30,11 @@ marked wherever the evidence overturned them.
 
 This cost an edit and nothing more. No signatory table had been built.
 
-**Nothing is open.** Topics 1 to 10 are all settled, as revised below, and the
-last remaining item was closed on 31 August 2026.
+**One thing is open.** Topics 1 to 10 are all settled, as revised below, and the
+last of the original items was closed on 31 August 2026. What reopened is
+narrower and arrived on 7 September 2026: **where a default name on a signature
+block comes from**. It is not admin configuration, so it waits for the report
+work — see "Where a default comes from" below.
 
 That item was the other five report areas: electricity, water, paper, ESWM and
 GHG. Only the fuel documents had ever been examined, and the item said each of
@@ -81,25 +84,27 @@ pointing at their own history row, so reprints stay correct, and only documents
 filed before the licence was recorded would reprint without it.
 
 **One small thing to check against the data, not a design question:** the RIS
-prints the approver's own position title, so whoever is set as the default
-approver must have their position recorded in a form that reads correctly on the
-page. If the standing OIC's recorded position is not what the RIS should show,
-that is an employee record to correct rather than a design to change.
+prints the approver's own position title, so whoever is named as the approver
+must have their position recorded in a form that reads correctly on the page. If
+the standing OIC's recorded position is not what the RIS should show, that is an
+employee record to correct rather than a design to change.
 
-**What has been built since, on 31 August 2026.** The `employee_history` table
+**What was built on 31 August 2026.** The `employee_history` table
 that Topic 1 depends on now exists, with a one-time backfill and the code that
 keeps it in step with `employee`. That was the blocking piece, because a document
 stores a reference to a version of a person and no version could be stored
 before. The details are in
 `.claude/docs/features/employee-and-user-separation.md`, Topic 9.
 
-Two things this design describes were deliberately left undone, both with the
-user's agreement. The **config table** holding the two fuel settings waits until
-the fuel work starts, since nothing reads those settings until then and building
-it now would only fix their shape early. The **correction log and its two-button
-editor** wait until there is a screen that can tell a spelling fix apart from a
-real name change; until then a spelling fix behaves like a name change, which is
-recorded under Topic 1.
+**What was built on 7 September 2026.** The **config table** and the
+Settings page that fills it in. It holds one setting, `org.gsu_unit`, naming the
+org unit whose staff may be offered on a signature block restricted to the
+General Services Unit. See "The config table and the Settings page" below.
+
+Two things this document once listed as undone are now done. The **correction
+log** exists and is written to, so a repair to an existing version is recorded
+against whoever made it. The **two ways of changing a name** are two separate
+dialogs rather than two buttons in one, which is described under Topic 1.
 
 ### Separating employees from users is done
 
@@ -163,10 +168,10 @@ is whether a printed title comes from the paper, which is a caption, or from the
 person, which is their own short form.
 
 Note: the reports themselves (fuel, electricity, water, paper, ESWM, GHG) are
-**not built yet**. Employees, employee history, users, roles, permissions and org
-units exist so far. The config table this design needs for the two fuel settings
-does not exist yet either; it was deliberately left until the fuel work starts,
-because nothing reads those settings until then.
+**not built yet**. Employees, employee history, users, roles, permissions, org
+units and the config table exist so far. Nothing reads the config table until
+the fuel work starts, so the setting can be filled in now and simply sits there
+until the documents need it.
 
 ---
 
@@ -183,11 +188,15 @@ answers, so this cannot be one rule for everything:
 
 | rule | example |
 | --- | --- |
-| any employee | Withdrawal Slip, "Requested by" |
+| any employee | Withdrawal Slip, "Requested by"; RIS and Trip Ticket, "Approved by" |
 | only staff of a named unit | Withdrawal Slip, "Approved by" — GSU personnel only |
-| only employees able to do something | Trip Ticket, "Driver" — anyone who can drive |
-| one particular post | RIS and Trip Ticket, "Approved by" — the PENR Officer |
 | nobody at all | Withdrawal Slip, the supplier's block |
+
+The "Approved by" blocks were once listed here as a rule of their own, restricted
+to the PENR Officer. They are not: the user settled on 7 September 2026 that the
+person preparing the document picks the approver from the ordinary list of
+employees. Only a restricted list needs a rule, and only the GSU one is
+restricted.
 
 **Where the printed title comes from.** Again there are several answers:
 
@@ -272,22 +281,17 @@ and the log records who fixed it. Two years later he marries: a new version is
 created, the old one is closed, and last year's trip tickets still show the old
 surname.
 
-**What was built, on 31 August 2026.** `employee_history` exists with exactly the
-columns listed above, `created_by_fk` among them, so every version records who
-made it. `employee_history_correction` was **not** built, and neither was the
-two-button screen described in Topic 1. The user chose this when the choice was
-put to them: the log has nothing to record until a screen exists that can tell a
-spelling fix apart from a real name change, and the employee editor today has a
-single Save button.
+**What was built.** `employee_history` exists with exactly the columns listed
+above, `created_by_fk` among them, so every version records who made it. It was
+built on 31 August 2026.
 
-The consequence should not be forgotten, because it is the opposite of what
-Topic 1 asks for: **a spelling fix currently behaves like a name change.**
-Correcting "Olivar" to "Olaivar" closes the misspelled version and opens a
-corrected one, so a document filed before the fix keeps pointing at the
-misspelling instead of being repaired. Nothing is lost, since the wrong version
-is still there and can be corrected in place later, but finishing this means
-building all three parts together: the two buttons, the correction log, and a
-warning naming how many documents a fix would change.
+`employee_history_correction` exists as well, at
+`src/lib/server/db/schema/employee-history-correction.ts`, and is written to
+from `src/lib/server/employee-history.ts`. An earlier version of this passage
+said it had not been built and that a spelling fix therefore behaved like a name
+change. That is no longer true and the passage has been corrected. Repairing an
+existing version writes it over in place and logs the old and new wording against
+whoever made the repair, which is what Topic 1 asked for.
 
 **The position title is stored twice: in full, and as the short form actually
 printed.** The documents do not print a full position title. Maricel I. Ytac is
@@ -375,11 +379,16 @@ that the office fills in. The user chose the name "config table".
 
 | key | value |
 | --- | --- |
-| `fuel.gsu_org_unit` | 4 |
+| `org.gsu_unit` | 4 |
 
-The code asks for `fuel.gsu_org_unit`, gets an org unit id, and offers the
-employees whose `org_unit_fk` matches. An admin sets the value from a settings
-screen and can change it later if the office reorganises.
+The key was `fuel.gsu_org_unit` when this was first written. It was renamed on
+7 September 2026, because which unit is the General Services Unit is a fact about
+the office rather than about fuel: two different blocks on two different
+documents read it, and a per-report copy could disagree with itself.
+
+The code asks for `org.gsu_unit`, gets an org unit id, and offers the employees
+whose `org_unit_fk` matches. An admin sets the value from the Settings page and
+can change it later if the office reorganises.
 
 **Protecting the reference.** The value is plain text, so the database cannot
 enforce it as a foreign key. Instead, deleting **or deactivating** an org unit
@@ -421,59 +430,93 @@ and any of its staff may approve any section's slip. Gorgonio M. Pangan and
 Maricel I. Ytac appearing on different copies was simply who happened to sign.
 So that column is dropped.
 
-**2. Lines with a usual default name. SETTLED, and they reuse case 1's answer.**
+### The config table and the Settings page — built on 7 September 2026
 
-Both remaining cases turned out to need no new mechanism. The config table
-already introduced for the GSU org unit holds these too.
+The `config` table exists at `src/lib/server/db/schema/config.ts`, with the shape
+decided above: `config_key` unique, `config_value` as plain text, and
+`updated_by_fk` recording who set it last. `CONFIG_KEYS` in the same file holds
+the key strings the code uses, so a typo is a type error rather than a setting
+that silently reads as empty.
 
-**RIS and Trip Ticket, "Approved by".** Treated as an ordinary signatory who
-prints a position title. What makes it a default is one more config row holding
-the employee id.
+An admin fills it in at **`/admin/settings`**, a new page in the admin sidebar
+next to Organizational Structure. It shows one section today, "General Services
+Unit", with a picker over the active org units. Two new permission keys gate it,
+`admin:view_settings` and `admin:manage_settings`, so a read-only admin sees the
+page with the picker disabled.
 
-| key | value |
-| --- | --- |
-| `fuel.penr_officer` | 12 |
+The page was placed here rather than on the Organizational Structure page or
+inside the fuel area because this document had already said an admin sets the
+value from a settings screen, and because the other five reports will add their
+own sections to the same page as they arrive.
 
-The user set a firmer rule here than for the org unit: **a document saves only if
-the person named on it is actually still working at the agency.** Any
-`employment_status` other than `active` counts as not working, and so does an id
-that no longer resolves to an employee at all. In either case the RIS cannot be
-submitted or saved.
+**Protecting the reference, as this document required.**
+`src/lib/server/org-unit-guard.ts` answers whether an org unit is named by a
+setting, and both the delete and the deactivate paths in
+`src/routes/admin/org-structure/+page.server.ts` call it and refuse with a
+message naming the Settings page. It is one function rather than a check copied
+into each screen, for the reason recorded above: the protection lives in the
+program, so it holds only while every path goes through it.
 
-This is wider than it first looked. The original wording was "if that employee id
-does not exist in `employee`", but deleting an employee is already refused by the
-database while anything still links to them, so the real case is somebody being
-marked separated. Their row stays, their id still resolves, and only the status
+**2. Lines with a usual default name. SETTLED on 7 September 2026 — the approver
+is an ordinary picker, and nothing is stored for it.**
+
+**This reverses what this document said before.** The RIS and Trip Ticket
+"Approved by" had a config row of its own, `fuel.penr_officer`, holding the id of
+the standing OIC so that his name came up already filled in. The user removed it.
+Asked directly whether the system should fill the approver in or whether the
+person entering the data should pick it, they chose the picker.
+
+So the approver is an ordinary signature block: the person preparing the document
+chooses from the list of employees, the same as "Requested by" and "Received by".
+It looks like a fixed name on paper only because the same person is nearly always
+chosen.
+
+**What this leaves.** Only a block whose list is **restricted** needs anything
+stored, because only then does the code have to be told something it cannot work
+out. On the fuel documents that is the Withdrawal Slip "Approved by" and the RIS
+"Issued by", both restricted to General Services Unit staff, and both reading the
+one `org.gsu_unit` setting from case 1. Every other block stores nothing at all.
+
+### Where a default comes from — OPEN, and deferred to the report work
+
+Defaults do exist. The user's account of them, given on 7 September 2026, is that
+most signature blocks a person picks will also have a default, and that this is
+decided by the report rather than by an admin: worked out automatically, or set
+by whoever handles that report.
+
+Two things about them are settled already:
+
+- **A default is not admin configuration.** It does not belong in the config
+  table and it does not belong on the Settings page.
+- **A default never fixes the block.** Roughly nine times in ten a signature
+  block can still be changed after it has been filled in, whatever put the name
+  there.
+
+What is not settled is where a default comes from in each case, and who sets it.
+That question needs the report screens to exist before it can be answered
+usefully, so it waits for the fuel work.
+
+### Somebody no longer working is never offered, and never saves
+
+This survives from the earlier design and is unaffected by the reversal above:
+
+- **Somebody no longer working never appears in the selection list**, so they
+  cannot be picked by hand.
+- **A document will not save with a person who is no longer working.** Any
+  `employment_status` other than `active` counts as not working, and so does an
+  id that no longer resolves to an employee at all.
+
+The real case here is somebody being marked separated rather than deleted.
+Deleting an employee is already refused by the database while anything still
+links to them, so their row stays, their id still resolves, and only the status
 tells you they have gone.
 
 **No warning is raised when somebody is marked separated.** The user considered
-this and preferred to leave it. The config row simply keeps its old value, and
-the next time it is read and found to point at somebody who is no longer active,
-the value is cleared. The approver then comes up empty, the RIS will not save,
-and the requester walks to GSU and asks who the approver is now. GSU tells them,
-they pick that person, and the form saves.
-
-That is how the office already works, and it puts the question in front of the
-people who know the answer.
-
-### Every signature block gets a default, and defaults are checked before use
-
-The user decided this for the whole feature, not only for the RIS:
-
-- **Every signature block that can have a default will have one.** This is the
-  user's own condition. It removes the awkward case of a line with nobody
-  suggested.
-- **A default is checked before the form uses it.** If the person set as the
-  default is no longer working, the form does not fill them in, and they do not
-  appear in the list at all.
-- **Somebody no longer working never appears in the selection list**, so they
-  cannot be picked by hand either.
-- **A document will not save with a person who is no longer working**, whether
-  that person arrived as a default or was chosen by hand.
-
-So when Maricel is marked separated, the next person to prepare a Withdrawal Slip
-simply finds her gone from the list and picks whoever signs now. Nothing warns
-anybody, and nothing needs to.
+this and preferred to leave it. When Maricel is marked separated, the next person
+to prepare a Withdrawal Slip simply finds her gone from the list and picks
+whoever signs now. Nothing warns anybody, and nothing needs to. That is how the
+office already works, and it puts the question in front of the people who know
+the answer.
 
 ### The list is built from the document's filed date, not from today
 
@@ -545,14 +588,14 @@ longer works at the agency. Deciding who *ought* to sign is the office's job, an
 it already has a working way of handling it.
 
 **RIS, "Issued by".** The same as the Withdrawal Slip's "Approved by": always a
-GSU staff member, so the list comes from the `fuel.gsu_org_unit` setting. On top
-of that it may carry a default name, again a config row, matching what GSU
-described as the usual name being printed even when that person is away.
+GSU staff member, so the list comes from the `org.gsu_unit` setting. GSU
+described the usual name being printed even when that person is away, but nothing
+is stored for that — see the deferred topic on where a default comes from.
 
 **Not a fixed string.** An earlier note here treated the RIS "Approved by" as
 printing "OIC, PENR Officer" regardless of who signed. The user corrected this.
-The approver is chosen from a list like any other signatory, the config row only
-decides who is offered by default, and the printed title is that person's own.
+The approver is chosen from a list like any other signatory, and the printed
+title is that person's own.
 
 The practical control is social rather than technical: if somebody prepares an
 RIS naming an approver other than the usual one, GSU may simply refuse to approve
@@ -1103,7 +1146,7 @@ treated them as varying titles, which was wrong.
 
 | line | who may be chosen | what title prints |
 | --- | --- | --- |
-| Approved by | the PENR Officer, or whoever is OIC at the time | the officer's title |
+| Approved by | any employee, in practice the OIC | the person's own position title |
 | I hereby certify... | any employee who can drive | always "Driver", a caption on the form |
 
 **RIS.** Four blocks.
@@ -1111,7 +1154,7 @@ treated them as varying titles, which was wrong.
 | line | who may be chosen | what title prints |
 | --- | --- | --- |
 | Requested by | any employee, defaulting to whoever is entering the report | that person's real position title |
-| Approved by | the PENR Officer | that person's own position title (see correction below) |
+| Approved by | any employee, in practice the OIC | that person's own position title (see correction below) |
 | Issued by | GSU personnel only, with a usual default name | that person's real position title |
 | Received by | anyone, or nobody | may be left blank and written in by hand |
 

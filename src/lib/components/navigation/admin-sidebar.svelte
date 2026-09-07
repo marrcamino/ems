@@ -4,6 +4,7 @@
     Building,
     House,
     IdCard,
+    Settings,
     ShieldCheck,
     UsersRound,
     FlaskConical,
@@ -55,6 +56,12 @@
       url: "/admin/org-structure",
       icon: Building,
       permission: "admin:view_org_units",
+    },
+    {
+      name: "Settings",
+      url: "/admin/settings",
+      icon: Settings,
+      permission: "admin:view_settings",
     },
     {
       name: "Test",

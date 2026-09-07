@@ -4,6 +4,7 @@ import { db } from "$lib/server/db";
 import { employee, orgUnit } from "$lib/server/db/schema";
 import type { OrgUnit } from "@/types";
 import { error, fail } from "@sveltejs/kit";
+import { settingUsingOrgUnit } from "$lib/server/org-unit-guard";
 import { and, asc, eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
 import { nextLevel } from "./context.svelte.js";
@@ -116,6 +117,15 @@ export const actions: Actions = {
           error: `This ${level} still has active ${nextLevel(level)}s under it. Move or deactivate them first.`,
         });
       }
+
+      // A setting naming this unit would keep pointing at it after it goes
+      // inactive, and the people it offers would quietly become wrong.
+      const setting = await settingUsingOrgUnit(orgUnitPk);
+      if (setting) {
+        return fail(409, {
+          error: `This ${level} is set as the ${setting} on the Settings page. Change that setting first, then mark it inactive.`,
+        });
+      }
     }
 
     await db
@@ -155,6 +165,15 @@ export const actions: Actions = {
       return fail(409, {
         error:
           "One or more employees are assigned to this item and it can't be deleted. You can mark it inactive from the edit menu instead.",
+      });
+    }
+
+    // The setting holds the id as plain text, so the database will not refuse
+    // this on its own. See src/lib/server/org-unit-guard.ts.
+    const setting = await settingUsingOrgUnit(orgUnitPk);
+    if (setting) {
+      return fail(409, {
+        error: `This ${level} is set as the ${setting} on the Settings page. Change that setting first, then delete it.`,
       });
     }
 
