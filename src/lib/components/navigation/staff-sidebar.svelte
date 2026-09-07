@@ -84,7 +84,7 @@
   );
 </script>
 
-<Sidebar.Root bind:ref variant="inset" {...restProps}>
+<Sidebar.Root bind:ref variant="inset" collapsible="icon" {...restProps}>
   <NavHeader userType="staff" />
 
   <Sidebar.Content>

@@ -17,10 +17,10 @@
   Sidebar.MenuItem and Sidebar.MenuSubItem already are.
 -->
 <span
+  data-active={active ? "" : null}
   aria-hidden="true"
   class={cn(
-    "bg-primary absolute -left-0.5 h-4.5 w-1 rounded-lg opacity-0 transition-opacity",
-    active && "opacity-100",
+    "data-active:opacity-100 data-active:bg-primary absolute -left-0.5 h-4 w-1 rounded-lg transition-opacity group-hover/menu-button:bg-ring",
     className,
   )}
 ></span>
