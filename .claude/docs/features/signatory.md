@@ -605,16 +605,40 @@ title. An RIS from last year must still show the title the person held last year
 
 Editing a history row means "this was always wrong, correct it everywhere".
 Creating a new row means "this changed from now on". Whoever does data entry must
-be able to tell these apart, so the screen should not offer a plain "Edit" button.
-It should offer two clearly worded choices:
+be able to tell these apart, so saving a changed name or title must ask which of
+the two it is, in these words:
 
-- **"Fix a spelling mistake"** — edits the current row, with a warning naming how
-  many existing records will also change.
-- **"This person's name changed"** — ends the current row and starts a new one.
+- **"Fix a mistake in what was typed"** — edits the current row, with a warning
+  naming how many existing documents will also change.
+- **"Record a change that happened"** — ends the current row and starts a new one.
 
-**Not built.** The employee editor still has one Save button, and every change to
-a printed field makes a new version, a spelling fix included. See "What was
-built" under "Employee history, and who is accountable for changing it" above.
+**The wording changed on 1 September 2026.** This topic used to say "Fix a
+spelling mistake" and "This person's name changed". The user chose the pair above
+instead, because the same version row holds the position title as well, and the
+old wording read wrong when what was edited was a title rather than a name. The
+design of this screen is being worked out in Topic 10 of
+`.claude/docs/features/employee-and-user-separation.md`, where employee history
+lives.
+
+**Built, in a different shape than this topic first imagined.** The rule above
+assumed one Save button that asks which of the two a change is. What was built
+instead keeps the two apart from the start, as two separate dialogs reached from
+two different places, so nobody has to answer a question after the fact.
+
+- **"Add name or position change"** is in `src/routes/admin/employees/add-change-dialog.svelte`,
+  opened from the employees table. It ends the current history row and starts a
+  new one, which is the "record a change that happened" path.
+- **"Correct this entry"** is in `src/routes/admin/employees/correct-entry-dialog.svelte`,
+  opened from the name and position history sheet in
+  `src/routes/admin/employees/name-position-history-sheet.svelte`. It edits an
+  existing row in place, which is the "fix a mistake in what was typed" path, and
+  it carries the warning this topic asked for, headed "This corrects what is
+  already filed".
+
+Choosing the entry point is what tells the two apart, so the wording decided on
+1 September 2026 now names the two dialogs rather than two options inside one
+of them. See "What was built" under "Employee history, and who is accountable
+for changing it" above.
 
 ### Corrections to what this topic used to say
 
