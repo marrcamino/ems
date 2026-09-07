@@ -46,4 +46,6 @@ Access is role-based — one role per user, no per-user overrides. Current roles
 
 Approvers may approve their own submissions — this matches actual agency practice for GSU and is deliberate, not an oversight.
 
+**Fuel is the only feature with an approval step.** A staff member requests a fuel withdrawal slip and GSU approves it. The approval itself is physical — a GSU person signs the printed slip — and afterwards someone marks the slip as approved in the system. So the system records an approval that already happened on paper; it is not where the approving takes place. The other tracked areas (electricity, water, paper, ESWM, GHG) are recorded without anyone approving them.
+
 Full RBAC design: see `RBAC-design-locked-decisions.md`.

@@ -139,7 +139,7 @@ Same security posture as `create-admin.ts`: server access is the real boundary, 
 
 ### Still open
 
-**Staff module actions beyond `view`.** Staff modules currently define only `view`. Fuel will likely need `submit` and `approve`, and possibly `view_all`. Blocked on deciding whether encoder-submitted data requires approval before it counts toward reports — still undecided in the project brief.
+**Staff module actions beyond `view`.** Staff modules currently define only `view`. **Fuel is the only module with an approval step**, so it is the only one that will need an `approve` key. A staff member requests a fuel withdrawal slip and GSU approves it; the approval is physical, a signature on the printed slip, and afterwards someone marks the slip approved in the system — the `approve` key controls who may do that marking. Fuel will likely need `submit` and possibly `view_all` as well. The remaining staff modules (electricity, water, paper, ESWM, GHG) record data without approval and need no `approve` key. The exact key list is not decided yet.
 
 **Orphan cleanup.** An orphan is a `permission` row whose key no longer exists in `PERMISSION_DEFS`. Renaming `air-travel` to `air_travel` produces one: the sync inserts `air_travel:view`, while `air-travel:view` stays in the table because step 2 only reports. Today these are removed by hand in MySQL Workbench. Whether the script should eventually offer to delete them — after listing which roles hold them — is undecided and not urgent.
 
