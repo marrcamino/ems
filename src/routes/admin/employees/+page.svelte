@@ -17,7 +17,6 @@
   import type { ColumnFiltersState } from "@tanstack/table-core";
   import { untrack } from "svelte";
   import { getGlobalContext } from "$routes/global-context.svelte";
-  import AddChangeDialog from "./add-change-dialog.svelte";
   import AddEditEmployeeDialog from "./add-edit-employee-dialog.svelte";
   import { columns, features, HIDDEN_COLUMNS } from "./columns.js";
   import { setEmployeesContext } from "./context.svelte.js";
@@ -253,6 +252,5 @@
 </div>
 
 <AddEditEmployeeDialog />
-<AddChangeDialog />
 <NamePositionHistorySheet />
 <DeleteAlertDialog />

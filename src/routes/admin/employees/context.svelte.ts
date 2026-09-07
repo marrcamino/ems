@@ -350,8 +350,21 @@ export class EmployeesContext {
     this.employeeForHistory = person;
     this.historySheet = true;
     this.historyEntries = [];
-    this.historyError = null;
     this.startEditingEntry(null);
+    await this.loadHistory();
+  }
+
+  /**
+   * Reads the entries for whoever the panel is open on. Read again after a
+   * change is recorded from inside the panel: recording one closes the entry
+   * in use and opens another, which is more than the list here can be patched
+   * with.
+   */
+  async loadHistory() {
+    const person = this.employeeForHistory;
+    if (!person) return;
+
+    this.historyError = null;
     this.historyLoading = true;
 
     try {
@@ -459,6 +472,7 @@ export class EmployeesContext {
 
   resetHistoryPanel() {
     this.correctEntryDialog = false;
+    this.addChangeDialog = false;
     this.employeeForHistory = null;
     this.historyEntries = [];
     this.historyError = null;

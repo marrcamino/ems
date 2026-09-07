@@ -9,7 +9,11 @@
   import Spinner from "@/components/ui/spinner/spinner.svelte";
   import { Info } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
-  import { fullName, getEmployeesContext, type EmployeeRow } from "./context.svelte.js";
+  import {
+    fullName,
+    getEmployeesContext,
+    type EmployeeRow,
+  } from "./context.svelte";
 
   const ctx = getEmployeesContext();
 
@@ -48,7 +52,20 @@
               | { updatedRow?: EmployeeRow }
               | undefined;
 
-            if (data?.updatedRow) ctx.updateEmployee(data.updatedRow);
+            if (data?.updatedRow) {
+              ctx.updateEmployee(data.updatedRow);
+
+              // This dialog opens from inside the history panel, so the list
+              // behind it is showing the entry that has just been closed.
+              // Read the entries again so the new one appears there.
+              if (
+                ctx.employeeForHistory?.employeePk ===
+                data.updatedRow.employeePk
+              ) {
+                ctx.employeeForHistory = data.updatedRow;
+                await ctx.loadHistory();
+              }
+            }
 
             toast.success("The change was recorded", {
               description:
