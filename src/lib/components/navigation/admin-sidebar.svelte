@@ -93,7 +93,7 @@
   );
 </script>
 
-<Sidebar.Root bind:ref variant="inset" {...restProps}>
+<Sidebar.Root bind:ref variant="inset" collapsible="icon" {...restProps}>
   <NavHeader userType="admin" />
 
   <Sidebar.Content>
@@ -102,7 +102,10 @@
       <Sidebar.Menu class="gap-0.5">
         {#each visiblePages as item (item.name)}
           <Sidebar.MenuItem>
-            <Sidebar.MenuButton isActive={item.active} tooltipContent={item.name}>
+            <Sidebar.MenuButton
+              isActive={item.active}
+              tooltipContent={item.name}
+            >
               {#snippet child({ props })}
                 <a
                   href={item.url}
