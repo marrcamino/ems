@@ -116,6 +116,7 @@
                     tabindex={2}
                     aria-invalid={error.length ? true : null}
                     bind:value={password}
+                    class="appearance-none"
                   />
 
                   <Button

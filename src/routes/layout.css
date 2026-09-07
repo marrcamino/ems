@@ -129,3 +129,12 @@
     @apply font-sans;
   }
 }
+
+@utility appearance-none {
+  appearance: none;
+
+  &::-ms-reveal,
+  &::-ms-clear {
+    display: none;
+  }
+}
