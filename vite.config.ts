@@ -14,6 +14,7 @@ export default defineConfig({
       adapter: adapter(),
       alias: {
         "@/*": "./src/lib/*",
+        $routes: "./src/routes/*",
       },
     }),
   ],

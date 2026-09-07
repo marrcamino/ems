@@ -16,7 +16,7 @@
   import { createTable, FlexRender } from "@tanstack/svelte-table";
   import type { ColumnFiltersState } from "@tanstack/table-core";
   import { untrack } from "svelte";
-  import { getGlobalContext } from "../../global-context.svelte.js";
+  import { getGlobalContext } from "$routes/global-context.svelte";
   import AddChangeDialog from "./add-change-dialog.svelte";
   import AddEditEmployeeDialog from "./add-edit-employee-dialog.svelte";
   import { columns, features, HIDDEN_COLUMNS } from "./columns.js";
