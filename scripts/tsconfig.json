@@ -8,7 +8,21 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "types": ["node"],
-    "noEmit": true
+    "noEmit": true,
+
+    // The scripts import a few files out of src/, and those files use the
+    // SvelteKit aliases among themselves. tsx already resolves them at run
+    // time through the root tsconfig.json, which inherits these from
+    // .svelte-kit/tsconfig.json; repeating them here is what lets the type
+    // check follow the same chain instead of stopping at the first alias.
+    // Values match .svelte-kit/tsconfig.json, which sits at the same depth.
+    "paths": {
+      "@/*": ["../src/lib/*"],
+      "$routes": ["../src/routes"],
+      "$routes/*": ["../src/routes/*"],
+      "$lib": ["../src/lib"],
+      "$lib/*": ["../src/lib/*"]
+    }
   },
   "include": ["**/*.ts"]
 }
