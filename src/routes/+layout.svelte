@@ -14,7 +14,7 @@
 </svelte:head>
 
 <ModeWatcher defaultMode={"system"} />
-<Toaster richColors position="top-right" closeButton class="z-auto" />
+<Toaster richColors position="bottom-right" closeButton class="z-auto" />
 
 <RouteProgress />
 
