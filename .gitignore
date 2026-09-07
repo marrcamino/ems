@@ -24,3 +24,6 @@ vite.config.ts.timestamp-*
 
 # Python bytecode from the graphify tool — regenerated, never edited
 graphify-out/__pycache__/
+
+# Temporary files
+/tmp
