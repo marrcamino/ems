@@ -176,9 +176,9 @@
               />
             </div>
 
-            <div class="grid gap-2">
+            <div class="grid gap-2 pb-1">
               <Label for="entryPositionShortForm">
-                Short form printed on forms
+                Abbreviated position title
               </Label>
               <Input
                 id="entryPositionShortForm"

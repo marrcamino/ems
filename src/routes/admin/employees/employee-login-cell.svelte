@@ -14,7 +14,7 @@
 </script>
 
 {#if employee.username}
-  <Tooltip.Root>
+  <Tooltip.Root delayDuration={150}>
     <Tooltip.Trigger>
       {#snippet child({ props })}
         <span {...props} class="text-sm">{employee.username}</span>

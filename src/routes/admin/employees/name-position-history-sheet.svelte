@@ -6,7 +6,8 @@
   import * as Sheet from "$lib/components/ui/sheet/index.js";
   import { getGlobalContext } from "$routes/global-context.svelte";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
-  import { Pencil, TriangleAlert } from "@lucide/svelte/icons";
+  import { CalendarPlus, Pencil, TriangleAlert } from "@lucide/svelte/icons";
+  import AddChangeDialog from "./add-change-dialog.svelte";
   import {
     fullName,
     getEmployeesContext,
@@ -53,9 +54,20 @@
 
   const canEdit = $derived(gblCtx.can("admin:manage_employees"));
 
+  // Somebody who has left has no entry in use to close, so the server refuses
+  // a change for them. Left out here rather than offered and then refused.
+  const canAddChange = $derived(
+    canEdit && ctx.employeeForHistory?.employmentStatus === "active",
+  );
+
   function correct(entry: HistoryEntry) {
     ctx.startEditingEntry(entry);
     ctx.correctEntryDialog = true;
+  }
+
+  function addChange() {
+    ctx.employeeToChange = ctx.employeeForHistory;
+    ctx.addChangeDialog = true;
   }
 </script>
 
@@ -65,19 +77,38 @@
     if (!open) ctx.resetHistoryPanel();
   }}
 >
-  <Sheet.Content side="right" class="flex w-full flex-col sm:max-w-xl">
-    <Sheet.Header>
-      <Sheet.Title>Name and position history</Sheet.Title>
-      <Sheet.Description>
-        {#if ctx.employeeForHistory}
-          Every name and position {fullName(ctx.employeeForHistory)} has been recorded
-          under, and the dates each one was in use. A document shows whichever entry
-          covers the date written on it.
-        {/if}
-      </Sheet.Description>
-    </Sheet.Header>
+  <Sheet.Content side="right" class=" sm:max-w-xl">
+    <ScrollArea
+      viewPortClasses="px-4 max-h-dvh scroll-fade-b"
+      class="flex w-full flex-col "
+    >
+      <Sheet.Header
+        class="px-0 sticky top-0 bg-linear-to-b from-popover to-transparent from-75%"
+      >
+        <Sheet.Title>Name and position history</Sheet.Title>
+        <Sheet.Description>
+          {#if ctx.employeeForHistory}
+            This list shows each name and position of <strong
+              >{fullName(ctx.employeeForHistory)}</strong
+            >, and the dates each one was in use. A document shows the entry
+            that was in use on the date written on the document.
+          {/if}
+        </Sheet.Description>
 
-    <ScrollArea viewPortClasses="px-4 size-full">
+        {#if canAddChange}
+          <!--
+          Sits above the list on purpose. Whoever is about to record a change
+          reads what is already in use first, which is what stops a second
+          entry saying the same thing as the one below it.
+        -->
+          <div class="ml-auto">
+            <Button size="sm" onclick={addChange}>
+              <CalendarPlus /> Add a change
+            </Button>
+          </div>
+        {/if}
+      </Sheet.Header>
+
       {#if ctx.historyLoading}
         <div class="flex items-center gap-2 py-8 text-sm text-muted-foreground">
           <Spinner /> Reading the history...
@@ -141,10 +172,11 @@
     </ScrollArea>
 
     <!--
-      Kept inside Sheet.Content on purpose. The sheet holds focus while it is
-      open, so a dialog mounted outside it would open behind the sheet and
-      could not be typed into.
+      Both kept inside Sheet.Content on purpose. The sheet holds focus while
+      it is open, so a dialog mounted outside it would open behind the sheet
+      and could not be typed into.
     -->
     <CorrectEntryDialog />
+    <AddChangeDialog />
   </Sheet.Content>
 </Sheet.Root>

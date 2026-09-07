@@ -2,10 +2,13 @@
   import * as Avatar from "$lib/components/ui/avatar/index.js";
   import { nameInitials } from "@/utils";
   import { fullName, type EmployeeRow } from "./context.svelte.js";
+  import Badge from "@/components/ui/badge/badge.svelte";
+  import { getGlobalContext } from "$routes/global-context.svelte.js";
 
   let { employee }: { employee: EmployeeRow } = $props();
 
   const separated = $derived(employee.employmentStatus === "separated");
+  const globalCtx = getGlobalContext();
 </script>
 
 <div class="flex items-center gap-3">
@@ -16,9 +19,15 @@
   </Avatar.Root>
 
   <div class="grid min-w-0 gap-0.5">
-    <span class="font-medium" class:text-muted-foreground={separated}>
+    <p
+      class="font-medium flex items-center gap-2"
+      class:text-muted-foreground={separated}
+    >
       {fullName(employee)}
-    </span>
+      {#if globalCtx.user.employee.employeePk === employee.employeePk}
+        <Badge variant="secondary">You</Badge>
+      {/if}
+    </p>
     <span class="truncate text-xs text-muted-foreground">
       {employee.positionTitle}
     </span>
