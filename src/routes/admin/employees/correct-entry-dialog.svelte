@@ -26,7 +26,9 @@
 
 <Dialog.Root
   bind:open={ctx.correctEntryDialog}
-  onOpenChangeComplete={() => {
+  onOpenChangeComplete={(open) => {
+    if (open) return;
+
     // Clearing the fields when the dialog closes is what stops a half-typed
     // correction to one entry appearing in the next entry that is opened.
     ctx.startEditingEntry(null);

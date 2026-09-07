@@ -27,7 +27,9 @@
 
 <AlertDialog.Root
   bind:open={ctx.moveDialog}
-  onOpenChangeComplete={() => {
+  onOpenChangeComplete={(open) => {
+    if (open) return;
+
     ctx.orgUnitToMove = null;
     ctx.moveTargetParent = null;
     errorMessage = null;

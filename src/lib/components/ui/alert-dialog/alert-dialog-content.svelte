@@ -3,6 +3,7 @@
 	import { cn, type WithoutChild, type WithoutChildrenOrChild } from "$lib/utils/index.js";
 	import AlertDialogOverlay from "./alert-dialog-overlay.svelte";
 	import AlertDialogPortal from "./alert-dialog-portal.svelte";
+	import { watchOpenComplete } from "../open-complete.svelte.js";
 	import type { ComponentProps } from "svelte";
 
 	let {
@@ -15,6 +16,8 @@
 		size?: "default" | "sm";
 		portalProps?: WithoutChildrenOrChild<ComponentProps<typeof AlertDialogPortal>>;
 	} = $props();
+
+	watchOpenComplete(() => ref);
 </script>
 
 <AlertDialogPortal {...portalProps}>

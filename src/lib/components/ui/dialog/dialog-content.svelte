@@ -5,6 +5,7 @@
   import { cn, type WithoutChildrenOrChild } from "$lib/utils/index.js";
   import * as Dialog from "./index.js";
   import DialogPortal from "./dialog-portal.svelte";
+  import { watchOpenComplete } from "../open-complete.svelte.js";
   import type { Snippet } from "svelte";
   import type { ComponentProps } from "svelte";
 
@@ -20,6 +21,8 @@
     children: Snippet;
     showCloseButton?: boolean;
   } = $props();
+
+  watchOpenComplete(() => ref);
 </script>
 
 <DialogPortal {...portalProps}>

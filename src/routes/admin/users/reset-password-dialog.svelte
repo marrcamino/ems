@@ -29,7 +29,9 @@
 
 <Dialog.Root
   bind:open={ctx.resetPasswordDialog}
-  onOpenChangeComplete={() => {
+  onOpenChangeComplete={(open) => {
+    if (open) return;
+
     ctx.resetFormInputValues();
     errorMessage = null;
   }}

@@ -28,7 +28,9 @@
 
 <Dialog.Root
   bind:open={ctx.addChangeDialog}
-  onOpenChangeComplete={() => {
+  onOpenChangeComplete={(open) => {
+    if (open) return;
+
     ctx.resetChangeInputValues();
   }}
 >

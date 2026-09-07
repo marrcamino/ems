@@ -16,9 +16,10 @@
 
 <AlertDialog.Root
   bind:open={ctx.deleteAlertDialog}
-  onOpenChangeComplete={() => {
+  onOpenChangeComplete={(open) => {
+    if (open) return;
+
     // Reset orgUnitToEdit
-    // This block only runs when it closes — shadcn bug
     ctx.resetFormInputValues();
     errorMessage = null;
   }}

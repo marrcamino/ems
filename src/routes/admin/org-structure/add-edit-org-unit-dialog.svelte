@@ -58,9 +58,10 @@
 
 <Dialog.Root
   bind:open={ctx.addEditDialog}
-  onOpenChangeComplete={() => {
+  onOpenChangeComplete={(open) => {
+    if (open) return;
+
     // Reset inputs and values when close
-    // This block only runs when it closes — shadcn bug
     ctx.resetFormInputValues();
     ctx.assignedEmployees = [];
     noOfficeYet = false;

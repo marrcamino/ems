@@ -113,7 +113,9 @@
 
 <Dialog.Root
   bind:open={ctx.addEditDialog}
-  onOpenChangeComplete={() => {
+  onOpenChangeComplete={(open) => {
+    if (open) return;
+
     ctx.resetFormInputValues();
   }}
 >

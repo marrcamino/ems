@@ -9,6 +9,7 @@
 	import { cn, type WithoutChildrenOrChild } from "$lib/utils/index.js";
 	import SheetOverlay from "./sheet-overlay.svelte";
 	import SheetPortal from "./sheet-portal.svelte";
+	import { watchOpenComplete } from "../open-complete.svelte.js";
 	import type { Snippet } from "svelte";
 	import type { ComponentProps } from "svelte";
 
@@ -26,6 +27,8 @@
 		showCloseButton?: boolean;
 		children: Snippet;
 	} = $props();
+
+	watchOpenComplete(() => ref);
 </script>
 
 <SheetPortal {...portalProps}>

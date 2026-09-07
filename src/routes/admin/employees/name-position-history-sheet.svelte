@@ -61,7 +61,9 @@
 
 <Sheet.Root
   bind:open={ctx.historySheet}
-  onOpenChangeComplete={() => ctx.resetHistoryPanel()}
+  onOpenChangeComplete={(open) => {
+    if (!open) ctx.resetHistoryPanel();
+  }}
 >
   <Sheet.Content side="right" class="flex w-full flex-col sm:max-w-xl">
     <Sheet.Header>
