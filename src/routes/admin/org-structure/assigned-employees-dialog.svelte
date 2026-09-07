@@ -9,7 +9,7 @@
 </script>
 
 <Dialog.Root bind:open={ctx.assignedEmployeesDialog}>
-  <Dialog.Content>
+  <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
       <Dialog.Title>Assigned Employees</Dialog.Title>
       <Dialog.Description>

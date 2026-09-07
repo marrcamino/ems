@@ -63,12 +63,15 @@
 </header>
 <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
   {#if ctx.orgUnits.length}
-    <div
-      class="flex flex-wrap items-center justify-between gap-3 border-b pb-4 pt-2 px-0.5"
-    >
-      <div class="flex items-center gap-3">
-        <Checkbox id="show-inactive" bind:checked={ctx.showInactiveOrgUnit} />
-        <Label for="show-inactive">Show inactive divisions, sections and units</Label>
+    <div class="gap-3 border-b pb-4 pt-2 px-0.5">
+      <div class="flex items-center w-full justify-between">
+        <div class="flex items-center gap-3">
+          <Checkbox id="show-inactive" bind:checked={ctx.showInactiveOrgUnit} />
+          <Label for="show-inactive"
+            >Show inactive divisions, sections and units</Label
+          >
+        </div>
+        <ViewSwitch />
       </div>
 
       <div class="flex items-center gap-3">
@@ -78,7 +81,6 @@
             confirm before anything changes.
           </p>
         {/if}
-        <ViewSwitch />
       </div>
     </div>
 

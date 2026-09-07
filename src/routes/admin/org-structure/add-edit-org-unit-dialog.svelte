@@ -15,7 +15,7 @@
   import { CircleQuestionMark, Info } from "@lucide/svelte/icons";
   import { tick, untrack } from "svelte";
   import { toast } from "svelte-sonner";
-  import { fade, slide } from "svelte/transition";
+  import { fade, fly, slide } from "svelte/transition";
   import { getOrgUnitContext } from "./context.svelte.js";
   import AssignedEmployeesDialog from "./assigned-employees-dialog.svelte";
   import OrgUnitAssignedEmployees from "./org-unit-assigned-employees.svelte";
@@ -258,34 +258,36 @@
           />
         </div>
 
-        <div class="grid gap-2">
-          <Label for="abbr" class="gap-1"
-            >Abbreviation <span class="text-muted-foreground"
-              >&lpar;Optional&rpar;</span
-            ></Label
-          >
-          <Input
-            id="abbr"
-            name="abbr"
-            disabled={orgUnitToEditIsInactive}
-            bind:value={ctx.formOrgUnitAbbr}
-          />
-        </div>
-
         <div>
-          {#if ctx.mode === "edit" && !ctx.assignedEmployeesLoading}
-            <div
-              in:slide={{ duration: 150 }}
-              out:slide={{ delay: 200, duration: 200 }}
+          <div class="grid gap-2">
+            <Label for="abbr" class="gap-1"
+              >Abbreviation <span class="text-muted-foreground"
+                >&lpar;Optional&rpar;</span
+              ></Label
             >
+            <Input
+              id="abbr"
+              name="abbr"
+              disabled={orgUnitToEditIsInactive}
+              bind:value={ctx.formOrgUnitAbbr}
+            />
+          </div>
+
+          <div>
+            {#if ctx.mode === "edit" && !ctx.assignedEmployeesLoading}
               <div
-                in:fade={{ duration: 200, delay: 200 }}
-                out:fade={{ duration: 200 }}
+                in:slide={{ duration: 150 }}
+                out:slide={{ delay: 200, duration: 200 }}
               >
-                <OrgUnitAssignedEmployees />
+                <div
+                  in:fly={{ duration: 200, delay: 150, y: -5 }}
+                  out:fade={{ duration: 200 }}
+                >
+                  <OrgUnitAssignedEmployees />
+                </div>
               </div>
-            </div>
-          {/if}
+            {/if}
+          </div>
         </div>
       </div>
 
