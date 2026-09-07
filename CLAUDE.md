@@ -1,3 +1,5 @@
+- When reporting information to me, be concise and sacrifice grammar for the sake of concision.
+
 # EMS Project — Claude Context
 
 Never access, search, or modify files outside the project directory.
