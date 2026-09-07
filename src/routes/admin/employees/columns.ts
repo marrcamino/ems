@@ -79,7 +79,7 @@ export const columns = helper.columns([
 
   helper.accessor(employeeTenureValue, {
     id: "tenure",
-    header: "Tenure",
+    header: "Type of appointment",
     sortFn: "alphanumeric",
     filterFn: "isOneOf",
     enableGlobalFilter: false,

@@ -34,16 +34,13 @@ import { fileURLToPath } from "node:url";
 import color from "picocolors";
 import { SUPER_ADMIN_KEY } from "../src/lib/rbac/permission-tree";
 import { expandPermissions, PERMISSIONS } from "../src/lib/server/permissions";
-import {
-  connectToDatabase,
-  loadEnv,
-  verifyDbPassword,
-} from "./lib";
+import { connectToDatabase, loadEnv, verifyDbPassword, wrap } from "./lib";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const CANCEL_MESSAGE = "Permission sync cancelled. Nothing was changed.";
-const TOO_MANY_ATTEMPTS_MESSAGE = "Permission sync stopped. Nothing was changed.";
+const TOO_MANY_ATTEMPTS_MESSAGE =
+  "Permission sync stopped. Nothing was changed.";
 
 async function main() {
   console.clear();
@@ -96,11 +93,14 @@ async function main() {
     const orphans = [...before].filter((key) => !defined.has(key));
 
     if (orphans.length > 0) {
-      p.note(orphans.join("\n"), "In the database but no longer defined in code");
+      p.note(
+        orphans.join("\n"),
+        "In the database but no longer defined in code",
+      );
       p.log.warn(
-        "These were NOT deleted. Removing a permission cascades into role_permission\n" +
-          "and would strip access from any role holding it — remove them by hand once\n" +
-          "you have confirmed no role still depends on them.",
+        wrap(
+          "These were NOT deleted. Removing a permission cascades into role_permission and would strip access from any role holding it — remove them by hand once you have confirmed no role still depends on them.",
+        ),
       );
     }
 
@@ -137,9 +137,9 @@ async function main() {
       // every admin key.
       backfillSpinner.stop("No super-admin role yet — nothing to backfill.");
       p.log.warn(
-        "No role holds " +
-          SUPER_ADMIN_KEY +
-          ". Run `npm run create-admin` to set up the first one.",
+        wrap(
+          `No role holds ${SUPER_ADMIN_KEY}. Run \`npm run create-admin\` to set up the first one.`,
+        ),
       );
     } else {
       const superAdminPk = superAdminRows[0].role_pk as number;
@@ -162,7 +162,9 @@ async function main() {
       // admin:view is sent to /admin, where a staff key could never be used.
       const missing = PERMISSIONS.filter(
         (perm) =>
-          perm.module === "admin" && !held.has(perm.key) && pkByKey.has(perm.key),
+          perm.module === "admin" &&
+          !held.has(perm.key) &&
+          pkByKey.has(perm.key),
       ).map((perm) => perm.key);
 
       if (missing.length === 0) {

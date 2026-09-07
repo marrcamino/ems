@@ -43,7 +43,7 @@
     icon: typeof Building;
   }[] = [
     { id: "section", label: "Section", icon: Building },
-    { id: "tenure", label: "Tenure", icon: Briefcase },
+    { id: "tenure", label: "Type of appointment", icon: Briefcase },
     { id: "employment", label: "Employment", icon: ToggleLeft },
     { id: "login", label: "Account", icon: KeyRound },
   ];

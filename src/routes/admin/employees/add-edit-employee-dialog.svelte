@@ -331,7 +331,7 @@
           </div>
 
           <div class="grid gap-2">
-            <Label for="tenureStatus">Tenure</Label>
+            <Label for="tenureStatus">Type of appointment</Label>
             <Select.Root type="single" bind:value={ctx.formTenureStatus}>
               <Select.Trigger id="tenureStatus" class="w-full">
                 {ctx.formTenureStatus

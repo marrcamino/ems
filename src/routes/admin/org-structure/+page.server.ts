@@ -55,7 +55,7 @@ export const actions: Actions = {
 
     if (!newRow)
       return fail(500, {
-        error: "Insert succeeded but row could not be read back.",
+        error: "It was saved, but could not be read back afterwards.",
       });
 
     return { success: true, newRow };

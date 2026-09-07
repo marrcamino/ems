@@ -25,7 +25,7 @@ import mysql from "mysql2/promise";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import color from "picocolors";
-import { connectToDatabase, loadEnv, verifyDbPassword } from "./lib";
+import { connectToDatabase, loadEnv, verifyDbPassword, wrap } from "./lib";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -72,7 +72,7 @@ async function main() {
 
   try {
     const readSpinner = p.spinner();
-    readSpinner.start("Looking for employees with no history row");
+    readSpinner.start("Looking for employees with no history entry");
 
     // Separated employees are included. Their version is still opened here
     // rather than closed, because this script cannot know the date they
@@ -91,15 +91,15 @@ async function main() {
     );
 
     if (rows.length === 0) {
-      readSpinner.stop("Every employee already has a history row.");
+      readSpinner.stop("Every employee already has a history entry.");
       p.outro(color.green("Nothing to do."));
       return;
     }
 
-    readSpinner.stop(`${rows.length} employee(s) need a first history row.`);
+    readSpinner.stop(`${rows.length} employee(s) need a first history entry.`);
 
     const writeSpinner = p.spinner();
-    writeSpinner.start("Writing history rows");
+    writeSpinner.start("Writing history entries");
 
     // One transaction for the whole backfill: a half-finished run would
     // leave some people with a version and some without, which is the exact
@@ -133,7 +133,9 @@ async function main() {
       throw err;
     }
 
-    writeSpinner.stop(`${rows.length} history row(s) written.`);
+    writeSpinner.stop(
+      `${rows.length} history ${rows.length === 1 ? "entry" : "entries"} written.`,
+    );
 
     // `position_short_form` is deliberately left empty. Nobody has typed a
     // short form yet, and no rule turns a full position title into one
@@ -162,18 +164,21 @@ async function main() {
 
     if (bad.length > 0) {
       p.log.warn(
-        `${bad.length} employee(s) do not have exactly one history row.\n` +
-          "That is expected only if somebody has already been edited since\n" +
-          "the backfill. Check them before building anything on top of this.",
+        wrap(
+          `${bad.length} employee(s) do not have exactly one history entry. That is expected only if somebody has already been edited since the backfill. Check them before building anything on top of this.`,
+        ),
       );
       p.note(
         bad
-          .map((row) => `${row.last_name} (id ${row.employee_pk}): ${row.versions}`)
+          .map(
+            (row) =>
+              `${row.last_name} (id ${row.employee_pk}): ${row.versions}`,
+          )
           .join("\n"),
         "Employees without exactly one version",
       );
     } else {
-      p.log.success("Every employee has exactly one history row.");
+      p.log.success("Every employee has exactly one history entry.");
     }
 
     p.outro(color.green("Done."));

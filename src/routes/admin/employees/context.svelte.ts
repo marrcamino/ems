@@ -232,7 +232,7 @@ export class EmployeesContext {
         to: typedSection,
       },
       {
-        label: "Tenure",
+        label: "Type of appointment",
         from: TENURE_STATUS_LABELS[person.tenureStatus],
         to: this.formTenureStatus
           ? TENURE_STATUS_LABELS[this.formTenureStatus as TenureStatus]

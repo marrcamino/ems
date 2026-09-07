@@ -130,9 +130,9 @@ Still optional: `middle_name`, `suffix`, `org_unit_fk`, `birth_date`, `sex`,
 `civil_status`.
 
 One consequence: `scripts/create-admin.ts` cannot write its bootstrap employee
-row without them, so it fills in the placeholders "System Administrator" and
-"Permanent" alongside the placeholder name "Admin User", and warns at the end
-to correct the record on the Employees page.
+row without them. It used to fill in the placeholders "System Administrator" and
+"Permanent" alongside the placeholder name "Admin User"; Topic 11 replaced that
+with asking whoever runs the script for the real details.
 
 ### The limit the user set
 
@@ -319,6 +319,41 @@ accounts, "who changed this record?" would have an unclear answer, and anyone
 reading the history would have to remember that two usernames are the same
 human. When someone needs different permissions, their role is changed rather
 than a second account being created.
+
+### The super admin is an employee too — settled
+
+The user came back to this on 2 September 2026 with a doubt: an admin account
+is usually held by one person, and the common office habit is to hand that same
+account down to whoever takes over the post. If the account outlives the person,
+does linking it to an employee record still make sense?
+
+The decision is that it does, and the habit is the part that changes.
+
+- **Every super admin in this office is an office employee.** The user confirmed
+  this directly. It is the administrative or IT person, who belongs in the
+  Employees list whether or not they ever sign in, so the link records something
+  that is true rather than inventing a person.
+- **Handing the password down is what breaks the records.** The system stores
+  who added, changed and corrected each employee record, and will store who
+  approved each fuel withdrawal. If two or three people have used the same
+  login over the years, "who corrected this?" has no answer at all. The link
+  cannot fix that on its own, but a shared account guarantees the failure.
+- **The handover is a new account, not a new password.** When the person holding
+  the super admin post leaves, a second super admin user is created for the
+  person taking over, and the old one is deactivated. The rules in the RBAC
+  design already allow this: more than one user may hold the super-admin role,
+  the system refuses to let the number of active holders reach zero, and it
+  warns when an action would take that number from two to one. The two accounts
+  can overlap for as long as the handover takes.
+
+The alternative — letting `employee_fk` be empty so a login can exist with no
+person behind it — was reconsidered here and rejected again for the reason
+already given above: the name lives on the employee row, so a login with no
+employee is a login with no name, and every screen showing a user would need a
+branch for it.
+
+What this did expose is that `scripts/create-admin.ts` wrote a person who did
+not exist. That was a real fault, and it is Topic 11, which has since fixed it.
 
 ---
 
@@ -691,26 +726,21 @@ present, so:
   browser. Every person a human adds therefore has one.
 - **The database column stays nullable.**
 
-The reason for that split is `scripts/create-admin.ts`, which creates the very
-first administrator on an empty database. It writes a placeholder person —
+The reason for that split *was* `scripts/create-admin.ts`, which creates the
+very first administrator on an empty database. It wrote a placeholder person —
 "Admin User", position "System Administrator", tenure "Permanent" — because it
-cannot know the real details. Two alternatives were considered and rejected:
+did not ask who was running it. Writing a fake date such as 1900-01-01 for that
+row was considered and rejected: empty means "we do not know", while a fake date
+means "we know, and it is 1900", a false value sitting in the one field the
+duplicate check trusts.
 
-- **Write a fake date such as 1900-01-01.** Worse than leaving it empty. Empty
-  means "we do not know"; a fake date means "we know, and it is 1900" — a false
-  value sitting in the one field the duplicate check trusts.
-- **Have the script ask for a real birth date.** Inconsistent: that row is
-  already entirely placeholders, so asking for one true fact in the middle of
-  them is odd, and it comes before anyone can even sign in.
+**That reason no longer holds.** Topic 11 removed the placeholder row — the
+script asks for the person's real details instead, the birth date among them.
+The column still stays nullable, for the reason given below.
 
-Leaving it empty also keeps the third rule in the table above alive rather than
-making it dead code. If the column could never be empty, "one of the two records
-has no birth date" would never happen.
-
-The gap is small and closes by itself. The setup script already tells whoever
-runs it to correct that placeholder record on the Employees page, and doing so
-goes through the form, which requires a birth date. So the empty value exists
-only between first setup and that first correction.
+The column stays nullable for now regardless, because it keeps the third rule in
+the table above alive rather than making it dead code. If the column could never
+be empty, "one of the two records has no birth date" would never happen.
 
 ### Speed is not a concern
 
@@ -919,7 +949,9 @@ All of the above, in one commit on `feature/employee-user`:
   returning person back.
 - **`context.svelte.ts`** — the live check replaces the old name-only warning.
 - **`scripts/create-admin.ts`** — a note recording why its placeholder row
-  keeps an empty birthday rather than a made-up date.
+  keeps an empty birthday rather than a made-up date. Topic 11 has since
+  removed that row altogether: the script asks for a real birthday, so the
+  note and the row it explained are both gone.
 
 The type check and the production build both pass. The matching rules were
 also run against a set of made-up people covering every rule, including two
@@ -986,9 +1018,12 @@ Save button switching on only once the possible-match question is answered.
 
 Topic 7a is finished.
 
-One thing to expect rather than be surprised by: the placeholder "Admin User"
-row still has no birthday, so the first time it is edited the form will ask for
-one. That is the intended behaviour, not a fault.
+One thing to expect rather than be surprised by, written while Topic 7a was
+being built: the placeholder "Admin User" row still has no birthday, so the
+first time it is edited the form will ask for one. That is the intended
+behaviour, not a fault. **This no longer applies.** Topic 11 has removed the
+placeholder row — the bootstrap script asks for a birthday like every other
+record, so on a database set up from now on there is no such row to edit.
 
 The four points decided while building, listed above, were seen on screen and
 left as they are.
@@ -1442,8 +1477,9 @@ from `user` stopped it.
   the super-admin role already holds every admin permission.
 - **`scripts/create-admin.ts` works against the finished schema.** The user
   truncated every table and ran it again from empty. It completed with no
-  error, which proves the placeholder position title and tenure it writes
-  satisfy the two columns that became required.
+  error, which proves the placeholder position title and tenure it wrote at
+  that time satisfy the two columns that became required. Topic 11 has since
+  replaced those placeholders with questions, so this run needs repeating.
 - **The Organizational Structure page works.** Adding a unit, renaming a
   section, and deleting a unit were all tried after the context import was
   repaired.
@@ -1764,6 +1800,508 @@ appears today.
   and 3 on screen. The row menu gained an item for each.
 - The employee editor gained the warning, which appears only when one of the six
   printed fields has been changed and never blocks the save.
+
+---
+
+## Topic 11 — The bootstrap script invents a person who does not exist
+
+**Status: Settled and built.** The script now asks. Nothing below is still
+waiting for an answer.
+
+### The problem
+
+`scripts/create-admin.ts` creates the very first super admin on an empty
+database. Because `user.employee_fk` is required, it has to write an employee
+row first — and it does not ask who that person is. It writes:
+
+```
+first name       Admin
+last name        User
+position title   System Administrator
+tenure status    Permanent
+birth date       (empty)
+```
+
+None of that is true. The script then prints a warning asking whoever ran it to
+go and correct the record on the Employees page.
+
+This was accepted earlier as a small, self-closing gap. Topic 4's discussion of
+the super admin is what made it look wrong instead: the whole argument for
+requiring the link is that a login should name a real person, and the very
+first login names a made-up one. A fake row also sits in the Employees list
+looking like staff until somebody fixes it, and there is nothing forcing them
+to fix it.
+
+### Decision — the script asks, it does not invent
+
+The script already asks for a username and generates a password, so it is
+already an interview. It will ask for the person's real details in the same
+run, and write them. No placeholder row, and no warning to correct one.
+
+### Decision — the fields it asks for
+
+Confirmed by the user. The script already interviews whoever runs it for a
+username, so these questions join the same run, before the username:
+
+- First name and last name — required by the table.
+- Middle name and suffix — optional, but they appear on every government form
+  in this office, and skipping one is a single keystroke.
+- Position title — required by the table.
+- Tenure status — required by the table, offered as a list of the seven values.
+  **Shown to the reader as "Type of appointment", not "Tenure".** Decided on
+  7 September 2026 while reviewing the script's wording. The user's reason is
+  that "type of appointment" is the phrase their office actually uses and
+  everybody understands, while "tenure" is understood mainly by HR staff, which
+  makes it a term of art like any other. The column and the code keep the name
+  `tenure_status`; only what is displayed changed. The same rename was applied
+  to the four places the Employees page showed the old word: the field label in
+  `add-edit-employee-dialog.svelte`, the table column header in `columns.ts`,
+  the changed-field row label in `context.svelte.ts`, and the filter button in
+  `employees-toolbar.svelte`. If "Type of appointment" proves too wide as a
+  table column header, "Appointment type" is the agreed fallback.
+- Birth date — not required by the table, but the Employees page requires it of
+  every person it saves, and it is what the duplicate check is anchored on.
+  Asking for it here means the very first record is no weaker than every later
+  one.
+
+Three fields are deliberately **not** asked for:
+
+- **The division or section.** On an empty database none exist yet, so there is
+  nothing to choose from. It stays empty and is set later on the Employees page.
+  The script's closing note says so, replacing the old warning that asked the
+  reader to correct a placeholder record.
+- **The short-form position title.** It exists only to be printed on forms, and
+  no form exists yet.
+- **Sex and civil status.** Optional, and the Employees page does not show them
+  as columns.
+
+`birth_date` stays a nullable column. Topic 7a made it nullable to allow the
+placeholder row, and that reason is gone, but the duplicate check still has a
+rule for records with no birth date, and making the column required would be a
+migration with nothing to gain.
+
+### Decision — how the messages are laid out in the terminal
+
+`@clack/prompts` draws a box sized to the longest line and puts a gutter down
+the left, so a line wider than the window is broken by the terminal at an
+arbitrary point and the box splits open. Messages therefore have to be kept to
+about 60 characters, which leaves room for the gutter on a standard 80-column
+window.
+
+This was not only a problem for the new questions. Nine string lines across the
+four scripts were already over 88 characters, and `scripts/create-admin.ts` had
+one of 166. Two approaches were put to the user, and the user chose the first:
+
+**A `wrap()` helper does the breaking.** It lives in `scripts/lib/cli.ts`
+alongside the width it uses, `MESSAGE_WIDTH`, which is 60. A message is written
+as one plain sentence and passed through `wrap()`, which inserts the line
+breaks when the script runs. The alternative was to break every string by hand
+in the source, which would have made the file look like the screen but would
+have meant re-flowing the lines below a sentence every time it was edited.
+
+Three details of the helper, decided while writing it:
+
+- A line break already typed into a message is kept, which is how a message is
+  split into paragraphs. Everything else is filled greedily, word by word.
+- Colour codes are not counted. `picocolors` wraps text in invisible codes, and
+  counting them would break lines far too early.
+- A single word longer than the width is left alone on its own line rather than
+  cut in half.
+
+**Wrapping is not the same as drawing a box, and the two were confused while
+this was being discussed.** `wrap()` only inserts line breaks; it draws nothing.
+The box is `p.note()`, a separate function. The user's rule on boxes is that
+ordinary explanatory text is never put in one, but a value the reader has to
+copy down is. So the username and generated password printed at the end of
+`scripts/create-admin.ts` keep their `p.note()` box, because a password has to
+stand out from everything else scrolling past, and every other message in the
+script prints plainly.
+
+Every message the scripts print also falls under the plain-language rule
+settled in Topic 13: no English idioms, in errors and notices as much as
+anywhere else. That rewriting has not been done and belongs to Topic 13; this
+topic only rewrapped the lines that were too wide.
+
+### Decision — the script opens the first history entry with its own SQL
+
+Found after Topic 11 was first written, and decided by the user on 6 September
+2026.
+
+Every person is meant to have at least one entry in `employee_history`. A
+printed document names an entry rather than a person, so a person with no entry
+is a person no document can name. `createEmployee` in
+`src/lib/server/employee-history.ts` opens that first entry inside the same
+transaction that adds the person, and its comment says the rule holds for every
+row without exception. `scripts/create-admin.ts` wrote its employee row with
+its own SQL and opened no entry, so the very first person in the system broke
+the rule.
+
+The script cannot simply call `createEmployee`. That was tested rather than
+assumed: `createEmployee` needs the database connection from
+`src/lib/server/db/index.ts`, which reads its settings from
+`$env/static/private`, and that module only exists while SvelteKit is building.
+Loading it under tsx fails with `Cannot find package '$env'`.
+
+So the choice was between the script writing the history row in its own SQL, or
+`src/lib/server/db/index.ts` being rewritten to get its settings in a way that
+works both inside SvelteKit and outside it. The user chose the first. Rewiring
+how every page in the system reaches the database, for the benefit of a script
+that runs once, is the larger change by far, and
+`scripts/backfill-employee-history.ts` already writes `employee_history` rows in
+its own SQL for the same reason.
+
+The cost accepted with it is that the rule about what a first entry contains now
+lives in two places. The script carries a comment pointing at `createEmployee`
+so that a future change to that rule is not made in only one of them.
+
+The entry is credited to the account the same run creates, which is truthful:
+whoever ran the script is the person that account belongs to.
+
+### What has been built so far
+
+Nothing is committed. The work sits in the working tree while the last open
+point is settled.
+
+Done:
+
+- **`scripts/lib/cli.ts`** — `MESSAGE_WIDTH` and `wrap()`, exported alongside
+  the existing `bailIfCancelled`.
+- **`scripts/create-admin.ts`** — the seven questions above, asked before the
+  username, with the answers written into the employee row. The old warning
+  about correcting a placeholder is gone; in its place is a closing note saying
+  that the division or section is the one thing still missing, and where to set
+  it. The list of ways somebody is hired is imported from
+  `src/routes/admin/employees/labels.ts` rather than typed again, so the choice
+  offered on the server cannot drift from the choice offered in the app.
+  It also opens the person's first `employee_history` entry, in the same
+  transaction, as decided above.
+
+- **The three other scripts** — `scripts/backfill-employee-history.ts`,
+  `scripts/reset-admin-password.ts` and `scripts/sync-permissions.ts`. Their
+  over-wide message lines now pass through `wrap()`. Wrapping only; the wording
+  is untouched, because rewording belongs to Topic 13.
+- **`src/routes/admin/employees/+page.server.ts`** — the comment explaining why
+  `birth_date` stays nullable no longer points at the placeholder row, which no
+  longer exists. It now gives the reason that still holds, which is the
+  duplicate check's rule for the records already on file with no birthday.
+
+---
+
+## Topic 12 — Being locked out by the Employees page
+
+**Status: Open.** The four faults are agreed and need fixing. How each is
+fixed is decided below where it was obvious, and flagged where it was not.
+
+### Where this came from
+
+The user asked whether `scripts/reset-admin-password.ts` covers the case of the
+last super admin losing access. Working through it turned up a state the system
+can reach and cannot get out of. Nothing here is theoretical — each step was
+read in the code.
+
+### The one mistake behind all three
+
+Two different questions are asked about the same person, and the code mixes them
+up.
+
+- **Sign-in asks:** is this account active, *and* does this person still work
+  here? Topic 8 added the second half.
+- **Everything else asks:** is this account active?
+
+Sign-in is the stricter of the two. So there is a state — **account active,
+employee marked as no longer employed** — where sign-in refuses the person while
+every other part of the system still believes their account is fine. All three
+faults below are that one state, seen from three places.
+
+### Fault 1 — the Employees page can lock out the last super admin
+
+Marking somebody as no longer employed ends their sessions straight away and
+stops their next sign-in. Nothing checks who that person is. Two doors do it and
+neither is guarded:
+
+- the row menu action, `separate` in
+  `src/routes/admin/employees/+page.server.ts`
+- the employee editor, when the person is switched to not employed
+
+The worst version is the super admin doing it to their own row. They are signed
+out immediately and cannot get back in.
+
+What makes this plainly a fault rather than a design choice is that the Users
+page already blocks the same move. It refuses to let anyone switch off their own
+account, and it refuses to remove the last active super admin whether that
+happens by deactivation, by a role change, or by deletion. The Employees page
+arrives at the same result with none of those checks.
+
+**Decision — the Employees page gets the same guards as the Users page.** Two
+of them:
+
+- Refuse to mark somebody as no longer employed if they are the signed-in user
+  and that would end their own access. Same reasoning as the Users page: it
+  takes away the only screen that could undo it.
+- Refuse if it would leave no active super admin who can actually sign in, and
+  warn when it would take that number from two to one.
+
+Both apply to the menu action and the editor, because both reach the same place.
+
+### Fault 2 — the password reset reports success when it has fixed nothing
+
+If the super admin's employee record is marked as no longer employed,
+`scripts/reset-admin-password.ts` still lists them, still writes a new password,
+still prints the credentials and still says "Done". The password really is
+changed. It simply cannot be used, because sign-in refuses the person before it
+ever looks at a password.
+
+So the recovery tool says it worked, the login screen says the account belongs to
+somebody who no longer works here, and nothing joins those two statements
+together.
+
+### Fault 3 — the bootstrap script will not rescue that state either
+
+`scripts/create-admin.ts` refuses to run when an active super admin exists, and
+it decides that on the account alone. A super admin who cannot sign in still
+counts, so the script says somebody already has the admin account and exits.
+
+Put the three together and the office is stuck: sign-in refuses, the reset script
+achieves nothing, the bootstrap script refuses, and the Employees page that could
+undo it in one click needs a sign-in to reach. The only way out is editing the
+database by hand in MySQL Workbench.
+
+### Decision — the count is fixed in one place
+
+`getActiveSuperAdmins` in `scripts/lib/super-admin.ts` joins `user` to `role` to
+`permission` and never joins `employee`, so it counts people who cannot sign in.
+Adding the employee join makes it count the same thing sign-in counts, and fixes
+faults 2 and 3 together:
+
+- The reset script stops offering a person whose password cannot help them, and
+  says why instead.
+- The bootstrap script stops seeing a holder who cannot sign in, so it will
+  create a replacement account — which is the way out of the state if the guard
+  in fault 1 is ever bypassed.
+
+Fault 1 still needs its own fix, because that is what creates the state to begin
+with. The two are independent and can be done in either order.
+
+### Fault 4 — the Users page guards count people who cannot sign in
+
+Checked after the three above, and it is the same gap again.
+`countActiveSuperAdminUsers` in `src/routes/admin/users/+page.server.ts` counts
+users on the super-admin role whose account is active. It does not join
+`employee` either.
+
+So the guards meant to keep at least one super admin able to sign in are reading
+a number that does not mean that. Suppose there are two super admin users and
+one of them has been marked as no longer employed. The count still says two, so
+the guard allows the other one to be deleted or moved off the role. What is left
+is one super admin who cannot sign in, and nobody who can.
+
+**Decision — the same fix.** Add the employee join here as well, so the count
+means "super admins who can actually sign in" everywhere it is used. The app and
+the two scripts should all be asking the question sign-in asks.
+
+### Decision — the recovery script stays a password tool
+
+The user was asked whether `scripts/reset-admin-password.ts` should be able to
+undo the separation itself, as a last resort when nobody can sign in. They said
+no: that file is only meant for resetting an admin password.
+
+That answer turns out to cost nothing, because the guards above close the door
+completely. Once the Employees page refuses to separate you or the last super
+admin who can sign in, and once all three counts join `employee`, every route
+into the stuck state is blocked — separating yourself, separating the last
+holder, separating the second-to-last and then the last, deactivating or
+deleting the last account, deleting the employee row (the database refuses it
+while a login points at it), and weakening the frozen role. What remains is
+reachable only by editing the database by hand, and whoever can do that can undo
+it the same way.
+
+So no new script is needed. The only change to the reset script is the one
+already decided: stop offering people who cannot sign in, and say why.
+
+### Still to decide
+
+- **What the reset script says** when the only super admin it can find is one
+  whose employee record is marked as no longer employed. It should not silently
+  leave them out of the list, because "no active super-admin found" would be
+  misleading. It needs to name the real problem and point at the Employees page.
+  The wording depends on Topic 13, which is what makes the repair on that page
+  an honest one rather than a false record.
+
+---
+
+## Topic 13 — Undoing a separation that never should have happened
+
+**Status: Settled, not yet built.** The design is finished — the operation, the
+menu item, the dialog and its wording are all decided below. Nothing is written
+in code yet.
+
+### Where this came from
+
+Topic 12 asked what the password-reset script should tell somebody who cannot
+sign in. The first wording suggested asking another admin to mark the person as
+employed again. The user rejected it and asked where the accountability was in
+that: if the person really has left the agency, marking them employed again to
+solve a sign-in problem writes something false into the record.
+
+They were right, and the reason is worse than a flag being flipped. Then they
+made the opposite point: if it genuinely was an accident, creating a whole new
+account is wrong too, because `scripts/create-admin.ts` always inserts a new
+employee row, so the same person would appear twice in the Employees list.
+
+Both objections are correct, and together they show that a piece is missing.
+
+### The problem
+
+Marking somebody as no longer employed closes their open version, dated that
+day. Bringing them back opens a **new** version starting today. So the pair is
+not an undo: unless it is fixed the same day, the history permanently shows a
+break in service that never happened, and any document that asks who was valid
+on a date inside that gap sees a person who was not there.
+
+The same-day case is already handled honestly. `syncVersions` reopens the very
+version that was closed rather than starting a second one, because somebody
+separated and brought back on the same date was never actually gone. That
+behaviour is correct and proven — it simply expires at midnight and cannot be
+asked for on purpose.
+
+### There are two situations and only one tool
+
+| Situation | What is true | What the record should do |
+| --- | --- | --- |
+| The person left the agency | They really are gone | Their version closes on the day they left, and stays closed |
+| Somebody picked the wrong row | The person never left | Nothing should have changed at all |
+
+This is the same split Topic 10 settled for names and positions: correcting an
+entry means what was there was never true, while recording a change means it was
+true until now. Employment status never received that split. It only has the
+"record a change" half.
+
+### Decision — the missing operation is an undo, not a second reinstate
+
+Reopen the version that was closed and set the person back to employed. No new
+version, no gap, nothing to explain to anybody reading the history later.
+
+This is deliberately **not** the same as bringing back somebody who genuinely
+left and has genuinely returned. That case keeps its current behaviour, because
+the break in service is real and documents filed during it must go on showing
+that they were not there.
+
+### Why this is not a super admin feature
+
+It reached us through the lockout, but it applies to everybody in the table. A
+clerk separated by mistake gets the same false break in service as a super admin
+does. The super admin case was simply the one loud enough to notice, because it
+also locked somebody out.
+
+### How it is reached today
+
+There is no menu item for bringing anybody back. A separated person's row menu
+offers Edit, "Name and position history", and Delete only. Coming back is done
+by opening Edit and turning the employed control back on, which posts to the
+ordinary `update` action — and that is the path that writes the false break.
+
+The one other route is the duplicate check: adding somebody who already exists
+as separated offers to bring them back, which posts to `reinstate`.
+
+### Decision — one menu item, and a dialog asks which of the two happened
+
+Three shapes were put to the user and they chose this one. The row menu built by
+`src/routes/admin/employees/employee-actions-cell.svelte` gains a single item for
+a person marked as no longer employed. Opening it shows a dialog that asks
+whether the person left and came back, or whether the record was marked by
+mistake.
+
+Their reason was that the dialog is a place to put a sentence explaining what the
+button will do, which a bare menu item has no room for.
+
+This deliberately departs from Topic 10, which chose two separate menu items for
+names and positions on the grounds that the item somebody picks is itself the
+decision. The difference is that "correct" and "record a change" are two ideas an
+admin has to be taught, whereas "did they really leave, or was this a mistake" is
+a question anybody can answer without being taught anything. The dialog can ask
+it in one plain sentence, so the risk of clicking through without reading is much
+lower here.
+
+Whichever wording is settled on, the employee edit dialog in
+`src/routes/admin/employees/add-edit-employee-dialog.svelte` still has to be
+dealt with, because switching its employed control back on today takes one of the
+two paths silently, without asking anything.
+
+### Decision — the menu item is called "Mark as employed"
+
+The first suggestion was "Mark as employed again". The user rejected it, and the
+reason it was wrong is that the word "again" answers the question the dialog is
+about to ask. The item has to stay neutral, because at the moment of clicking it
+the admin has not yet said whether the person left or whether the record was a
+mistake.
+
+"Mark as employed" is the exact mirror of the item already in that same menu,
+"Mark as no longer employed" in
+`src/routes/admin/employees/employee-actions-cell.svelte`. The pair reads as
+opposites and neither claims anything about why.
+
+### Decision — the wording inside the dialog
+
+Settled line by line with the user. The dialog is titled with the person's name,
+asks one question, and offers two answers:
+
+```
+Mark Juan Dela Cruz as employed
+
+What happened?
+
+( ) They came back
+    They really left, and have now returned. Choosing this starts a
+    new name and position entry from today, and their history will
+    show a gap for the time they were away.
+
+( ) It was a mistake
+    They never left. Somebody marked them as no longer employed by
+    mistake. Choosing this undoes it, so their name and position
+    history stays unbroken.
+
+                                            [ Cancel ]  [ Save ]
+```
+
+Five things were decided while arriving at that, each because an earlier draft
+was wrong in a way worth remembering.
+
+**The question is "What happened?"** The first draft asked "Which of these is
+true?", which the user replaced with something closer to how a person would ask
+it out loud.
+
+**Each answer opens with a short bold header.** "They came back" and "It was a
+mistake" are three words each and carry the whole decision, so somebody skimming
+can pick correctly without reading further. The user asked for this after a draft
+whose first lines were too long to work as headers.
+
+**The lines underneath say what happens, and announce that they are doing so.**
+An earlier draft put a sentence about the person next to a sentence about the
+stored data with nothing between them, which the user described as reading a few
+words and then hitting a sudden change of meaning. The phrase "Choosing this ..."
+now marks where the subject changes. It makes the lines longer, and the user
+judged that worth it.
+
+**The mistake is named as an action, not as a record.** An earlier draft said
+"the record was marked by mistake", and the user asked what kind of record that
+meant. The answer is that it was not a record at all: somebody clicked the menu
+item "Mark as no longer employed" on the wrong row. The dialog now says exactly
+that, reusing the menu item's own words.
+
+**No idioms.** "Leaves a gap" was replaced with "their history will show a gap".
+The user, who is not a native English speaker, had to stop and work out whether
+"leaves" meant "adds". The admins reading this dialog are their colleagues in the
+same office, so anything needing that pause is wrong here. This applies to every
+message the software shows, including errors, notices and the output of the
+command-line scripts.
+
+**The word for one row of history is "entry".** Not "version", and not
+"employment history". "Entry" is already what these screens say — the toast in
+`correct-entry-dialog.svelte` reads "The entry was corrected" — and it came from
+Topic 10. The dialog says "a new name and position entry" rather than just "a new
+entry", so it is clear which record is meant.
+
+
 
 ---
 

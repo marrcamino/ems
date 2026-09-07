@@ -200,9 +200,9 @@ function validateEmployeeForm(input: EmployeeInput): string | null {
   }
 
   // Required of every person, because it is what the duplicate check is
-  // anchored on. The column itself stays nullable: scripts/create-admin.ts
-  // writes one placeholder row before anybody can sign in, and leaving that
-  // row's birthday empty is more honest than inventing a date for it.
+  // anchored on. The column itself stays nullable, because the duplicate
+  // check still has a rule for a record with no birthday — people put on
+  // file before this became required.
   if (input.birthDate === null) {
     return "Enter this person's birthday. It is what tells two people with the same name apart.";
   }

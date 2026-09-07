@@ -31,6 +31,7 @@ import {
   hashPassword,
   loadEnv,
   verifyDbPassword,
+  wrap,
 } from "./lib";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -63,8 +64,9 @@ async function main() {
     if (holders.length === 0) {
       checkSpinner.stop("No active super-admin found.");
       p.cancel(
-        "No active user currently holds admin:manage_roles.\n" +
-          "Run `npm run create-admin` instead to bootstrap the first Super Admin.",
+        wrap(
+          "No active user currently holds admin:manage_roles.\nRun `npm run create-admin` instead to bootstrap the first Super Admin.",
+        ),
       );
       process.exit(0);
     }
