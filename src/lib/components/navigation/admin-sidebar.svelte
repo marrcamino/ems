@@ -6,6 +6,7 @@
     IdCard,
     ShieldCheck,
     UsersRound,
+    FlaskConical,
   } from "@lucide/svelte/icons";
 
   type NavItem = {
@@ -54,6 +55,12 @@
       url: "/admin/org-structure",
       icon: Building,
       permission: "admin:view_org_units",
+    },
+    {
+      name: "Test",
+      url: "/admin/test",
+      icon: FlaskConical,
+      permission: "admin:view",
     },
   ] satisfies NavItem[];
 </script>
