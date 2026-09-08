@@ -30,11 +30,11 @@ marked wherever the evidence overturned them.
 
 This cost an edit and nothing more. No signatory table had been built.
 
-**One thing is open.** Topics 1 to 10 are all settled, as revised below, and the
-last of the original items was closed on 31 August 2026. What reopened is
-narrower and arrived on 7 September 2026: **where a default name on a signature
-block comes from**. It is not admin configuration, so it waits for the report
-work — see "Where a default comes from" below.
+**One thing is partly open.** Topics 1 to 10 are all settled, as revised below,
+and the last of the original items was closed on 31 August 2026. What reopened is
+narrower: **where a default name on a signature block comes from**. One answer is
+now settled — an admin sets the fuel approver on the Signatories page — and the
+rest waits for the report screens. See "Where a default comes from" below.
 
 That item was the other five report areas: electricity, water, paper, ESWM and
 GHG. Only the fuel documents had ever been examined, and the item said each of
@@ -97,9 +97,9 @@ before. The details are in
 `.claude/docs/features/employee-and-user-separation.md`, Topic 9.
 
 **What was built on 7 September 2026.** The **config table** and the
-Settings page that fills it in. It holds one setting, `org.gsu_unit`, naming the
+Signatories page that fills it in. It holds one setting, `org.gsu_unit`, naming the
 org unit whose staff may be offered on a signature block restricted to the
-General Services Unit. See "The config table and the Settings page" below.
+General Services Unit. See "The config table and the Signatories page" below.
 
 Two things this document once listed as undone are now done. The **correction
 log** exists and is written to, so a repair to an existing version is recorded
@@ -387,7 +387,7 @@ the office rather than about fuel: two different blocks on two different
 documents read it, and a per-report copy could disagree with itself.
 
 The code asks for `org.gsu_unit`, gets an org unit id, and offers the employees
-whose `org_unit_fk` matches. An admin sets the value from the Settings page and
+whose `org_unit_fk` matches. An admin sets the value from the Signatories page and
 can change it later if the office reorganises.
 
 **Protecting the reference.** The value is plain text, so the database cannot
@@ -430,30 +430,47 @@ and any of its staff may approve any section's slip. Gorgonio M. Pangan and
 Maricel I. Ytac appearing on different copies was simply who happened to sign.
 So that column is dropped.
 
-### The config table and the Settings page — built on 7 September 2026
+### The config table and the Signatories page
 
 The `config` table exists at `src/lib/server/db/schema/config.ts`, with the shape
 decided above: `config_key` unique, `config_value` as plain text, and
 `updated_by_fk` recording who set it last. `CONFIG_KEYS` in the same file holds
 the key strings the code uses, so a typo is a type error rather than a setting
-that silently reads as empty.
+that silently reads as empty. Two keys so far, `org.gsu_unit` and
+`fuel.usual_approver`.
 
-An admin fills it in at **`/admin/settings`**, a new page in the admin sidebar
-next to Organizational Structure. It shows one section today, "General Services
-Unit", with a picker over the active org units. Two new permission keys gate it,
-`admin:view_settings` and `admin:manage_settings`, so a read-only admin sees the
-page with the picker disabled.
+**A setting naming a person who has left reads as empty.** The approver setting
+is checked on every load against the active employees, and a stored id belonging
+to somebody marked separated is simply not returned. That is the behaviour this
+document already asked for: nothing warns anybody, the approver comes up blank,
+and whoever prepares the next document picks who signs now.
 
-The page was placed here rather than on the Organizational Structure page or
-inside the fuel area because this document had already said an admin sets the
-value from a settings screen, and because the other five reports will add their
-own sections to the same page as they arrive.
+An admin fills it in at **`/admin/signatories`**, a page in the admin sidebar
+next to Organizational Structure, gated by `admin:view_signatories` and
+`admin:manage_signatories` so a read-only admin sees it with the pickers
+disabled.
+
+**The page is a tab per report.** Fuel is the only tab with anything in it; the
+other five arrive as each report is built. Inside a tab there is **one row per
+setting, not one row per document**. The user asked which way round it should go,
+since two documents share the General Services Unit and two share the approver,
+and the answer was to combine.
+
+The reason is that four rows would be four controls over two stored values.
+Changing the unit on a Withdrawal Slip row would silently change the RIS row
+too, so a screen showing them separately would be promising an independence that
+does not exist. Each row instead names the blocks it feeds underneath the picker,
+which gives the same per-document visibility without the false promise.
+
+It was placed here rather than on the Organizational Structure page because this
+is signatory configuration rather than office structure, and the user's own
+instinct returned to the word "signatories" twice.
 
 **Protecting the reference, as this document required.**
 `src/lib/server/org-unit-guard.ts` answers whether an org unit is named by a
 setting, and both the delete and the deactivate paths in
 `src/routes/admin/org-structure/+page.server.ts` call it and refuse with a
-message naming the Settings page. It is one function rather than a check copied
+message naming the Signatories page. It is one function rather than a check copied
 into each screen, for the reason recorded above: the protection lives in the
 program, so it holds only while every path goes through it.
 
@@ -471,30 +488,52 @@ chooses from the list of employees, the same as "Requested by" and "Received by"
 It looks like a fixed name on paper only because the same person is nearly always
 chosen.
 
-**What this leaves.** Only a block whose list is **restricted** needs anything
-stored, because only then does the code have to be told something it cannot work
-out. On the fuel documents that is the Withdrawal Slip "Approved by" and the RIS
-"Issued by", both restricted to General Services Unit staff, and both reading the
-one `org.gsu_unit` setting from case 1. Every other block stores nothing at all.
+**But an optional default came back on 8 September 2026.** Having settled that
+the approver is picked rather than fixed, the user then decided the Signatories
+page should still carry an optional default for it, so the usual name is already
+filled in and can be changed. That is a second setting, `fuel.usual_approver`,
+holding an employee id.
 
-### Where a default comes from — OPEN, and deferred to the report work
+The two are not in conflict. Nothing is *restricted* — anybody may be named as
+the approver — and nothing is *fixed*, since the person preparing the document
+can change it. The setting only decides which name the form starts with, and
+leaving it empty is a legitimate choice that starts both lines blank.
+
+**What this leaves.** Two settings for the fuel documents, each feeding two
+blocks:
+
+| setting | feeds |
+| --- | --- |
+| `org.gsu_unit` | Withdrawal Slip "Approved by", RIS "Issued by" |
+| `fuel.usual_approver` | Driver Trip Ticket "Approved by", RIS "Approved by" |
+
+Every other block stores nothing at all. Note the RIS appears in both rows under
+two different blocks, which is why the screen is organised by setting rather than
+by document — see below.
+
+### Where a default comes from — partly settled
 
 Defaults do exist. The user's account of them, given on 7 September 2026, is that
-most signature blocks a person picks will also have a default, and that this is
-decided by the report rather than by an admin: worked out automatically, or set
-by whoever handles that report.
+most signature blocks a person picks will also have a default, and that a default
+never fixes the block: roughly nine times in ten it can still be changed after it
+has been filled in.
 
-Two things about them are settled already:
+Where a default *comes from* turns out to have more than one answer, and only one
+of them is settled.
 
-- **A default is not admin configuration.** It does not belong in the config
-  table and it does not belong on the Settings page.
-- **A default never fixes the block.** Roughly nine times in ten a signature
-  block can still be changed after it has been filled in, whatever put the name
-  there.
+- **Set by an admin.** The fuel approver works this way, decided on 8 September
+  2026. `fuel.usual_approver` is set on the Signatories page and is optional.
+  An earlier version of this passage said a default is never admin
+  configuration; that was written before this case existed and is wrong.
+- **Worked out by the report.** The RIS "Requested by" defaults to whoever is
+  entering the record, which nobody sets and which needs no storage. Still open
+  in the sense that no such screen exists yet to confirm the behaviour.
+- **Set by whoever handles the report.** Raised by the user as a possibility and
+  not yet needed by anything. Open.
 
-What is not settled is where a default comes from in each case, and who sets it.
-That question needs the report screens to exist before it can be answered
-usefully, so it waits for the fuel work.
+So the rule is not "defaults are never configured" but "a default is configured
+here only when nothing else can work it out". The approver qualifies because
+there is nothing in the data that says who the OIC is.
 
 ### Somebody no longer working is never offered, and never saves
 

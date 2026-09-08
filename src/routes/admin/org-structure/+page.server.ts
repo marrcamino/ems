@@ -123,7 +123,7 @@ export const actions: Actions = {
       const setting = await settingUsingOrgUnit(orgUnitPk);
       if (setting) {
         return fail(409, {
-          error: `This ${level} is set as the ${setting} on the Settings page. Change that setting first, then mark it inactive.`,
+          error: `This ${level} is set as the ${setting} on the Signatories page. Change that setting first, then mark it inactive.`,
         });
       }
     }
@@ -173,7 +173,7 @@ export const actions: Actions = {
     const setting = await settingUsingOrgUnit(orgUnitPk);
     if (setting) {
       return fail(409, {
-        error: `This ${level} is set as the ${setting} on the Settings page. Change that setting first, then delete it.`,
+        error: `This ${level} is set as the ${setting} on the Signatories page. Change that setting first, then delete it.`,
       });
     }
 

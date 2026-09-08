@@ -12,9 +12,15 @@
  *
  * Four things happen, in order:
  *   1. Upsert every key in PERMISSIONS.
- *   2. Report keys still in the DB but no longer defined in code. REPORT ONLY —
- *      deleting a permission row cascades into role_permission and would
- *      silently strip access from live roles. Removal stays a manual decision.
+ *   2. Report keys still in the DB but no longer defined in code, and offer to
+ *      delete them — never silently. "Missing from the code" has two meanings
+ *      this script cannot tell apart: removed for good, or not present on the
+ *      branch that happens to be checked out. So it lists each key with the
+ *      roles holding it and asks, defaulting to No. Answering yes deletes the
+ *      grants and the permission rows in one transaction, grants first,
+ *      because `role_permission` has no `onDelete` rule and MySQL restricts.
+ *      Which roles held a key is recorded nowhere but the database, which is
+ *      why the answer has to be yours.
  *   3. Backfill the super-admin role with any `admin:*` key it is missing. That
  *      role is frozen — the role editor renders it as plain text with nothing
  *      to tick — so this script is its only way to gain a newly added admin
@@ -34,7 +40,13 @@ import { fileURLToPath } from "node:url";
 import color from "picocolors";
 import { SUPER_ADMIN_KEY } from "../src/lib/rbac/permission-tree";
 import { expandPermissions, PERMISSIONS } from "../src/lib/server/permissions";
-import { connectToDatabase, loadEnv, verifyDbPassword, wrap } from "./lib";
+import {
+  bailIfCancelled,
+  connectToDatabase,
+  loadEnv,
+  verifyDbPassword,
+  wrap,
+} from "./lib";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -88,20 +100,96 @@ async function main() {
       p.note(added.map((perm) => perm.key).join("\n"), "Added");
     }
 
-    // ── Step 2: report orphans, never delete them ──
+    // ── Step 2: report orphans, and offer to delete them ──
     const defined = new Set<string>(PERMISSIONS.map((perm) => perm.key));
     const orphans = [...before].filter((key) => !defined.has(key));
 
     if (orphans.length > 0) {
+      // Which roles hold each one. This is what makes the question below
+      // answerable rather than a guess: a key held by nobody, or only by the
+      // super-admin role, is dead weight, while one held by a role somebody
+      // actually uses is a grant about to be taken away.
+      const [holderRows] = await connection.query<mysql.RowDataPacket[]>(
+        `
+        SELECT p.\`key\`, r.role_name
+        FROM permission p
+        JOIN role_permission rp ON rp.permission_fk = p.permission_pk
+        JOIN role r ON r.role_pk = rp.role_fk
+        WHERE p.\`key\` IN (?)
+        ORDER BY p.\`key\`, r.role_name
+        `,
+        [orphans],
+      );
+
+      const holdersByKey = new Map<string, string[]>();
+      for (const row of holderRows) {
+        const key = row.key as string;
+        holdersByKey.set(key, [
+          ...(holdersByKey.get(key) ?? []),
+          row.role_name as string,
+        ]);
+      }
+
+      const keyWidth = Math.max(...orphans.map((key) => key.length));
       p.note(
-        orphans.join("\n"),
+        orphans
+          .map((key) => {
+            const holders = holdersByKey.get(key) ?? [];
+            const held = holders.length
+              ? `held by  ${holders.join(", ")}`
+              : "held by nobody";
+            return `${key.padEnd(keyWidth)}  ${held}`;
+          })
+          .join("\n"),
         "In the database but no longer defined in code",
       );
+
       p.log.warn(
         wrap(
-          "These were NOT deleted. Removing a permission cascades into role_permission and would strip access from any role holding it — remove them by hand once you have confirmed no role still depends on them.",
+          "A key can be missing from the code because it was removed for good, or because the branch you have checked out never had it. Deleting also removes it from the roles above, and which roles held a key is written down nowhere else.",
         ),
       );
+
+      // Defaults to No, so pressing enter changes nothing.
+      const shouldDelete = bailIfCancelled(
+        await p.confirm({
+          message: `Delete ${orphans.length} key(s) and their grants?`,
+          initialValue: false,
+        }),
+        CANCEL_MESSAGE,
+      );
+
+      if (shouldDelete) {
+        const deleteSpinner = p.spinner();
+        deleteSpinner.start("Deleting");
+
+        // One transaction, and the grants go first. `role_permission` has no
+        // `onDelete` rule, so MySQL restricts and a permission row cannot be
+        // removed while any role still holds it. Applying only half of the
+        // pair would leave grants pointing at permissions that are gone.
+        await connection.beginTransaction();
+        try {
+          await connection.query(
+            `
+            DELETE rp FROM role_permission rp
+            JOIN permission p ON p.permission_pk = rp.permission_fk
+            WHERE p.\`key\` IN (?)
+            `,
+            [orphans],
+          );
+          await connection.query("DELETE FROM permission WHERE `key` IN (?)", [
+            orphans,
+          ]);
+          await connection.commit();
+        } catch (err) {
+          await connection.rollback();
+          throw err;
+        }
+
+        deleteSpinner.stop(`${orphans.length} key(s) deleted.`);
+      } else {
+        p.log.info("Left in place. Nothing was deleted.");
+      }
     }
 
     // key → permission_pk, for turning a key back into an FK value. Read once

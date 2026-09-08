@@ -1,13 +1,14 @@
-import { db } from "$lib/server/db";
-import { config, CONFIG_KEYS, type ConfigKey } from "$lib/server/db/schema";
-import { inArray } from "drizzle-orm";
+import { getConfigValues } from "$lib/server/config";
+import { CONFIG_KEYS } from "$lib/server/db/schema";
 
 // The settings whose value is an org unit id, each with the words an admin
 // sees when that setting is what blocks a delete or a deactivation. A new
 // setting pointing at an org unit belongs in this list and nowhere else.
-const ORG_UNIT_SETTINGS: { key: ConfigKey; label: string }[] = [
-  { key: CONFIG_KEYS.gsuUnit, label: "General Services Unit" },
-];
+const ORG_UNIT_SETTINGS = [CONFIG_KEYS.gsuUnit] as const;
+
+const LABELS: Record<(typeof ORG_UNIT_SETTINGS)[number], string> = {
+  [CONFIG_KEYS.gsuUnit]: "General Services Unit",
+};
 
 /**
  * The name of the setting that points at this org unit, or null when nothing
@@ -26,20 +27,14 @@ const ORG_UNIT_SETTINGS: { key: ConfigKey; label: string }[] = [
 export async function settingUsingOrgUnit(
   orgUnitPk: number,
 ): Promise<string | null> {
-  const rows = await db
-    .select({ key: config.configKey, value: config.configValue })
-    .from(config)
-    .where(
-      inArray(
-        config.configKey,
-        ORG_UNIT_SETTINGS.map(({ key }) => key),
-      ),
-    );
+  // Read through src/lib/server/config.ts so the stored text is already a
+  // number here. Comparing the raw text against a number is exactly the bug
+  // that helper exists to remove.
+  const values = await getConfigValues(ORG_UNIT_SETTINGS);
 
-  const match = rows.find((row) => Number(row.value) === orgUnitPk);
-  if (!match) return null;
+  for (const key of ORG_UNIT_SETTINGS) {
+    if (values[key] === orgUnitPk) return LABELS[key];
+  }
 
-  return (
-    ORG_UNIT_SETTINGS.find(({ key }) => key === match.key)?.label ?? match.key
-  );
+  return null;
 }

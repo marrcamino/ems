@@ -45,7 +45,7 @@
           <Sidebar.MenuButton
             {...props}
             size="lg"
-            class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground rounded-lg"
+            class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground rounded-lg group-data-[collapsible=icon]:rounded-full hover:group-data-[collapsible=icon]:opacity-70 transition-all"
           >
             <Avatar.Root class="size-8 rounded-full">
               <Avatar.Fallback class="rounded-full text-xs">

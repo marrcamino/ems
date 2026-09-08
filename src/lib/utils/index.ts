@@ -64,3 +64,7 @@ export function fullName<
     .filter(Boolean)
     .join(" ");
 }
+
+export function dataAttr(value: unknown) {
+  return value ? "" : undefined;
+}
