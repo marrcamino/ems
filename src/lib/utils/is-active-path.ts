@@ -5,9 +5,10 @@ function stripTrailingSlash(path: string): string {
 /**
  * Whether a nav link points at the page currently being viewed.
  *
- * The match is exact by design. Every route in the app is a plain route with
- * no child pages, so pathname equality covers every case; prefix or segment
- * matching would light a parent link up on pages that are not its own.
+ * The match is exact by design. Where one route sits under another — Asset
+ * Types under Assets — both carry their own nav link, so an exact match still
+ * lights exactly one of them; prefix or segment matching would light the
+ * parent up as well, on a page that is not its own.
  * Trailing slashes are normalized first so "/fuel/" and "/fuel" agree, with
  * the root path left alone because stripping its slash leaves nothing.
  */

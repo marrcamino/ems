@@ -85,7 +85,12 @@ export const reportPages = [
       {
         name: "Assets",
         url: "/admin/fuel/assets",
-        permission: "admin:view_fuel",
+        permission: "admin:view_assets",
+      },
+      {
+        name: "Asset Types",
+        url: "/admin/fuel/assets/types",
+        permission: "admin:view_assets",
       },
     ],
   },
