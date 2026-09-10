@@ -4,6 +4,10 @@ import type * as db from "$lib/server/db/schema";
 export type Employee = typeof db.employee.$inferSelect;
 export type NewEmployee = typeof db.employee.$inferInsert;
 
+// config
+export type Config = typeof db.config.$inferSelect;
+export type NewConfig = typeof db.config.$inferInsert;
+
 // user
 export type User = typeof db.user.$inferSelect;
 export type NewUser = typeof db.user.$inferInsert;

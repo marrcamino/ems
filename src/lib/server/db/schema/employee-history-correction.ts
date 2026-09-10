@@ -2,10 +2,10 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   datetime,
+  foreignKey,
   mysqlEnum,
   mysqlTable,
   varchar,
-  type AnyMySqlColumn,
 } from "drizzle-orm/mysql-core";
 import { employeeHistory } from "./employee-history";
 import { user } from "./user";
@@ -30,19 +30,13 @@ export const employeeHistoryCorrection = mysqlTable(
     })
       .primaryKey()
       .autoincrement(),
-    // `cascade`, matching `employee_history.employee_fk` and for the same
-    // reason. The log belongs to the entry it describes; an entry that no
-    // longer exists has nothing left to explain. The protection against
-    // deleting somebody named on a filed document arrives from the document
-    // side, not from here.
+    // Both foreign keys are declared at the bottom of this table rather than
+    // inline here, so their constraints can be given short names. See the note
+    // there for why that is not optional.
     employeeHistoryFk: bigint("employee_history_fk", {
       mode: "number",
       unsigned: true,
-    })
-      .notNull()
-      .references((): AnyMySqlColumn => employeeHistory.employeeHistoryPk, {
-        onDelete: "cascade",
-      }),
+    }).notNull(),
     // Which of the six printed fields was written over, named by its database
     // column rather than by its name in the TypeScript code, because the only
     // way to read this table today is a SQL query typed by hand.
@@ -65,9 +59,34 @@ export const employeeHistoryCorrection = mysqlTable(
     correctedByFk: bigint("corrected_by_fk", {
       mode: "number",
       unsigned: true,
-    }).references((): AnyMySqlColumn => user.userPk),
+    }),
     correctedAt: datetime("corrected_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
+  // Named on purpose. Left to itself, Drizzle names a constraint by joining
+  // the table, the column, the referenced table, the referenced column and
+  // `_fk`, which for the first one below comes to 87 characters. MySQL refuses
+  // any identifier over 64, so the statement fails with ER_TOO_LONG_IDENT and
+  // `drizzle-kit push` stops there — taking every later statement with it,
+  // whatever unrelated table they belonged to.
+  //
+  // These names match the indexes already on the table.
+  (table) => [
+    // `cascade`, matching `employee_history.employee_fk` and for the same
+    // reason. The log belongs to the entry it describes; an entry that no
+    // longer exists has nothing left to explain. The protection against
+    // deleting somebody named on a filed document arrives from the document
+    // side, not from here.
+    foreignKey({
+      name: "ehc_history_fk",
+      columns: [table.employeeHistoryFk],
+      foreignColumns: [employeeHistory.employeeHistoryPk],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "ehc_corrected_by_fk",
+      columns: [table.correctedByFk],
+      foreignColumns: [user.userPk],
+    }),
+  ],
 );

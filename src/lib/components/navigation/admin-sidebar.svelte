@@ -2,11 +2,12 @@
   import type { PermissionKey } from "$lib/server/permissions";
   import {
     Building,
+    FilePenLine,
+    FlaskConical,
     House,
     IdCard,
     ShieldCheck,
     UsersRound,
-    FlaskConical,
   } from "@lucide/svelte/icons";
 
   type NavItem = {
@@ -57,6 +58,12 @@
       permission: "admin:view_org_units",
     },
     {
+      name: "Signatories",
+      url: "/admin/signatories",
+      icon: FilePenLine,
+      permission: "admin:view_signatories",
+    },
+    {
       name: "Test",
       url: "/admin/test",
       icon: FlaskConical,
@@ -69,8 +76,8 @@
   import { page } from "$app/state";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { isActivePath } from "$lib/utils/is-active-path";
+  import { getGlobalContext } from "$routes/global-context.svelte";
   import type { ComponentProps } from "svelte";
-  import { getGlobalContext } from "../../../routes/global-context.svelte";
   import NavActiveIndicator from "./nav-active-indicator.svelte";
   import NavHeader from "./nav-header.svelte";
   import NavTheme from "./nav-theme.svelte";
@@ -105,6 +112,7 @@
             <Sidebar.MenuButton
               isActive={item.active}
               tooltipContent={item.name}
+              class="text-nowrap"
             >
               {#snippet child({ props })}
                 <a
