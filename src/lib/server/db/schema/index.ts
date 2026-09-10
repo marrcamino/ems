@@ -1,3 +1,4 @@
+export * from "./asset-type";
 export * from "./config";
 export * from "./employee-history-correction";
 export * from "./employee-history";

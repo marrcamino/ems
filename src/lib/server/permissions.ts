@@ -132,6 +132,17 @@ export const PERMISSION_DEFS = {
       manage: "Add, edit, and delete GHG compliance records",
     },
 
+    // The registry of vehicles, generators, and other machines the office
+    // fuels, plus the list of asset types behind it. Its own submodule rather
+    // than part of `fuel` because one submodule gates one admin page, and
+    // because GEMP's inventory requirement covers equipment that burns no
+    // fuel at all, so this registry is expected to outgrow the fuel module.
+    // The page lives at /admin/fuel/assets for now; keys need not match URLs.
+    assets: {
+      view: "Access the Assets page",
+      manage: "Add, edit, and deactivate assets and asset types",
+    },
+
     // System modules — no staff-side counterpart.
     employees: {
       view: "Access the Employees page",
