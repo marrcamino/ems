@@ -1,4 +1,4 @@
-<script lang="ts" module>
+<!-- <script lang="ts" module>
   import type { PermissionKey } from "$lib/server/permissions";
   import {
     Building,
@@ -10,14 +10,7 @@
     UsersRound,
   } from "@lucide/svelte/icons";
 
-  type NavItem = {
-    name: string;
-    url: string;
-    // This should be `Component` after @lucide/svelte updates types
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    icon: any;
-    permission: PermissionKey;
-  };
+  import type { NavItem } from "./types";
 
   /**
    * Each page carries the `view` key that gates it, so the nav shows only
@@ -70,19 +63,22 @@
       permission: "admin:view",
     },
   ] satisfies NavItem[];
-</script>
+</script> -->
 
 <script lang="ts">
   import { page } from "$app/state";
+  import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { isActivePath } from "$lib/utils/is-active-path";
   import { getGlobalContext } from "$routes/global-context.svelte";
+  import { FlaskConical } from "@lucide/svelte/icons";
+  import ChevronRightIcon from "@lucide/svelte/icons/chevron-right";
   import type { ComponentProps } from "svelte";
+  import { administrationPages, reportPages } from "./admin-nav-items";
   import NavActiveIndicator from "./nav-active-indicator.svelte";
   import NavHeader from "./nav-header.svelte";
   import NavTheme from "./nav-theme.svelte";
   import NavUser from "./nav-user.svelte";
-
   let {
     ref = $bindable(null),
     ...restProps
@@ -90,13 +86,28 @@
 
   const gblCtx = getGlobalContext();
 
-  const visiblePages = $derived(
-    pages
+  const visibleAdminPages = $derived(
+    administrationPages
       .filter((item) => gblCtx.can(item.permission))
       .map((item) => ({
         ...item,
         active: isActivePath(page.url.pathname, item.url),
       })),
+  );
+
+  const visibleAdminReportPages = $derived(
+    reportPages
+      .filter((item) => gblCtx.can(item.permission))
+      .map((group) => ({
+        ...group,
+        items: group.items
+          .filter((item) => gblCtx.can(item.permission))
+          .map((item) => ({
+            ...item,
+            active: isActivePath(page.url.pathname, item.url),
+          })),
+      }))
+      .filter((group) => group.items.length > 0),
   );
 </script>
 
@@ -104,10 +115,11 @@
   <NavHeader userType="admin" />
 
   <Sidebar.Content>
+    <!-- ADMINISTRATION -->
     <Sidebar.Group>
       <Sidebar.GroupLabel class="h-6">Administration</Sidebar.GroupLabel>
       <Sidebar.Menu class="gap-0.5">
-        {#each visiblePages as item (item.name)}
+        {#each visibleAdminPages as item (item.name)}
           <Sidebar.MenuItem>
             <Sidebar.MenuButton
               isActive={item.active}
@@ -132,14 +144,87 @@
       </Sidebar.Menu>
     </Sidebar.Group>
 
-    <Sidebar.Group class="mt-auto">
-      <Sidebar.GroupContent>
-        <Sidebar.Menu>
-          <NavTheme />
-        </Sidebar.Menu>
-      </Sidebar.GroupContent>
+    <!-- REPORTS -->
+    <Sidebar.Group>
+      <Sidebar.GroupLabel>Reports</Sidebar.GroupLabel>
+      <Sidebar.Menu>
+        {#each visibleAdminReportPages as item (item.title)}
+          {@const hasActiveChild = item.items.find((i) => i.active)}
+
+          <Collapsible.Root
+            class="group/collapsible"
+            open={hasActiveChild?.active}
+          >
+            {#snippet child({ props })}
+              <Sidebar.MenuItem {...props}>
+                <Collapsible.Trigger>
+                  {#snippet child({ props })}
+                    <Sidebar.MenuButton {...props} tooltipContent={item.title}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                      <ChevronRightIcon
+                        class="ms-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+                      />
+                    </Sidebar.MenuButton>
+                  {/snippet}
+                </Collapsible.Trigger>
+                <Collapsible.Content>
+                  <Sidebar.MenuSub>
+                    {#each item.items as subItem (subItem.name)}
+                      <Sidebar.MenuSubItem>
+                        <Sidebar.MenuSubButton
+                          isActive={subItem.active}
+                          class="overflow-visible text-nowrap"
+                        >
+                          {#snippet child({ props })}
+                            <a href={subItem.url} {...props}>
+                              <span>{subItem.name}</span>
+                              <NavActiveIndicator active={subItem.active} />
+                            </a>
+                          {/snippet}
+                        </Sidebar.MenuSubButton>
+                      </Sidebar.MenuSubItem>
+                    {/each}
+                  </Sidebar.MenuSub>
+                </Collapsible.Content>
+              </Sidebar.MenuItem>
+            {/snippet}
+          </Collapsible.Root>
+        {/each}
+      </Sidebar.Menu>
+    </Sidebar.Group>
+
+    <Sidebar.Group class="mt-auto gap-0.5">
+      <Sidebar.Menu class="gap-0.5">
+        <Sidebar.MenuItem>
+          {@const isActive = isActivePath(page.url.pathname, "/admin/test")}
+          <Sidebar.MenuButton
+            {isActive}
+            tooltipContent="Test"
+            class="text-nowrap"
+          >
+            {#snippet child({ props })}
+              <a
+                href="/admin/test"
+                aria-current={isActive ? "page" : undefined}
+                {...props}
+              >
+                <FlaskConical />
+                <span>Test</span>
+
+                <NavActiveIndicator active={isActive} />
+              </a>
+            {/snippet}
+          </Sidebar.MenuButton>
+        </Sidebar.MenuItem>
+      </Sidebar.Menu>
+
+      <Sidebar.Menu>
+        <NavTheme />
+      </Sidebar.Menu>
     </Sidebar.Group>
   </Sidebar.Content>
+
   <Sidebar.Footer>
     <NavUser user={gblCtx.user} />
   </Sidebar.Footer>

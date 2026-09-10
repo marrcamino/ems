@@ -1,6 +1,4 @@
 <script lang="ts">
-  import AnimatedList from "$lib/components/animated-list.svelte";
-  import ContentTransition from "$lib/components/content-transition.svelte";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Button } from "$lib/components/ui/button";
   import * as Empty from "$lib/components/ui/empty/index.js";
@@ -10,6 +8,8 @@
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { Switch } from "$lib/components/ui/switch/index.js";
+  import AnimatedList from "@/components/transition/animated-list.svelte";
+  import ContentTransition from "@/components/transition/content-transition.svelte";
   import {
     ArrowDownAZ,
     ArrowDownToLine,
@@ -19,7 +19,7 @@
     RotateCcw,
     Search,
     Shuffle,
-    Trash2,
+    Trash,
     UserRoundX,
     X,
   } from "@lucide/svelte";
@@ -215,7 +215,7 @@
         onclick={removeLast}
         disabled={loading || items.length === 0}
       >
-        <Trash2 /> Remove last
+        <Trash /> Remove last
       </Button>
     </div>
 
