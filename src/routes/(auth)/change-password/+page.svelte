@@ -14,9 +14,9 @@
   import { fade, slide } from "svelte/transition";
   import { getPasswordStrengthError } from "$lib/validation/password";
   import { enhance } from "$app/forms";
-  import type { ActionData } from "./$types";
+  import type { ActionData, PageData } from "./$types";
 
-  let { form }: { form: ActionData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
 
   let loading = $state(false);
   let password = $state("");
@@ -78,6 +78,15 @@
             };
           }}
         >
+          <!--
+            The page this person was pulled off when the forced password change
+            interrupted them, handed over by the login action. It travels with
+            the form so the action can send them back there afterwards.
+          -->
+          {#if data.redirectTo}
+            <input type="hidden" name="redirectTo" value={data.redirectTo} />
+          {/if}
+
           <FieldGroup>
             <Field>
               <div class="flex items-center">

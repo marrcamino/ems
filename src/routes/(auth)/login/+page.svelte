@@ -15,9 +15,13 @@
   import { Eye, EyeOff } from "@lucide/svelte/icons";
   import type { HTMLAttributes } from "svelte/elements";
   import { fade, slide } from "svelte/transition";
+  import type { PageData } from "./$types";
 
-  let { class: className, ...restProps }: HTMLAttributes<HTMLDivElement> =
-    $props();
+  let {
+    data,
+    class: className,
+    ...restProps
+  }: { data: PageData } & HTMLAttributes<HTMLDivElement> = $props();
   const id = $props.id();
   let username = $state("");
   let password = $state("");
@@ -62,6 +66,15 @@
               };
             }}
           >
+            <!--
+              Where to go after logging in. It has to travel with the form:
+              posting to `?/login` drops the whole query string, so the page
+              the user was bounced off would otherwise be lost here.
+            -->
+            {#if data.redirectTo}
+              <input type="hidden" name="redirectTo" value={data.redirectTo} />
+            {/if}
+
             <FieldGroup>
               <Field>
                 <FieldLabel for="username-{id}">Username</FieldLabel>

@@ -1,16 +1,23 @@
 // src/lib/server/auth/redirect.ts
 //
 // Sample / placeholder — edit to match your actual route list and structure.
-// Three pieces live here on purpose: they all reason about the same
+// Four pieces live here on purpose: they all reason about the same
 // "where should this person end up" question, just at different moments.
 
 const LOGIN_PATH = "/login";
 const DEFAULT_REDIRECT = "/";
 const ADMIN_ROUTE = "/admin";
+const CHANGE_PASSWORD_PATH = "/change-password";
+// Neither of these is ever somewhere to land after signing in: both send
+// people onward by themselves, so storing one as a target only bounces.
+const AUTH_SCREENS = [LOGIN_PATH, CHANGE_PASSWORD_PATH];
 // Default-protected model: only list the few routes that DON'T require a
 // session. Every route not in this list is treated as private/protected.
 // For this app, this list is probably short and stays short.
 const PUBLIC_ROUTES = ["/login"];
+// Only ever a base for parsing a relative redirect target — never requested.
+// A target that resolves to any other origin is an off-site redirect.
+const INTERNAL_ORIGIN = "http://internal.invalid";
 
 /**
  * Used inside hooks.server.ts to decide whether the current request
@@ -26,7 +33,11 @@ export function isPublicRoute(pathname: string): boolean {
  * page the user was actually trying to reach.
  */
 export function buildLoginRedirect(url: URL): string {
-  const target = url.pathname + url.search;
+  // Validated on the way out as well as on the way back in, so the login URL
+  // never advertises a target that would only be thrown away later — such as
+  // the change-password screen, which somebody can reach by typing it.
+  const target = getSafeRedirectTarget(url.pathname + url.search, "");
+  if (!target) return LOGIN_PATH;
   return `${LOGIN_PATH}?redirectTo=${encodeURIComponent(target)}`;
 }
 
@@ -62,17 +73,24 @@ export function getSafeRedirectTarget(
     return fallback;
   }
 
-  // reject anything with a scheme (http:, https:, javascript:, etc.)
-  if (value.includes(":")) {
+  // Let the URL parser settle the rest. Anything that resolves away from this
+  // origin — a stray backslash, a control character, an embedded scheme — comes
+  // back under a different origin and is rejected. Parsing rather than string
+  // matching also keeps a colon inside a query string legal, so a target like
+  // /admin/fuel?from=2026-09-11T08:00 still survives.
+  let parsed: URL;
+  try {
+    parsed = new URL(value, INTERNAL_ORIGIN);
+  } catch {
     return fallback;
   }
 
-  // avoid bouncing back into the login page itself
-  if (value.startsWith(LOGIN_PATH)) {
-    return fallback;
-  }
+  if (parsed.origin !== INTERNAL_ORIGIN) return fallback;
 
-  return value;
+  // avoid bouncing back into the sign-in screens themselves
+  if (AUTH_SCREENS.includes(parsed.pathname)) return fallback;
+
+  return parsed.pathname + parsed.search + parsed.hash;
 }
 
 /**
@@ -94,4 +112,18 @@ export function getAlreadyLoggedInRedirect(
 ): string | null {
   if (!hasSession) return null;
   return getSafeRedirectTarget(redirectToParam, fallback);
+}
+
+/**
+ * PIECE 4 — login +page.server.ts action, for an account that still has to
+ * change its password. That screen comes before anything else, so the page
+ * the person was heading for cannot simply be honoured here; it rides along
+ * in the query string and the change-password action finishes the journey.
+ *
+ * Returns a bare /change-password when there is no usable target.
+ */
+export function buildChangePasswordRedirect(target: string | null): string {
+  const safe = getSafeRedirectTarget(target, "");
+  if (!safe) return CHANGE_PASSWORD_PATH;
+  return `${CHANGE_PASSWORD_PATH}?redirectTo=${encodeURIComponent(safe)}`;
 }

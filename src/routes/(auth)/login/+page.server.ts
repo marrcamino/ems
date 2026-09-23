@@ -1,6 +1,7 @@
 // src/rotues/+page.server.ts
 import { verifyPassword } from "$lib/server/auth/password";
 import {
+  buildChangePasswordRedirect,
   getAlreadyLoggedInRedirect,
   getDefaultLandingRoute,
   getSafeRedirectTarget,
@@ -25,15 +26,24 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
 export const load: PageServerLoad = ({ locals, url }) => {
+  const requested = url.searchParams.get("redirectTo");
+
   if (locals.user) {
     const fallback = getDefaultLandingRoute(locals.permissions);
     const target = getAlreadyLoggedInRedirect(
       !!locals.user,
-      url.searchParams.get("redirectTo"),
+      requested,
       fallback,
     );
     throw redirect(302, target || fallback);
   }
+
+  // The form posts to `?/login`, and that replaces the whole query string —
+  // so the action cannot read redirectTo back off the URL. Hand it to the page
+  // here instead and let the form carry it back as a hidden field. Validated
+  // now so the field can never hold an off-site value, and validated again in
+  // the action, since anything arriving from a form is client-controlled.
+  return { redirectTo: getSafeRedirectTarget(requested, "") };
 };
 
 export const actions: Actions = {
@@ -41,6 +51,7 @@ export const actions: Actions = {
     const form = await event.request.formData();
     const username = form.get("username");
     const password = form.get("password");
+    const redirectTo = form.get("redirectTo");
 
     if (
       typeof username !== "string" ||
@@ -122,9 +133,18 @@ export const actions: Actions = {
     const { expiresAt } = await createSession(token, found.userPk);
     setSessionTokenCookie(event, token, expiresAt);
 
-    // must-change-password takes priority over everything else below —
-    // don't send them to /admin or back to redirectTo before this is done
-    if (found.mustChangePassword) throw redirect(302, "/change-password");
+    // must-change-password takes priority over everything else below — that
+    // screen has to come first. The target is not dropped though: it travels
+    // on the query string so the change-password action can honour it once
+    // the new password is set.
+    if (found.mustChangePassword) {
+      throw redirect(
+        302,
+        buildChangePasswordRedirect(
+          typeof redirectTo === "string" ? redirectTo : null,
+        ),
+      );
+    }
 
     // look up this user's permissions fresh from the DB, since
     // event.locals.permissions is stale (hooks ran before this session existed)
@@ -141,7 +161,7 @@ export const actions: Actions = {
 
     const fallback = getDefaultLandingRoute(permissionKeys);
     const redirectTarget = getSafeRedirectTarget(
-      event.url.searchParams.get("redirectTo"),
+      typeof redirectTo === "string" ? redirectTo : null,
       fallback,
     );
     throw redirect(302, redirectTarget);
