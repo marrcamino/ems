@@ -32,3 +32,16 @@
 		<TriangleAlertIcon class="size-4" />
 	{/snippet}
 </Sonner>
+
+<style>
+	/*
+	 * An open dialog or sheet sets `pointer-events: none` on <body>, and the toasts
+	 * inherit it, so a click on a toast passed through to the dialog's overlay and
+	 * closed the dialog. Only the toasts get pointer events back, so the empty
+	 * space around them still lets clicks through. Sonner's own rule for hidden
+	 * toasts is more specific, so those stay unclickable.
+	 */
+	:global([data-sonner-toast]) {
+		pointer-events: auto;
+	}
+</style>
