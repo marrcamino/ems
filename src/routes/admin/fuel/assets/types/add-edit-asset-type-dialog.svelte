@@ -6,22 +6,28 @@
   import { Label } from "$lib/components/ui/label/index.js";
   import * as RadioGroup from "$lib/components/ui/radio-group/index.js";
   import { Switch } from "$lib/components/ui/switch/index.js";
+  import { dataAttr } from "$lib/utils/index.js";
   import HiddenInput from "@/components/ui/hidden-input.svelte";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
   import type { AssetType } from "@/types";
-  import { dataAttr } from "$lib/utils/index.js";
   import { toast } from "svelte-sonner";
   import { METER_TYPE_CHOICES, type MeterType } from "./meter-types.js";
-  import { untrack } from "svelte";
 
   let {
     open = $bindable(false),
     assetTypeToEdit = null,
     onSaved,
+    onNameClashesWithUnusedType,
   }: {
     open: boolean;
     assetTypeToEdit: AssetType | null;
     onSaved: (row: AssetType, mode: "add" | "edit") => void;
+    /**
+     * Called instead of showing an error when the name clashes with a type
+     * that is inactive. That case has an answer worth
+     * offering, so the page turns it into a question rather than a dead end.
+     */
+    onNameClashesWithUnusedType: (row: AssetType) => void;
   } = $props();
 
   const mode = $derived(assetTypeToEdit ? "edit" : "add");
@@ -30,6 +36,7 @@
   let meterType = $state<MeterType>("odometer");
   let active = $state(true);
   let submitting = $state(false);
+  let isEditMode = $derived(mode === "edit");
 
   /**
    * Seeded when the dialog opens rather than when the row prop changes, so
@@ -47,11 +54,14 @@
 </script>
 
 <Dialog.Root bind:open>
-  <Dialog.Content class="sm:max-w-105">
+  <Dialog.Content
+    class="sm:max-w-105 sm:data-editing:max-w-115"
+    data-editing={dataAttr(isEditMode)}
+  >
     <form
       class="grid gap-5"
       method="POST"
-      action={mode === "edit" ? "?/update" : "?/create"}
+      action={isEditMode ? "?/updateType" : "?/createType"}
       autocomplete="off"
       use:enhance={() => {
         submitting = true;
@@ -61,16 +71,22 @@
               result.data?.updatedRow) as AssetType;
             onSaved(row, mode);
             toast.success(
-              mode === "edit" ? "Asset type updated" : "Asset type added",
+              isEditMode ? "Asset type updated" : "Asset type added",
             );
             open = false;
           }
 
           if (result.type === "failure") {
-            toast.error(
-              (result.data as { error?: string } | undefined)?.error ??
-                "Something went wrong.",
-            );
+            const data = result.data as
+              | { error?: string; noLongerUsed?: AssetType }
+              | undefined;
+
+            if (data?.noLongerUsed) {
+              open = false;
+              onNameClashesWithUnusedType(data.noLongerUsed);
+            } else {
+              toast.error(data?.error ?? "Something went wrong.");
+            }
           }
 
           await update({ reset: false });
@@ -80,7 +96,7 @@
     >
       <Dialog.Header>
         <Dialog.Title>
-          {mode === "edit" ? "Edit asset type" : "Add asset type"}
+          {isEditMode ? "Edit asset type" : "Add asset type"}
         </Dialog.Title>
         <Dialog.Description>
           A type of machine that the office supplies fuel for, such as a pickup
@@ -148,18 +164,15 @@
       </fieldset>
 
       {#if assetTypeToEdit}
-        <div
-          class="flex items-start justify-between gap-4 rounded-lg border p-3"
-        >
-          <div class="grid gap-0.5">
-            <Label for="active" class="text-sm font-semibold">In use</Label>
+        <div class="gap-4 px-2">
+          <Label for="active" class="text-sm font-semibold">Active</Label>
+          <div class="flex gap-1">
             <span class="text-muted-foreground text-xs">
-              Turn this off if the office no longer has this kind of machine.
-              Assets already saved under it stay as they are, but you can no
-              longer pick it when adding a new asset.
+              When active, this type can be picked when adding an asset;
+              otherwise, it is hidden from the list.
             </span>
+            <Switch id="active" bind:checked={active} class="self-center" />
           </div>
-          <Switch id="active" bind:checked={active} />
         </div>
       {/if}
 
@@ -176,7 +189,7 @@
           {#if submitting}
             <Spinner />
           {/if}
-          {mode === "edit" ? "Save changes" : "Add asset type"}
+          {isEditMode ? "Save changes" : "Add asset type"}
         </Button>
       </Dialog.Footer>
     </form>
