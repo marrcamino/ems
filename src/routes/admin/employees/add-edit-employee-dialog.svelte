@@ -11,7 +11,7 @@
   import type { OrgUnit } from "$lib/types";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
   import { capitalize } from "@/utils";
-  import { Info, TriangleAlert } from "@lucide/svelte/icons";
+  import { AlertCircle, Info, TriangleAlert } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
   import { getEmployeesContext, type EmployeeRow } from "./context.svelte.js";
   import DuplicateAlert from "./duplicate-alert.svelte";
@@ -63,7 +63,9 @@
       // alert instead of this one.
       ctx.duplicateFinding?.kind !== "exact" &&
       // A possible match may be saved, but only once it has been answered.
-      (!ctx.possibleMatch || ctx.confirmedDifferentPerson),
+      (!ctx.possibleMatch || ctx.confirmedDifferentPerson) &&
+      // The server refuses to let the last person who can manage roles leave.
+      ctx.editorSeparationImpact !== "block",
   );
 </script>
 
@@ -189,6 +191,26 @@
                 Once you save this, their account stops working and they are
                 signed out straight away. The account itself stays on the Users
                 page, marked as belonging to somebody who has left.
+              </Alert.Description>
+            </Alert.Root>
+          {/if}
+
+          {#if ctx.editorSeparationImpact === "block"}
+            <Alert.Root variant="danger">
+              <AlertCircle />
+              <Alert.Title>Last account managing roles</Alert.Title>
+              <Alert.Description>
+                Set up another account on that role first. If this person
+                leaves, nobody will be able to manage roles.
+              </Alert.Description>
+            </Alert.Root>
+          {:else if ctx.editorSeparationImpact === "warn"}
+            <Alert.Root variant="info">
+              <Info />
+              <Alert.Title>One account will be left</Alert.Title>
+              <Alert.Description>
+                After this, only one person who can sign in will be able to
+                manage roles.
               </Alert.Description>
             </Alert.Root>
           {/if}
@@ -426,7 +448,16 @@
       <Dialog.Footer class="mx-0 px-4">
         {#if ctx.mode === "edit"}
           <div class="mr-auto flex items-center space-x-2 max-sm:order-1">
-            <Switch id="isEmployed" bind:checked={ctx.formIsEmployed} />
+            <!--
+              Disabled on your own record rather than hidden, the same as the
+              Active switch on the Users page: switching it off would sign you
+              out with nobody left on this page to switch it back on.
+            -->
+            <Switch
+              id="isEmployed"
+              disabled={ctx.editingSelf}
+              bind:checked={ctx.formIsEmployed}
+            />
             <Label for="isEmployed">Currently employed</Label>
           </div>
         {/if}

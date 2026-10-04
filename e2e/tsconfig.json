@@ -1,0 +1,14 @@
+{
+  // The root tsconfig only covers src/, so without this the editor doesn't
+  // know about Node and flags `process` as unknown in the tests.
+  "compilerOptions": {
+    "strict": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "esnext",
+    "skipLibCheck": true,
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["**/*.ts"]
+}

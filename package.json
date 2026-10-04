@@ -11,6 +11,8 @@
     "prepare": "svelte-kit sync || echo ''",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "create-admin": "tsx scripts/create-admin.ts",
     "sync-permissions": "tsx scripts/sync-permissions.ts",
     "reset-admin-password": "tsx scripts/reset-admin-password.ts",
@@ -19,7 +21,8 @@
   "devDependencies": {
     "@fontsource-variable/geist": "^5.3.0",
     "@internationalized/date": "^3.12.3",
-    "@lucide/svelte": "^1.43.0",
+    "@lucide/svelte": "^1.48.0",
+    "@playwright/test": "^1.63.0",
     "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/kit": "^2.63.0",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
