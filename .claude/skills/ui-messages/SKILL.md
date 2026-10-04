@@ -38,7 +38,8 @@ Warning vs error: warning = might go wrong / can't start yet; error = already we
 | One field has invalid input | error | `Field.Error` under the field | no | 1 sentence: the fix | no | clears when fixed |
 | Form submit with several errors | error | `Alert` destructive at top of form **+** `Field.Error` per field | yes: "2 fields need fixing" | none | no | no |
 | Routine save/create/update worked | success | `toast.success` | yes | only for undo or next step | optional: Undo / View | auto |
-| Action failed | error | `toast.error`; `Alert` destructive if it blocks the page | yes: what failed | 1 sentence: the fix | Retry, if retry can work | toast: stays if it has an action |
+| Action failed | error | `toast.error`; `Alert` destructive if it blocks the page | yes: what failed | the cause (if known), then the fix | Retry, if retry can work | toast: stays if it has an action |
+| Server refused the action because of the record's state (a business rule) | error | `toast.error` | yes: what failed ("Role not deleted") | the cause, then the step that unblocks it | button for the step, if it lives elsewhere | stays until dismissed |
 | Missing prerequisite / page condition | warning | `Alert` warning style, top of the section | yes: the condition | 1 sentence | yes: button that fixes it | no, stays until resolved |
 | Risky or irreversible action | confirm | `AlertDialog` | question: "Delete asset?" | what is lost + can it be undone | specific verb + Cancel | Cancel |
 | Tip / context | info | `Alert` info style, or `Field.Description` | only if it helps scanning | 1 sentence | no (link if needed) | optional |
@@ -55,7 +56,7 @@ Warning vs error: warning = might go wrong / can't start yet; error = already we
 - Test: read the title alone. If the user knows what happened, the body is optional.
 
 **Body**
-- Include it only if it adds the fix, the consequence, or the undo. Otherwise leave it out.
+- Include it only if it adds the cause, the fix, the consequence, or the undo. Otherwise leave it out.
 - Errors must say how to fix (in the body or via the action button).
 - Max 2 sentences (field errors: 1).
 
@@ -80,7 +81,19 @@ Warning vs error: warning = might go wrong / can't start yet; error = already we
 - Success: object + past-tense verb ("Asset saved"). Never "Success" or "successfully".
 
 **Body**
-- Order: **action first** when the user must act, then a short reason. Info and no-action warnings: the fact first.
+- Order: put what the user needs most first, and follow the structure for the type. The title carries the first part when there is one; the body carries the rest.
+
+  | Type | Structure |
+  |---|---|
+  | Error, failed or blocked action | Problem → Cause → Resolution |
+  | Field error | Problem → Fix (with no title, the fix alone usually says both) |
+  | Warning | Consequence or risk → Choice |
+  | Confirm | Action → Consequence → Confirmation |
+  | Success | Result → Next step, only when one is useful |
+  | Info | Important fact → Supporting detail |
+  | Permission | Restriction → Requirement → Resolution |
+
+- The cause comes before the step, because the step makes no sense until the user knows why: "It is assigned to 3 users. Remove them from the role first." Leave the cause out when it is unknown; never invent one.
 - Max 2 sentences. Don't repeat the title.
 - Plain words. No error codes or tech terms (HTTP 422, null, constraint, exception); log those instead.
 - No "please", "sorry", "oops". No "you can": start with the verb.
@@ -113,7 +126,7 @@ The validator checks the hard limits and banned words. It cannot judge meaning, 
 
 ```bash
 # one message
-node .claude/skills/ui-messages/scripts/validate.mjs --type warning --component alert --title "No asset types yet" --body "Add one to start adding assets. Each asset needs a type, like motorcycle or generator." --action "Add asset type"
+node .claude/skills/ui-messages/scripts/validate.mjs --type warning --component alert --title "No asset types yet" --body "Each asset needs a type, like motorcycle or generator. Add one to start adding assets." --action "Add asset type"
 
 # many messages (JSON array of {type, component, title, body, action, persistent})
 node .claude/skills/ui-messages/scripts/validate.mjs messages.json
@@ -129,7 +142,7 @@ When writing a message:
 Type: warning
 Component: Alert (warning style), top of Assets section
 Title: No asset types yet
-Body: Add one to start adding assets. Each asset needs a type, like motorcycle or generator.
+Body: Each asset needs a type, like motorcycle or generator. Add one to start adding assets.
 Action: Add asset type → opens asset type setup
 Dismiss: no, stays until a type exists
 ```

@@ -23,6 +23,7 @@ Ask these questions in order, and stop at the first one that settles it.
 3. **Does the person have the permission, but something about this record or the system blocks the action right now?** Show it as unavailable. Hiding it here would make the menu change from one record to the next, and the admin would wonder where the action went. Then decide how much to explain:
    - **The cause is visible on the same screen**, to someone who does not know the system's rules: use plain `disabled` with no reason. Examples are "Previous" on page 1, where the page number is right there, and "Remove selected" while nothing is selected.
    - **Otherwise**: show it as unavailable, with the reason in visible text and the step that would make it available, if a step exists. The person who wrote the rule always finds the cause obvious, and the admin usually does not. When unsure, show the reason: a short line costs little, and a grayed-out item with no reason sends the admin to ask someone else.
+   - **The data that blocks the action is not loaded on the page**: leave the action normal, let the server check when the admin confirms, and show the refusal inside the dialog that the admin is looking at, never in a toast. An example is deleting an asset that has fuel records, when the assets page does not load fuel records. Loading extra data on every page load only to mark a rarely used action is not worth it. Keep the dialog open, show the reason in a destructive `Alert` above the buttons, and replace the action button with the fix (for example **Deactivate**), so the fix sits next to the reason. A toast disappears on its own and appears away from the dialog, so the admin can lose the step before reading it.
 
 4. **Can the person use it, and is the action serious or hard to undo?** Keep it enabled and ask for confirmation in an `AlertDialog` (the `ui-messages` skill writes it). Routine actions get no confirmation, because a dialog on every action teaches people to click through it without reading. If the action can be undone, a toast with Undo is better than a confirmation (the `active-inactive-lists` skill explains why).
 
@@ -57,7 +58,7 @@ A tooltip is fine for extra information on an enabled control, such as the name 
 <script lang="ts">
   const deleteUnavailable = $derived(
     hasLogin(employee)
-      ? `Delete the account "${employee.username}" on the Users page first.`
+      ? `This employee has a login. Delete the account "${employee.username}" on the Users page first.`
       : undefined,
   );
 </script>
@@ -84,7 +85,10 @@ Keep the menu the same shape for everyone at the same permission level: every re
 
 ## Writing the reason
 
-- One short line. Say what blocks the action in words that the admin uses, then the step that unlocks it, if one exists. If no step exists, name what to do instead.
+- Follow **Problem → Cause → Resolution** from `ui-messages`. The muted label already shows the problem (the action is unavailable), so the line gives the cause, then the step: "This employee has a login. Delete the account on the Users page first." Keep it short; two short sentences at most.
+- Always state the cause. A step with no cause leaves the admin guessing why it is needed.
+- If no step exists, name what to do instead.
+- Don't write "You can't…". The person has the permission (question 3), so wording that sounds like a missing permission is wrong here.
 - Write it with the `ui-messages` rules: plain and formal, simple tenses, no permission keys, no codes, and no "row" or "column".
 
 ## Check before finishing
@@ -115,6 +119,9 @@ Use these when a rule is challenged.
 - GitLab Pajamas design system, "Feature management": hide when the person lacks the permission; when they have access but the feature cannot be used now, show it with an explanation.
 - Microsoft Windows menu guidelines: context menus remove items that do not apply, but keep expected commands such as Delete and Rename, disabled.
 - Apple Human Interface Guidelines: dim unavailable menu items instead of removing them, so that menus stay stable.
+- Microsoft Windows menu guidelines, again: if working out when an item should be disabled causes performance problems, leave it active and let selecting it show an error.
+- Nielsen Norman Group, "Error-Message Guidelines": show the error close to its source; toasts are for issues that need little interaction; offer a remedy.
+- IBM Carbon design system, "Notification": inline notifications stay until resolved; toasts disappear after a few seconds and suit messages that do not belong to one part of the screen.
 - Nielsen Norman Group, "Tooltip Guidelines": users should not need to find a tooltip in order to complete their task.
 - W3C ARIA Authoring Practices, "Developing a Keyboard Interface": disabled menu items should stay focusable so that people can discover them.
 - Nielsen Norman Group, "Confirmation Dialogs Can Prevent User Errors — If Not Overused".

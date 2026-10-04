@@ -24,6 +24,10 @@ export type NewSession = typeof db.session.$inferInsert;
 export type AssetType = typeof db.assetType.$inferSelect;
 export type NewAssetType = typeof db.assetType.$inferInsert;
 
+// asset
+export type Asset = typeof db.asset.$inferSelect;
+export type NewAsset = typeof db.asset.$inferInsert;
+
 // org_unit
 export type OrgUnit = typeof db.orgUnit.$inferSelect;
 export type NewOrgUnit = typeof db.orgUnit.$inferInsert;

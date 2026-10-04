@@ -35,3 +35,16 @@ export const METER_TYPE_CHOICES: {
 export function meterTypeLabel(value: MeterType) {
   return METER_TYPE_CHOICES.find((c) => c.value === value)?.label ?? value;
 }
+
+/**
+ * The same three meters worded to sit inside a sentence, article and all.
+ * `meterTypeLabel` is a heading and reads wrongly mid-sentence — "recorded as
+ * having odometer" — so anything writing prose uses this instead.
+ */
+export function meterTypePhrase(value: MeterType) {
+  return {
+    odometer: "an odometer",
+    hour_meter: "an hour meter",
+    none: "no meter",
+  }[value];
+}
