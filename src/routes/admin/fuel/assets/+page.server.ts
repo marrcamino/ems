@@ -275,13 +275,20 @@ export const actions: Actions = {
     if (!row) return fail(404, { error: "That asset no longer exists." });
 
     // Nothing points at an asset yet. Once fuel records do, the foreign key
-    // refuses the delete and the admin is told to switch it off instead.
+    // refuses the delete. The page does not load fuel records, so the check
+    // happens here, and the delete dialog shows the refusal with Deactivate
+    // in place of Delete. `deactivateInstead` is false when the asset is
+    // already inactive, because then there is nothing left to offer.
     try {
       await db.delete(asset).where(eq(asset.assetPk, assetPk));
     } catch (err) {
       if (mysqlErrno(err) === 1451) {
+        const active = row.status === "active";
         return fail(409, {
-          error: `${row.assetName} already has fuel recorded, so it cannot be deleted. Edit it and turn off "Active" instead.`,
+          error: active
+            ? "Fuel is already recorded for this asset. Deactivate it instead."
+            : "Fuel is already recorded for this asset, so it stays in the system.",
+          deactivateInstead: active,
         });
       }
       throw err;

@@ -15,12 +15,12 @@ Each "after" passes `scripts/validate.mjs` with 0 errors (#6 and #10 get expecte
 Type: warning
 Component: Alert (warning), top of Assets section
 Title: No asset types yet
-Body: Add one to start adding assets. Each asset needs a type, like motorcycle or generator.
+Body: Each asset needs a type, like motorcycle or generator. Add one to start adding assets.
 Action: Add asset type
 Dismiss: no, stays until a type exists
 ```
 
-Why: action first; 4 sentences → 2; meter-reading and report details cut (the user doesn't need them to act); button moved into the message instead of pointing "above".
+Why: cause first, then the step (Problem → Cause → Resolution: the title is the problem); 4 sentences → 2; meter-reading and report details cut (the user doesn't need them to act); button moved into the message instead of pointing "above".
 
 ## 2. Field error (error, Field.Error)
 
@@ -109,11 +109,11 @@ Why: generic title dropped; "please note", "you can", and "below" cut; one sente
 Type: warning
 Component: Alert (warning) or toast.warning, stays until dismissed
 Title: Session ending soon
-Body: Stay signed in to keep unsaved changes. It ends in 5 minutes.
+Body: Unsaved changes will be lost when it ends in 5 minutes.
 Action: Stay signed in
 ```
 
-Why: action first, then the timeline; specific title instead of "Warning".
+Why: consequence first, then the choice in the button (Consequence → Choice); specific title instead of "Warning".
 
 ## 9. Server failure, unknown cause (error, Alert)
 
@@ -159,3 +159,20 @@ Why: says what's missing and how to start; one CTA matching the title.
 **After**: `Syncing records` → then `Records synced` or `Records not synced` (via `toast.promise`).
 
 Why: short status; the result is reported separately so the user knows when it's done.
+
+## 13. Blocked by a business rule (error, toast)
+
+**Before**
+> **Error**
+> You can't delete this.
+
+**After**
+```
+Type: error
+Component: toast.error, stays until dismissed
+Title: Role not deleted
+Body: It is assigned to 3 users. Remove them from the role first.
+Action: View users
+```
+
+Why: Problem → Cause → Resolution (title, then the two body sentences); "You can't" dropped, because it sounds like a missing permission when the role's state is the cause.

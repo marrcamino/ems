@@ -626,7 +626,12 @@
   {assets}
 />
 
-<DeleteAssetDialog bind:open={deleteDialogOpen} {assetToDelete} {onDeleted} />
+<DeleteAssetDialog
+  bind:open={deleteDialogOpen}
+  {assetToDelete}
+  {onDeleted}
+  onDeactivate={(row) => setActive(row, false)}
+/>
 
 {#snippet emptyState()}
   {#if assets.length > 0}

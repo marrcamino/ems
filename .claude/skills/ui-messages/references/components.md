@@ -147,7 +147,7 @@ Put the button inside the message. `Alert.Action` sits absolutely in the top-rig
 	<TriangleAlertIcon />
 	<Alert.Title>No asset types yet</Alert.Title>
 	<Alert.Description>
-		<p>Add one to start adding assets. Each asset needs a type, like motorcycle or generator.</p>
+		<p>Each asset needs a type, like motorcycle or generator. Add one to start adding assets.</p>
 		<Button size="sm" onclick={onAddType}>Add asset type</Button>
 	</Alert.Description>
 </Alert.Root>
