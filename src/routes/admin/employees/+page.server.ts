@@ -17,6 +17,7 @@ import {
   separateEmployee,
   updateEmployee,
 } from "$lib/server/employee-history";
+import { listSuperAdminsWhoCanSignIn } from "$lib/server/super-admin";
 import { error, fail } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
@@ -338,6 +339,35 @@ async function endSessionsForEmployee(employeePk: number) {
   return login;
 }
 
+/**
+ * The sentence to refuse with when marking this person as no longer employed
+ * would lock the office out, or null to carry on.
+ *
+ * The same two guards the Users page has for switching an account off, and
+ * for the same reasons. Marking somebody as no longer employed stops their
+ * sign-in just as surely, so without these the Employees page would be a way
+ * around the guards on the Users page.
+ */
+async function refuseIfSeparationLocksOut(
+  employeePk: number,
+  locals: App.Locals,
+): Promise<string | null> {
+  // Signing yourself out for good also takes away the only page that could
+  // undo it.
+  if (locals.user?.employee.employeePk === employeePk) {
+    return "You can't mark yourself as no longer employed. Ask another admin to do it for you.";
+  }
+
+  const holders = await listSuperAdminsWhoCanSignIn();
+  const isHolder = holders.some((holder) => holder.employeePk === employeePk);
+
+  if (isHolder && holders.length <= 1) {
+    return "This person holds the last account that can manage roles. Set up another account on that role first, or nobody will be able to manage roles.";
+  }
+
+  return null;
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
   // Viewing the page needs only view_employees; each action below separately
   // requires admin:manage_employees.
@@ -363,7 +393,13 @@ export const load: PageServerLoad = async ({ locals }) => {
     employees.map((person) => person.employeePk),
   );
 
-  return { employees, orgUnits, documentCounts };
+  // Who can manage roles and can still sign in, so the menu and the editor
+  // can refuse or warn before the server has to.
+  const superAdminEmployeePks = (await listSuperAdminsWhoCanSignIn()).map(
+    (holder) => holder.employeePk,
+  );
+
+  return { employees, orgUnits, documentCounts, superAdminEmployeePks };
 };
 
 export const actions: Actions = {
@@ -447,6 +483,17 @@ export const actions: Actions = {
       if (duplicate) return fail(409, { error: duplicate });
     }
 
+    const separating =
+      input.employmentStatus !== "active" &&
+      existing.employmentStatus === "active";
+
+    // The editor is the second way somebody is marked as no longer employed,
+    // so it is guarded the same way as the menu action.
+    if (separating) {
+      const lockout = await refuseIfSeparationLocksOut(employeePk, locals);
+      if (lockout) return fail(409, { error: lockout });
+    }
+
     await updateEmployee(
       employeePk,
       toEmployeeValues(input),
@@ -455,10 +502,7 @@ export const actions: Actions = {
 
     // The editor can be the place somebody is marked as no longer employed,
     // just as the menu action can, so it signs them out the same way.
-    if (
-      input.employmentStatus !== "active" &&
-      existing.employmentStatus === "active"
-    ) {
+    if (separating) {
       await endSessionsForEmployee(employeePk);
     }
 
@@ -715,6 +759,9 @@ export const actions: Actions = {
     if (!existing) {
       return fail(404, { error: "That employee no longer exists." });
     }
+
+    const lockout = await refuseIfSeparationLocksOut(employeePk, locals);
+    if (lockout) return fail(409, { error: lockout });
 
     await separateEmployee(employeePk, locals.user?.userPk ?? null);
 

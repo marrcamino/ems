@@ -1,0 +1,10 @@
+[
+ {"type":"warning","component":"alert","title":"No asset type is in use","body":"Every asset belongs to a type, such as motorcycle or generator. The type decides which meter reading is asked for when fuel is recorded, and the reports add up fuel by type. Use \"Set up asset types\" above to add one first."},
+ {"type":"error","component":"field","body":"Invalid input!"},
+ {"type":"error","component":"toast","title":"Error!","body":"Failed to save record due to an error (HTTP 500). Please try again later. Sorry for the inconvenience."},
+ {"type":"success","component":"toast","title":"Success! Asset has been successfully saved!"},
+ {"type":"confirm","component":"dialog","title":"Are you sure?","body":"This action cannot be undone.","action":"Continue"},
+ {"type":"info","component":"alert","title":"Heads up!","body":"Please note that you can only see approved fuel records in the reports below."},
+ {"type":"error","component":"alert","title":"Error 500: Internal Server Error","body":"An unexpected exception occurred while fetching data."},
+ {"type":"error","component":"toast","title":"Save Failed Due To Network","action":"Try again later please"}
+]

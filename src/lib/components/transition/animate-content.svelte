@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import type { ClassValue } from "svelte/elements";
   import { fade, slide } from "svelte/transition";
 
   type TransitionEvent = CustomEvent<null> & {
@@ -23,9 +24,14 @@
     innerDelay?: number;
     /** Defaults to `300`*/
     outerDelay?: number;
+    /**
+     * Classes for the outer box, the one that slides. Width belongs here: in a
+     * centred flex column this box otherwise shrinks to its content.
+     */
+    class?: ClassValue;
   }
 
-  let { children, ...restProps }: Props = $props();
+  let { children, class: className, ...restProps }: Props = $props();
 
   let innerDuration = $derived(
     restProps.innerAnimationDuration ?? restProps.animationDuration ?? 300,
@@ -41,6 +47,7 @@
 </script>
 
 <div
+  class={className}
   transition:slide={{ axis: "y", delay: outerDelay, duration: innerDuration }}
 >
   <div

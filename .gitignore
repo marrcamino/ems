@@ -27,3 +27,6 @@ graphify-out/__pycache__/
 
 # Temporary files
 /tmp
+# Playwright run output
+/test-results
+/playwright-report
