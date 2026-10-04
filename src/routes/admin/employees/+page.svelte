@@ -41,6 +41,8 @@
     ctx.employees = data.employees;
     ctx.orgUnits = data.orgUnits;
     ctx.documentCounts = data.documentCounts;
+    ctx.superAdminEmployeePks = data.superAdminEmployeePks;
+    ctx.currentEmployeePk = gblCtx.user.employee.employeePk;
   });
 
   const facets = $derived(buildEmployeeFacets(ctx.employees));

@@ -56,6 +56,14 @@ export function hasLogin(employee: EmployeeRow): boolean {
   return employee.username !== null;
 }
 
+/**
+ * What marking somebody as no longer employed would do to the group of people
+ * who can manage roles and still sign in. "block" is the last one leaving,
+ * which the server refuses; "warn" is the second-to-last, which is allowed but
+ * said out loud first. The same three answers as on the Users page.
+ */
+export type SeparationImpact = "none" | "warn" | "block";
+
 export class EmployeesContext {
   employees: EmployeeRow[] = $state([]);
   orgUnits: OrgUnit[] = $state([]);
@@ -95,6 +103,52 @@ export class EmployeesContext {
    */
   documentCounts: Record<number, number> = $state({});
 
+  /**
+   * The people whose login is on the role that manages roles and is switched
+   * on, as the page was loaded. Whether each is still employed is read from
+   * the table instead, so marking one of them as no longer employed on this
+   * page is counted straight away.
+   */
+  superAdminEmployeePks: number[] = $state([]);
+
+  /** The person behind the signed-in account. */
+  currentEmployeePk: number | null = $state(null);
+
+  isSelf(person: Pick<EmployeeRow, "employeePk">) {
+    return (
+      this.currentEmployeePk !== null &&
+      person.employeePk === this.currentEmployeePk
+    );
+  }
+
+  /** How many people can manage roles and can still sign in. */
+  superAdminsWhoCanSignIn = $derived(
+    this.employees.filter(
+      (person) =>
+        this.superAdminEmployeePks.includes(person.employeePk) &&
+        person.employmentStatus === "active",
+    ).length,
+  );
+
+  /** Whether marking this person as no longer employed may go ahead. */
+  impactOfSeparating(person: EmployeeRow): SeparationImpact {
+    const holds =
+      this.superAdminEmployeePks.includes(person.employeePk) &&
+      person.employmentStatus === "active";
+
+    if (!holds) return "none";
+    if (this.superAdminsWhoCanSignIn <= 1) return "block";
+    return this.superAdminsWhoCanSignIn === 2 ? "warn" : "none";
+  }
+
+  /**
+   * The editor is open on the signed-in person's own record. Their employment
+   * cannot be switched off from here, because it would lock them out.
+   */
+  editingSelf = $derived(
+    this.employeeToEdit !== null && this.isSelf(this.employeeToEdit),
+  );
+
   mode: "edit" | "add" = $derived(
     this.employeeToEdit !== null ? "edit" : "add",
   );
@@ -111,6 +165,18 @@ export class EmployeesContext {
   formCivilStatus = $state("");
   formTenureStatus = $state("");
   formIsEmployed = $state(true);
+
+  /**
+   * What the editor's save would do, read only when it is the save that marks
+   * the person as no longer employed.
+   */
+  editorSeparationImpact: SeparationImpact = $derived(
+    this.employeeToEdit !== null &&
+      this.employeeToEdit.employmentStatus === "active" &&
+      !this.formIsEmployed
+      ? this.impactOfSeparating(this.employeeToEdit)
+      : "none",
+  );
 
   // The "record a change" dialog keeps its own fields. It asks only for what a
   // document prints, and it must not share state with the editor, because the

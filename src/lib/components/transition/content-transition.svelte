@@ -97,7 +97,12 @@
 </script>
 
 <div use:autoHeight={{ enabled: animateHeight && animated }} class={cn(className)}>
-  <div class="relative grid">
+  <!--
+    `minmax(0, 1fr)` rather than the default column, which is never narrower
+    than its content. With the default, a wide table inside grew the grid, and
+    the page, instead of scrolling inside its own `overflow-x-auto` box.
+  -->
+  <div class="relative grid grid-cols-[minmax(0,1fr)]">
     {#if showingSkeleton}
       <div
         class="col-start-1 row-start-1"

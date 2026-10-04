@@ -2043,6 +2043,26 @@ of them:
 
 Both apply to the menu action and the editor, because both reach the same place.
 
+**Built, 3 October 2026, not yet tried in a browser.** `npm run check` and
+`npm run build` pass.
+
+- The server refuses both cases in `separate` and in `update`, through
+  `refuseIfSeparationLocksOut` in `src/routes/admin/employees/+page.server.ts`.
+- The count comes from `listSuperAdminsWhoCanSignIn` in the new
+  `src/lib/server/super-admin.ts`, which already joins `employee`. The Users
+  page still uses its own count without the join; that is Fault 4.
+- The row menu shows "Mark as no longer employed" as unavailable, with the
+  reason under it, on your own row and on the last holder; Delete is shown
+  the same way on an employee who has a login. This follows the
+  `unavailable-actions` skill: the admin has the permission, so the action
+  stays visible and says why it cannot run. In the two-to-one case the item
+  opens a confirm dialog first, because the menu item otherwise acts on one
+  click and has nowhere to put a warning.
+- In the editor the "Currently employed" switch is disabled on your own
+  record, like the Active switch on the Users page. On the last holder,
+  switching it off shows an alert and disables Save; in the two-to-one case
+  it shows an information alert.
+
 ### Fault 2 — the password reset reports success when it has fixed nothing
 
 If the super admin's employee record is marked as no longer employed,
