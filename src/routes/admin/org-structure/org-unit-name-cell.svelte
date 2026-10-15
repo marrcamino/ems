@@ -39,10 +39,8 @@
 
   <span class="font-medium" class:text-muted-foreground={unit.status === "inactive"}>
     {unit.orgUnitName}
-    {#if unit.abbr}
-      <span class="font-normal text-muted-foreground">
-        {parenthesize(unit.abbr)}
-      </span>
-    {/if}
+    <span class="font-normal text-muted-foreground">
+      {parenthesize(unit.abbr)}
+    </span>
   </span>
 </div>

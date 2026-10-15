@@ -100,11 +100,9 @@
         <Building2 class="size-4 shrink-0 text-muted-foreground" />
         <span class="text-sm font-medium">
           {office.orgUnitName}
-          {#if office.abbr}
-            <span class="font-normal text-muted-foreground">
-              {parenthesize(office.abbr)}
-            </span>
-          {/if}
+          <span class="font-normal text-muted-foreground">
+            {parenthesize(office.abbr)}
+          </span>
         </span>
         {#if office.status === "inactive"}
           <Badge variant="destructive">Inactive</Badge>
