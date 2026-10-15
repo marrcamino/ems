@@ -143,6 +143,15 @@ export const PERMISSION_DEFS = {
       manage: "Add, edit, and deactivate assets and asset types",
     },
 
+    // The fuel purchase orders GSU records, each split into shares for the
+    // divisions, sections, and units, plus the suppliers they are bought
+    // from. Its own submodule because it is its own page, at
+    // /admin/fuel/purchase-orders.
+    purchase_orders: {
+      view: "Access the Purchase Orders page",
+      manage: "Add, edit, and delete purchase orders and suppliers",
+    },
+
     // System modules — no staff-side counterpart.
     employees: {
       view: "Access the Employees page",

@@ -28,6 +28,10 @@ export type NewAssetType = typeof db.assetType.$inferInsert;
 export type Asset = typeof db.asset.$inferSelect;
 export type NewAsset = typeof db.asset.$inferInsert;
 
+// supplier
+export type Supplier = typeof db.supplier.$inferSelect;
+export type NewSupplier = typeof db.supplier.$inferInsert;
+
 // org_unit
 export type OrgUnit = typeof db.orgUnit.$inferSelect;
 export type NewOrgUnit = typeof db.orgUnit.$inferInsert;
