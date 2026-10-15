@@ -88,26 +88,31 @@ export const actions: Actions = {
     const orgUnitPk = Number(form.get("orgUnitPk"));
     const status = form.get("status") as "active" | "inactive";
 
-    // Check what is the current status of the org unit
-    // If user wants to set to active again
-    if (status === "active") {
-      const [orgUnitCurrentStatus] = await db
-        .select({ status: orgUnit.status })
-        .from(orgUnit)
-        .where(eq(orgUnit.orgUnitPk, orgUnitPk));
+    const [current] = await db
+      .select({ status: orgUnit.status })
+      .from(orgUnit)
+      .where(eq(orgUnit.orgUnitPk, orgUnitPk));
 
-      if (orgUnitCurrentStatus.status === "inactive") {
+    if (!current) {
+      return fail(404, {
+        error: "That item is no longer there. Refresh the page and try again.",
+      });
+    }
+
+    // An inactive unit's fields are disabled in the dialog, so only its status
+    // arrives. Turning it back on is the one change to make; leaving it off
+    // changes nothing.
+    if (current.status === "inactive") {
+      if (status === "active") {
         await db
           .update(orgUnit)
           .set({ status: "active" })
           .where(eq(orgUnit.orgUnitPk, orgUnitPk));
-
-        return { success: true, updatedRow: await getUpdatedRow(orgUnitPk) };
       }
+
+      return { success: true, updatedRow: await getUpdatedRow(orgUnitPk) };
     }
 
-    // Declared here because some enrty value will missing if the status is active
-    // Having inactive in the UI will set the inputs disabled
     const orgUnitName = form.get("orgUnitName") as string;
     const parentFk = form.get("parentFk") ? Number(form.get("parentFk")) : null;
     const abbr = ((form.get("abbr") as string) ?? "").trim();
