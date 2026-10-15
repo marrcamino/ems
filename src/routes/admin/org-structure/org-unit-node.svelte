@@ -88,9 +88,7 @@
 
   <span class="line-clamp-2 text-sm font-medium">
     {unit.orgUnitName}
-    {#if unit.abbr}
-      <span class="text-muted-foreground">{parenthesize(unit.abbr)}</span>
-    {/if}
+    <span class="text-muted-foreground">{parenthesize(unit.abbr)}</span>
   </span>
 
   {#if canManage && unit.level !== "unit"}

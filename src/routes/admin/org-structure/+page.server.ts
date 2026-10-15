@@ -10,6 +10,11 @@ import type { Actions, PageServerLoad } from "./$types";
 import { nextLevel } from "./context.svelte.js";
 import { moveRejectionReason } from "./move-rules.js";
 
+// The form marks the field required, but a value of only spaces gets past that.
+function abbrMissing(level: OrgUnit["level"]) {
+  return `Enter an abbreviation for this ${level}, for example MSD.`;
+}
+
 export const load: PageServerLoad = async ({ locals }) => {
   if (!can(locals.permissions, "admin:view_org_units")) {
     throw error(403, "You do not have permission to view this page.");
@@ -36,7 +41,11 @@ export const actions: Actions = {
       | "unit";
     let parentFk = form.get("parentFk") ? Number(form.get("parentFk")) : null;
     const orgUnitName = form.get("orgUnitName") as string;
-    const abbr = (form.get("abbr") as string) || null;
+    const abbr = ((form.get("abbr") as string) ?? "").trim();
+
+    if (!abbr) {
+      return fail(400, { error: abbrMissing(level) });
+    }
 
     if (level === "division") {
       const [officeParentFk] = await db
@@ -101,8 +110,12 @@ export const actions: Actions = {
     // Having inactive in the UI will set the inputs disabled
     const orgUnitName = form.get("orgUnitName") as string;
     const parentFk = form.get("parentFk") ? Number(form.get("parentFk")) : null;
-    const abbr = (form.get("abbr") as string) || null;
+    const abbr = ((form.get("abbr") as string) ?? "").trim();
     const level = form.get("level") as OrgUnit["level"];
+
+    if (!abbr) {
+      return fail(400, { error: abbrMissing(level) });
+    }
 
     if (status === "inactive") {
       const [activeChild] = await db

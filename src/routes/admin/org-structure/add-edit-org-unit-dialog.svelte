@@ -260,14 +260,11 @@
 
         <div>
           <div class="grid gap-2">
-            <Label for="abbr" class="gap-1"
-              >Abbreviation <span class="text-muted-foreground"
-                >&lpar;Optional&rpar;</span
-              ></Label
-            >
+            <Label for="abbr">Abbreviation</Label>
             <Input
               id="abbr"
               name="abbr"
+              required
               disabled={orgUnitToEditIsInactive}
               bind:value={ctx.formOrgUnitAbbr}
             />

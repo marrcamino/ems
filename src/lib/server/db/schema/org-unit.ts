@@ -13,7 +13,7 @@ export const orgUnit = mysqlTable("org_unit", {
     .primaryKey()
     .autoincrement(),
   orgUnitName: varchar("org_unit_name", { length: 100 }).notNull(),
-  abbr: varchar("abbr", { length: 50 }),
+  abbr: varchar("abbr", { length: 50 }).notNull(),
   level: mysqlEnum("level", [
     "office",
     "division",
