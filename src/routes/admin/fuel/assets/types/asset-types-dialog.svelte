@@ -7,6 +7,7 @@
   import * as Tabs from "$lib/components/ui/tabs/index.js";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
+  import * as DialogViews from "$lib/components/dialog-views/index.js";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
   import {
@@ -34,7 +35,7 @@
   import { toast } from "svelte-sonner";
   import { SvelteSet } from "svelte/reactivity";
   import { flip } from "svelte/animate";
-  import AddEditAssetTypeDialog from "./add-edit-asset-type-dialog.svelte";
+  import AssetTypeForm from "./asset-type-form.svelte";
   import DeleteAssetTypeDialog from "./delete-asset-type-dialog.svelte";
   import { meterTypeLabel } from "./meter-types.js";
   import ReactivateAssetTypeDialog from "./reactivate-asset-type-dialog.svelte";
@@ -54,9 +55,9 @@
     /** Owned by the assets page, which also needs to know what types exist. */
     assetTypes: AssetTypeRow[];
     /**
-     * Set when this dialog was opened asking for the add dialog too. Read
-     * once this one has finished opening, so the add dialog does not appear
-     * on top of a panel that is still animating in.
+     * Set when this dialog was opened asking for the add form too. Read
+     * once this one has finished opening, so the form does not slide in
+     * while the dialog is still animating in.
      */
     openAddWhenReady: boolean;
     /** Lets the page clear the request, so a reload does not repeat it. */
@@ -111,8 +112,20 @@
       : assetTypes.filter((t) => t.status === statusFilter),
   );
 
-  let dialogOpen = $state(false);
+  /**
+   * Which view the dialog shows. The add and edit form slides in over the
+   * list inside this same dialog, instead of opening a second dialog on top.
+   * DialogViews moves focus into the form and back to the button that opened
+   * it, and turns Escape on the form into a step back to the list.
+   */
+  let view = $state<"list" | "form">("list");
   let assetTypeToEdit = $state<AssetType | null>(null);
+
+  /**
+   * Bumped each time the form is shown, which mounts a fresh copy of it, so
+   * it never opens with what was typed the last time.
+   */
+  let formKey = $state(0);
 
   let deleteDialogOpen = $state(false);
   let assetTypeToDelete = $state<AssetTypeRow | null>(null);
@@ -126,15 +139,19 @@
     );
   }
 
-  function openAdd() {
-    if (!canManage) return;
-    assetTypeToEdit = null;
-    dialogOpen = true;
+  function showForm(row: AssetType | null) {
+    assetTypeToEdit = row;
+    formKey += 1;
+    view = "form";
   }
 
-  function openEdit(row: AssetType) {
-    assetTypeToEdit = row;
-    dialogOpen = true;
+  function openAdd() {
+    if (!canManage) return;
+    showForm(null);
+  }
+
+  function showList() {
+    view = "list";
   }
 
   function openDelete(row: AssetTypeRow) {
@@ -160,6 +177,7 @@
           ),
     );
     onTypeSaved(row);
+    showList();
   }
 
   /**
@@ -233,7 +251,8 @@
 
   /**
    * The name the admin typed belongs to an inactive type, so they are asked
-   * about it rather than shown an error they can do nothing with.
+   * about it rather than shown an error they can do nothing with. The form
+   * stays behind the question, so Cancel leaves what was typed in place.
    */
   function onNameClashesWithUnusedType(row: AssetType) {
     inactiveClash = row;
@@ -241,14 +260,29 @@
   }
 
   /**
-   * Opens the existing row in the edit dialog with its switch already on,
-   * rather than turning it on straight away. The meter recorded against it
-   * may be wrong, and this is the moment somebody can see that and fix it.
+   * Set by Reactivate, so the question hands focus to the fresh form once it
+   * has closed. Without it, focus would go back to the Save button of the
+   * form that was just replaced, which is no longer there.
+   */
+  let focusFormOnClose = false;
+
+  /**
+   * Swaps the form for the existing row in edit mode with its switch
+   * already on, rather than turning it on straight away. The meter recorded
+   * against it may be wrong, and this is the moment somebody can see that
+   * and fix it.
    */
   function useAgain(row: AssetType) {
     reactivateDialogOpen = false;
-    assetTypeToEdit = { ...row, status: "active" };
-    dialogOpen = true;
+    focusFormOnClose = true;
+    showForm({ ...row, status: "active" });
+  }
+
+  function onReactivateCloseAutoFocus(event: Event) {
+    if (!focusFormOnClose) return;
+    focusFormOnClose = false;
+    event.preventDefault();
+    document.getElementById("assetTypeName")?.focus();
   }
 
   function onOpenChangeComplete(isOpen: boolean) {
@@ -256,6 +290,9 @@
       openAdd();
       onAddOpened();
     }
+    // The dialog always reopens on the list. Reset once it has finished
+    // closing, so the list does not slide back in while it fades out.
+    if (!isOpen) view = "list";
   }
 
   /**
@@ -306,22 +343,28 @@
 {/snippet}
 
 <Dialog.Root bind:open={() => open, onOpenChange} {onOpenChangeComplete}>
-  <!--
-    A flex column capped at the dialog's height, so the heading and the Add
-    button stay put while only the table scrolls once it grows long.
-  -->
-  <Dialog.Content
-    data-nested={dialogOpen}
-    class="flex max-h-[min(40rem,calc(100dvh-2rem))] px-0 flex-col sm:max-w-xl h-full"
+  <DialogViews.Content
+    {view}
+    onBack={showList}
+    showCloseButton={view === "list"}
+    data-nested={deleteDialogOpen || reactivateDialogOpen}
   >
-    <Dialog.Header class="px-4">
-      <Dialog.Title>Asset types</Dialog.Title>
-      <Dialog.Description>
-        The kinds of machines that the office supplies fuel for.
-      </Dialog.Description>
-
+    <!--
+      The view is capped at the dialog's height, so the heading and the Add
+      button stay put while only the table scrolls once it grows long. It
+      also has a floor, so the dialog does not look cramped with one or two
+      types and does not grow with every type added. The floor is never
+      taller than the screen, because on a short screen a minimum height
+      would win over the cap and push the dialog off the bottom.
+    -->
+    <DialogViews.View
+      name="list"
+      title="Asset types"
+      description="The kinds of machines that the office supplies fuel for."
+      class="w-lg min-h-[min(24rem,calc(100dvh-2rem))]"
+    >
       {#if assetTypes.length > 0}
-        <div class="flex flex-wrap items-center justify-between gap-2 mt-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <Tabs.Root value={statusFilter} onValueChange={setStatusFilter}>
             <Tabs.List>
               <Tabs.Trigger class="text-xs" value="active">
@@ -343,135 +386,164 @@
           {/if}
         </div>
       {/if}
-    </Dialog.Header>
 
-    <!--
-      Takes whatever height the dialog has left under the tabs, rather than a
-      height worked out from the screen. `min-h-0` on both is what lets them
-      shrink below the table's full height, and only then does it scroll.
-    -->
-    <ScrollArea
-      class="flex min-h-0 flex-1 flex-col px-4"
-      viewPortClasses="max-h-[calc(100dvh-92px)]"
-      type="always"
-    >
-      <!-- No height animation: it fights the scroll area, which clips. -->
-      <ContentTransition
-        isEmpty={visibleTypes.length === 0}
-        empty={emptyState}
-        animateHeight={false}
+      <!--
+        Takes whatever height the view has left under the tabs, rather than a
+        height worked out from the screen. `flex-1` fills the space the view's
+        floor leaves, and `min-h-0` is what lets it shrink below the table's
+        full height, and only then does it scroll. The scrollbar shows only
+        then too.
+
+        The viewport fills the whole area (`flex-1`) rather than being just as
+        tall as the table. A table switched in by a tab slides up the last few
+        pixels as it fades in, and a row being removed is lifted out of the
+        table while it fades. A viewport the table's exact height counted
+        either as overflow and showed the scrollbar, and since neither changes
+        any size when it ends, the scrollbar then stayed.
+      -->
+      <ScrollArea
+        class="-mx-4 flex min-h-0 flex-1 flex-col"
+        viewPortClasses="h-auto flex-1 px-4"
+        type="auto"
       >
-        <Table.Root containerClass={leavingRows > 0 ? "overflow-x-clip" : ""}>
-          <Table.Header class="">
-            <Table.Row class="hover:bg-transparent">
-              <Table.Head class="text-muted-foreground h-6">Name</Table.Head>
-              <Table.Head class="text-muted-foreground h-6">Meter</Table.Head>
-              <!-- Only the All tab mixes both, so only there does a status column tell anything. -->
-              {#if statusFilter === "all"}
-                <Table.Head class="text-muted-foreground h-6">Status</Table.Head
-                >
-              {/if}
-              <Table.Head class="w-0 h-6"></Table.Head>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            <!--
-            A plain `<tr>` rather than `Table.Row`, because a transition can
-            only be put on an element. The classes are copied from
-            table-row.svelte, hover included, so it looks like every other row.
-          -->
-            {#each visibleTypes as row (row.assetTypePk)}
-              <tr
-                data-slot="table-row"
-                class="hover:bg-muted/50 border-b transition-colors last:border-b-0 overflow-hidden"
-                animate:flip={rowFlip()}
-                in:itemIn={rowIntro(row.assetTypePk)}
-                out:itemOut={{ duration: DURATION.exit }}
-                onoutrostart={() => leavingRows++}
-                onoutroend={() => leavingRows--}
-              >
-                <Table.Cell class="font-medium">{row.assetTypeName}</Table.Cell>
-                <Table.Cell class="text-muted-foreground">
-                  {meterTypeLabel(row.meterType)}
-                </Table.Cell>
+        <!-- No height animation: it fights the scroll area, which clips. -->
+        <ContentTransition
+          isEmpty={visibleTypes.length === 0}
+          empty={emptyState}
+          animateHeight={false}
+        >
+          <Table.Root containerClass={leavingRows > 0 ? "overflow-x-clip" : ""}>
+            <Table.Header class="">
+              <Table.Row class="hover:bg-transparent">
+                <Table.Head class="text-muted-foreground h-6">Name</Table.Head>
+                <Table.Head class="text-muted-foreground h-6">Meter</Table.Head>
+                <!-- Only the All tab mixes both, so only there does a status column tell anything. -->
                 {#if statusFilter === "all"}
-                  <Table.Cell>
-                    <Badge
-                      variant={row.status === "active"
-                        ? "secondary"
-                        : "outline"}
-                    >
-                      {row.status === "active" ? "Active" : "Inactive"}
-                    </Badge>
-                  </Table.Cell>
+                  <Table.Head class="text-muted-foreground h-6"
+                    >Status</Table.Head
+                  >
                 {/if}
-                <Table.Cell>
-                  {#if canManage}
-                    <ButtonGroup.Root class="place-self-end">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onclick={() => openEdit(row)}
-                        class="border-r-0"
+                <Table.Head class="w-0 h-6"></Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              <!--
+              A plain `<tr>` rather than `Table.Row`, because a transition can
+              only be put on an element. The classes are copied from
+              table-row.svelte, hover included, so it looks like every other row.
+            -->
+              {#each visibleTypes as row (row.assetTypePk)}
+                <tr
+                  data-slot="table-row"
+                  class="hover:bg-muted/50 border-b transition-colors last:border-b-0 overflow-hidden"
+                  animate:flip={rowFlip()}
+                  in:itemIn={rowIntro(row.assetTypePk)}
+                  out:itemOut={{ duration: DURATION.exit }}
+                  onoutrostart={() => leavingRows++}
+                  onoutroend={() => leavingRows--}
+                >
+                  <Table.Cell class="font-medium"
+                    >{row.assetTypeName}</Table.Cell
+                  >
+                  <Table.Cell class="text-muted-foreground">
+                    {meterTypeLabel(row.meterType)}
+                  </Table.Cell>
+                  {#if statusFilter === "all"}
+                    <Table.Cell>
+                      <Badge
+                        variant={row.status === "active"
+                          ? "secondary"
+                          : "outline"}
                       >
-                        <Pencil />
-                        Edit
-                      </Button>
-                      <ButtonGroup.Separator />
-                      <DropdownMenu.Root>
-                        <DropdownMenu.Trigger
-                          class={buttonVariants({
-                            variant: "secondary",
-                            size: "icon-sm",
-                          })}
-                          disabled={pending.has(row.assetTypePk)}
-                          aria-label="More actions"
-                        >
-                          <EllipsisVertical />
-                        </DropdownMenu.Trigger>
-                        <DropdownMenu.Content align="end">
-                          {#if row.status === "active"}
-                            <DropdownMenu.Item
-                              onclick={() => setActive(row, false)}
-                            >
-                              <CircleOff /> Deactivate
-                            </DropdownMenu.Item>
-                          {:else}
-                            <DropdownMenu.Item
-                              onclick={() => setActive(row, true)}
-                            >
-                              <CircleCheck /> Activate
-                            </DropdownMenu.Item>
-                          {/if}
-                          <DropdownMenu.Item
-                            variant="destructive"
-                            onclick={() => openDelete(row)}
-                          >
-                            <Trash /> Delete
-                          </DropdownMenu.Item>
-                        </DropdownMenu.Content>
-                      </DropdownMenu.Root>
-                    </ButtonGroup.Root>
+                        {row.status === "active" ? "Active" : "Inactive"}
+                      </Badge>
+                    </Table.Cell>
                   {/if}
-                </Table.Cell>
-              </tr>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-      </ContentTransition>
-    </ScrollArea>
+                  <Table.Cell>
+                    {#if canManage}
+                      <ButtonGroup.Root class="place-self-end">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onclick={() => showForm(row)}
+                          class="border-r-0"
+                        >
+                          <Pencil />
+                          Edit
+                        </Button>
+                        <ButtonGroup.Separator />
+                        <DropdownMenu.Root>
+                          <DropdownMenu.Trigger
+                            class={buttonVariants({
+                              variant: "secondary",
+                              size: "icon-sm",
+                            })}
+                            disabled={pending.has(row.assetTypePk)}
+                            aria-label="More actions"
+                          >
+                            <EllipsisVertical />
+                          </DropdownMenu.Trigger>
+                          <DropdownMenu.Content align="end">
+                            {#if row.status === "active"}
+                              <DropdownMenu.Item
+                                onclick={() => setActive(row, false)}
+                              >
+                                <CircleOff /> Deactivate
+                              </DropdownMenu.Item>
+                            {:else}
+                              <DropdownMenu.Item
+                                onclick={() => setActive(row, true)}
+                              >
+                                <CircleCheck /> Activate
+                              </DropdownMenu.Item>
+                            {/if}
+                            <DropdownMenu.Item
+                              variant="destructive"
+                              onclick={() => openDelete(row)}
+                            >
+                              <Trash /> Delete
+                            </DropdownMenu.Item>
+                          </DropdownMenu.Content>
+                        </DropdownMenu.Root>
+                      </ButtonGroup.Root>
+                    {/if}
+                  </Table.Cell>
+                </tr>
+              {/each}
+            </Table.Body>
+          </Table.Root>
+        </ContentTransition>
+      </ScrollArea>
+    </DialogViews.View>
+
+    <DialogViews.View
+      name="form"
+      title={assetTypeToEdit ? "Edit asset type" : "Add asset type"}
+      description="A type of machine that the office supplies fuel for, such as a pickup truck, motorcycle, generator, etc."
+      class={assetTypeToEdit ? "w-115" : "w-105"}
+    >
+      <!--
+        Left mounted after Cancel, so it can slide out instead of vanishing;
+        the next Add or Edit replaces it with a fresh copy.
+      -->
+      {#key formKey}
+        {#if formKey > 0}
+          <AssetTypeForm
+            {assetTypeToEdit}
+            {onSaved}
+            {onNameClashesWithUnusedType}
+            onCancel={showList}
+          />
+        {/if}
+      {/key}
+    </DialogViews.View>
 
     <!--
-      Kept inside Dialog.Content on purpose. This dialog holds focus while it
-      is open, so a dialog mounted outside it would open behind it and could
-      not be typed into.
+      Confirmations still open on top, as DialogViews intends. Kept inside
+      the dialog's content on purpose: this dialog holds focus while it is
+      open, so a dialog mounted outside it would open behind it and could
+      not be clicked.
     -->
-    <AddEditAssetTypeDialog
-      bind:open={dialogOpen}
-      {assetTypeToEdit}
-      {onSaved}
-      {onNameClashesWithUnusedType}
-    />
 
     <DeleteAssetTypeDialog
       bind:open={deleteDialogOpen}
@@ -484,8 +556,9 @@
       bind:open={reactivateDialogOpen}
       noLongerUsed={inactiveClash}
       onUseAgain={useAgain}
+      onCloseAutoFocus={onReactivateCloseAutoFocus}
     />
-  </Dialog.Content>
+  </DialogViews.Content>
 </Dialog.Root>
 
 {#snippet emptyState()}
