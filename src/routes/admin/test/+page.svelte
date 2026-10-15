@@ -1,37 +1,51 @@
 <script lang="ts">
+  import DateInput from "$lib/components/date-input.svelte";
+  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import * as Card from "$lib/components/ui/card/index.js";
+  import * as Field from "$lib/components/ui/field/index.js";
+  import { Input } from "$lib/components/ui/input/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
-  import * as Command from "$lib/components/ui/command/index.js";
-  import * as Popover from "$lib/components/ui/popover/index.js";
-  import { Label } from "$lib/components/ui/label/index.js";
-  import ChevronsUpDownIcon from "@lucide/svelte/icons/chevrons-up-down";
-  import { tick } from "svelte";
+  import {
+    CalendarDate,
+    getLocalTimeZone,
+    today,
+    type DateValue,
+  } from "@internationalized/date";
 
-  const fruits = [
-    { value: "1", label: "Apple" },
-    { value: "2", label: "Banana" },
-    { value: "3", label: "Mango" },
-    { value: "4", label: "Durian", disabled: true },
-    { value: "5", label: "Pineapple" },
-    {
-      value: "6",
-      label:
-        "Philippine carabao mango from Guimaras, extra sweet, harvested this week",
-    },
-  ];
+  const tz = getLocalTimeZone();
+  const todayDate = today(tz);
 
-  let fruit = $state("6");
-  let open = $state(false);
-  let triggerRef = $state<HTMLButtonElement | null>(null);
-  const pickedLabel = $derived(fruits.find((f) => f.value === fruit)?.label);
+  // 1. A purchase order is dated today unless the admin types an earlier day.
+  let poDate = $state<DateValue | undefined>(todayDate);
+  const poDateLate = $derived(!!poDate && poDate.compare(todayDate) > 0);
 
-  function pick(value: string) {
-    fruit = value;
-    open = false;
-    // Hand focus back to the trigger so keyboard users stay in the form.
-    tick().then(() => triggerRef?.focus());
+  // 2. A withdrawal slip form: the browser itself refuses to save while a
+  // required field is empty, and Reset empties the date like the litres.
+  let slipDate = $state<DateValue | undefined>();
+  let slipField = $state<DateInput>();
+  let slipSent = $state("");
+
+  function saveSlip(e: SubmitEvent) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget as HTMLFormElement);
+    slipSent = [...form].map(([k, v]) => `${k}=${v}`).join(", ");
   }
+
+  // 3. A delivery period: the end cannot come before the start.
+  let fromDate = $state<DateValue | undefined>();
+  let toDate = $state<DateValue | undefined>();
+  const periodBackwards = $derived(
+    !!fromDate && !!toDate && toDate.compare(fromDate) < 0,
+  );
+
+  // 4. A date years back, where typing the year beats paging the calendar.
+  let hiredDate = $state<DateValue | undefined>();
+  const hiredLate = $derived(!!hiredDate && hiredDate.compare(todayDate) > 0);
+
+  // 5. A date that the page shows but does not let the admin change.
+  let lockedDate = $state<DateValue | undefined>(new CalendarDate(2026, 9, 1));
 </script>
 
 <svelte:head>
@@ -61,48 +75,165 @@
   </div>
 </header>
 
-<div class="grid max-w-xs gap-2 p-4">
-  <Label for="fruit">Fruit</Label>
-  <Popover.Root bind:open>
-    <Popover.Trigger
-      bind:ref={triggerRef}
-      id="fruit"
-      role="combobox"
-      aria-expanded={open}
-      data-no-value={pickedLabel ? undefined : ""}
-      class="gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm h-8 transition-colors select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50 flex w-full items-center justify-between whitespace-nowrap outline-none data-no-value:text-muted-foreground"
-    >
-      <span class="min-w-0 flex-1 truncate text-left">
-        {pickedLabel ?? "Choose a fruit"}
-      </span>
-      <ChevronsUpDownIcon
-        class="size-4 shrink-0 text-muted-foreground pointer-events-none"
-      />
-    </Popover.Trigger>
-    <Popover.Content class="w-(--bits-popover-anchor-width) min-w-48 p-0">
-      <Command.Root>
-        <Command.Input placeholder="Search fruits..." />
-        <Command.List>
-          <Command.Empty>Nothing matches your search.</Command.Empty>
-          <Command.Group>
-            {#each fruits as item (item.value)}
-              <!-- keywords lets the search match the label, not the id -->
-              <Command.Item
-                value={item.value}
-                keywords={[item.label]}
-                disabled={item.disabled}
-                data-checked={item.value === fruit}
-                onSelect={() => pick(item.value)}
-              >
-                {item.label}
-              </Command.Item>
-            {/each}
-          </Command.Group>
-        </Command.List>
-      </Command.Root>
-    </Popover.Content>
-  </Popover.Root>
-  <p class="text-muted-foreground text-sm">
-    Picked value: {fruit || "none"} ({pickedLabel ?? "none"})
+{#snippet stored(value: DateValue | undefined)}
+  <p class="text-xs text-muted-foreground tabular-nums">
+    Stored value: {value ? value.toString() : "empty"}
   </p>
+{/snippet}
+
+<div class="grid gap-4 p-4 pt-0 lg:grid-cols-2">
+  <Card.Root>
+    <Card.Header>
+      <Card.Title>Purchase order date</Card.Title>
+      <Card.Description>
+        Starts at today. Type an earlier day, or type a later one to see the
+        field turn red.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content class="flex flex-col gap-2">
+      <Field.Field data-invalid={poDateLate || undefined} class="max-w-56">
+        <Field.Label id="po-date-label">PO date</Field.Label>
+        <DateInput
+          id="po-date"
+          aria-labelledby="po-date-label"
+          bind:value={poDate}
+          maxValue={todayDate}
+        />
+        {#if poDateLate}
+          <Field.Error>Enter a date on or before today.</Field.Error>
+        {/if}
+      </Field.Field>
+      {@render stored(poDate)}
+    </Card.Content>
+  </Card.Root>
+
+  <Card.Root>
+    <Card.Header>
+      <Card.Title>Withdrawal slip form</Card.Title>
+      <Card.Description>
+        A real form. Press Save with the date empty to see the browser's own
+        message, then type a digit straight away. Reset empties the date like
+        the litres; Clear date empties only the date, even when half-typed.
+      </Card.Description>
+    </Card.Header>
+    <form class="contents" onsubmit={saveSlip}>
+      <Card.Content class="flex flex-col gap-2">
+        <Field.Group class="flex-row gap-4">
+          <Field.Field class="max-w-56">
+            <Field.Label id="slip-date-label">Date of withdrawal</Field.Label>
+            <DateInput
+              bind:this={slipField}
+              id="slip-date"
+              name="slip_date"
+              aria-labelledby="slip-date-label"
+              bind:value={slipDate}
+              maxValue={todayDate}
+              required
+            />
+          </Field.Field>
+          <Field.Field class="max-w-32">
+            <Field.Label for="slip-litres">Litres</Field.Label>
+            <Input id="slip-litres" name="litres" inputmode="decimal" required />
+          </Field.Field>
+        </Field.Group>
+        {@render stored(slipDate)}
+        <p class="text-xs text-muted-foreground tabular-nums">
+          Last sent: {slipSent || "nothing yet"}
+        </p>
+      </Card.Content>
+      <Card.Footer class="gap-2">
+        <Button type="submit">Save</Button>
+        <Button type="reset" variant="outline">Reset</Button>
+        <Button type="button" variant="ghost" onclick={() => slipField?.clear()}>
+          Clear date
+        </Button>
+      </Card.Footer>
+    </form>
+  </Card.Root>
+
+  <Card.Root>
+    <Card.Header>
+      <Card.Title>Delivery period</Card.Title>
+      <Card.Description>
+        Two dates side by side. The To calendar greys out the days that come
+        before From; typing one of those days turns the field red.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content class="flex flex-col gap-2">
+      <Field.Group class="flex-row gap-4">
+        <Field.Field class="max-w-56">
+          <Field.Label id="from-date-label">From</Field.Label>
+          <DateInput
+            id="from-date"
+            aria-labelledby="from-date-label"
+            bind:value={fromDate}
+          />
+        </Field.Field>
+        <Field.Field data-invalid={periodBackwards || undefined} class="max-w-56">
+          <Field.Label id="to-date-label">To</Field.Label>
+          <DateInput
+            id="to-date"
+            aria-labelledby="to-date-label"
+            bind:value={toDate}
+            minValue={fromDate}
+          />
+          {#if periodBackwards}
+            <Field.Error>Enter an end date on or after the start date.</Field.Error>
+          {/if}
+        </Field.Field>
+      </Field.Group>
+      <p class="text-xs text-muted-foreground tabular-nums">
+        Stored value: {fromDate ? fromDate.toString() : "empty"} to
+        {toDate ? toDate.toString() : "empty"}
+      </p>
+    </Card.Content>
+  </Card.Root>
+
+  <Card.Root>
+    <Card.Header>
+      <Card.Title>Date hired</Card.Title>
+      <Card.Description>
+        A date years back. Typing 03 15 2009 is quicker than paging the
+        calendar; the calendar also has month and year menus.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content class="flex flex-col gap-2">
+      <Field.Field data-invalid={hiredLate || undefined} class="max-w-56">
+        <Field.Label id="hired-date-label">Date hired</Field.Label>
+        <DateInput
+          id="hired-date"
+          aria-labelledby="hired-date-label"
+          bind:value={hiredDate}
+          minValue={new CalendarDate(1970, 1, 1)}
+          maxValue={todayDate}
+          captionLayout="dropdown"
+        />
+        {#if hiredLate}
+          <Field.Error>Enter a date on or before today.</Field.Error>
+        {/if}
+      </Field.Field>
+      {@render stored(hiredDate)}
+    </Card.Content>
+  </Card.Root>
+
+  <Card.Root>
+    <Card.Header>
+      <Card.Title>Locked date</Card.Title>
+      <Card.Description>
+        How the field looks when the page shows a date that cannot be changed.
+      </Card.Description>
+    </Card.Header>
+    <Card.Content class="flex flex-col gap-2">
+      <Field.Field data-disabled class="max-w-56">
+        <Field.Label id="locked-date-label">Date approved</Field.Label>
+        <DateInput
+          id="locked-date"
+          aria-labelledby="locked-date-label"
+          bind:value={lockedDate}
+          disabled
+        />
+      </Field.Field>
+      {@render stored(lockedDate)}
+    </Card.Content>
+  </Card.Root>
 </div>
