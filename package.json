@@ -46,6 +46,7 @@
   "dependencies": {
     "@clack/prompts": "^1.7.0",
     "@dagrejs/dagre": "^3.1.1",
+    "@number-flow/svelte": "^0.4.2",
     "@tanstack/svelte-table": "^9.1.2",
     "@xyflow/svelte": "^1.6.5",
     "drizzle-orm": "^0.45.2",
