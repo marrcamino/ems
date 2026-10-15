@@ -133,7 +133,7 @@ export class OrgUnitContext {
         this.formParentFk = this.orgUnitToEdit.parentFk?.toString() ?? "";
         this.formIsActive = this.orgUnitToEdit.status === "active";
         this.formOrgUnitName = this.orgUnitToEdit.orgUnitName;
-        this.formOrgUnitAbbr = this.orgUnitToEdit.abbr || "";
+        this.formOrgUnitAbbr = this.orgUnitToEdit.abbr;
 
         await this.fetchAssignedEmployees(this.orgUnitToEdit.orgUnitPk);
       });

@@ -40,7 +40,7 @@ const helper = createColumnHelper<typeof features, TreeNode>();
 export const columns = helper.columns([
   // Sorting happens inside each parent rather than across the whole list, so
   // a division never sorts its way out from under its office.
-  helper.accessor((row) => `${row.orgUnitName} ${row.abbr ?? ""}`.trim(), {
+  helper.accessor((row) => `${row.orgUnitName} ${row.abbr}`, {
     id: "name",
     header: "Name",
     sortFn: "alphanumeric",

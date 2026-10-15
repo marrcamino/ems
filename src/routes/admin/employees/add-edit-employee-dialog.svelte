@@ -345,7 +345,7 @@
                         value={String(unit.orgUnitPk)}
                         label={unit.orgUnitName}
                       >
-                        {unit.orgUnitName}{unit.abbr ? ` (${unit.abbr})` : ""}
+                        {unit.orgUnitName} ({unit.abbr})
                       </Select.Item>
                     {/each}
                   </Select.Group>
