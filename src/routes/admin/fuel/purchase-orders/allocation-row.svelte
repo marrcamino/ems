@@ -89,7 +89,7 @@
   }
 
   function unitLabel(unit: UnitOption) {
-    return unit.abbr ? `${unit.orgUnitName} (${unit.abbr})` : unit.orgUnitName;
+    return `${unit.orgUnitName} (${unit.abbr})`;
   }
 
   const chosenUnit = $derived(
@@ -114,7 +114,7 @@
       class="col-span-2 row-start-1 w-full @sm:col-span-1"
       aria-label="{fuelLabel} allocation: unit"
       aria-invalid={showErrors && !allocation.orgUnitFk ? true : undefined}
-      suffix={chosenUnit?.abbr && `(${chosenUnit.abbr})`}
+      suffix={chosenUnit && `(${chosenUnit.abbr})`}
     >
       {#if chosenUnit}
         {chosenUnit.orgUnitName}

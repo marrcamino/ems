@@ -4,7 +4,7 @@ import type { Fuel } from "./po-math";
 export type UnitOption = {
   orgUnitPk: number;
   orgUnitName: string;
-  abbr: string | null;
+  abbr: string;
   level: "office" | "division" | "section" | "unit";
 };
 
