@@ -49,7 +49,7 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.448 0.119 151.328);
+  --primary: oklch(0.5 0.15 151.22);
   --primary-foreground: oklch(0.982 0.018 155.826);
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
@@ -143,5 +143,23 @@
   &::-ms-reveal,
   &::-ms-clear {
     display: none;
+  }
+}
+
+/*
+  Hides the up and down arrows of an <input type="number">, for amounts that
+  are typed rather than stepped through, such as liters and pesos. The field
+  still takes only numbers, and the arrow keys still step it.
+  Firefox draws the arrows unless the field looks like a text field; Chrome,
+  Edge and Safari draw them as two pseudo-elements, which are hidden here.
+*/
+@utility no-spin-buttons {
+  -moz-appearance: textfield;
+  appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 }

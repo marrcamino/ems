@@ -9,9 +9,17 @@
     class: className,
     children,
     size = "default",
+    suffix,
     ...restProps
   }: WithoutChild<SelectPrimitive.TriggerProps> & {
     size?: "sm" | "default";
+    /**
+     * Text kept whole after the label. A long label is cut short before it,
+     * so the suffix stays readable:
+     *
+     *   suffix="(ICTU)"  →  Information and Communicati… (ICTU)
+     */
+    suffix?: string | null;
   } = $props();
 
   let showLock = $derived(restProps.disabled ? "" : null);
@@ -27,9 +35,16 @@
   )}
   {...restProps}
 >
-  <span class="min-w-0 flex-1 truncate text-left">
-    {@render children?.()}
-  </span>
+  {#if suffix}
+    <span class="flex min-w-0 flex-1 text-left">
+      <span class="truncate">{@render children?.()}</span>
+      <span class="shrink-0">&nbsp;{suffix}</span>
+    </span>
+  {:else}
+    <span class="min-w-0 flex-1 truncate text-left">
+      {@render children?.()}
+    </span>
+  {/if}
   <Lock
     data-lock={showLock}
     class="size-4 text-yellow-600/80 opacity-0 data-lock:opacity-100 pointer-events-none absolute right-1.5"
