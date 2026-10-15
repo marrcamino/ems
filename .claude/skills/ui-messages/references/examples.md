@@ -176,3 +176,21 @@ Action: View users
 ```
 
 Why: Problem → Cause → Resolution (title, then the two body sentences); "You can't" dropped, because it sounds like a missing permission when the role's state is the cause.
+
+The toast is right here because the action ran without a dialog. When the admin confirmed the action in a dialog, the refusal goes in that dialog instead (example 14).
+
+## 14. Blocked by a business rule, after a confirm dialog (error, alert in the dialog)
+
+**Before**
+> Toast: Toyota Hilux already has fuel recorded, so it cannot be deleted. Edit it and turn off "Active" instead.
+
+**After**
+```
+Type: error
+Component: Alert destructive inside the open delete dialog; the dialog stays open
+Title: Asset not deleted
+Body: Fuel is already recorded for this asset. Deactivate it instead.
+Action: Deactivate (replaces Delete) + Close
+```
+
+Why: the error appears where the admin clicked, and stays until they act; a toast disappears on its own, away from the dialog. The fix button replaces the action that would only fail again. "Turn off" is an idiom, and "Active" named a switch inside another dialog, while "Deactivate" is the label that the admin already sees in the row menu. See `src/routes/admin/fuel/assets/delete-asset-dialog.svelte`.
