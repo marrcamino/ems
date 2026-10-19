@@ -29,6 +29,15 @@
   let submitting = $state(false);
   const formAction = $derived(ctx.mode === "edit" ? "?/update" : "?/create");
 
+  /**
+   * The list change from a successful save, held back until the dialog has
+   * finished closing. The duplicate check, "Bring this person back" and the
+   * last-super-admin check all read the list while the form still holds what
+   * was typed, so updating it during the closing animation made them flash —
+   * a person just added showed up as their own duplicate.
+   */
+  let applyAfterClose: (() => void) | null = null;
+
   const LEVEL_ORDER: OrgUnit["level"][] = [
     "office",
     "division",
@@ -74,6 +83,8 @@
   onOpenChangeComplete={(open) => {
     if (open) return;
 
+    applyAfterClose?.();
+    applyAfterClose = null;
     ctx.resetFormInputValues();
   }}
 >
@@ -100,8 +111,10 @@
                 }
               | undefined;
 
-            if (data?.newRow) ctx.addEmployee(data.newRow);
-            if (data?.updatedRow) ctx.updateEmployee(data.updatedRow);
+            applyAfterClose = () => {
+              if (data?.newRow) ctx.addEmployee(data.newRow);
+              if (data?.updatedRow) ctx.updateEmployee(data.updatedRow);
+            };
 
             toast.success(
               data?.reinstated
