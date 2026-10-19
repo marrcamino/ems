@@ -10,6 +10,7 @@
   import { TriangleAlert } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
   import { getEmployeesContext, type EmployeeRow } from "./context.svelte.js";
+  import { POSITION_TITLE_MAX_LENGTH } from "./labels.js";
 
   const ctx = getEmployeesContext();
 
@@ -171,7 +172,7 @@
                 id="entryPositionTitle"
                 name="positionTitle"
                 bind:value={ctx.entryPositionTitle}
-                maxlength={100}
+                maxlength={POSITION_TITLE_MAX_LENGTH}
                 required
               />
             </div>

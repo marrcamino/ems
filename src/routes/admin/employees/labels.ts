@@ -8,6 +8,13 @@
  * read from here.
  */
 
+/**
+ * The longest position title the forms accept. It must equal the length of
+ * `position_title` on `employee` and `employee_history`, and of the old and
+ * new values on `employee_history_correction`.
+ */
+export const POSITION_TITLE_MAX_LENGTH = 225;
+
 export const SEX_VALUES = ["male", "female"] as const;
 
 export const SEX_LABELS: Record<(typeof SEX_VALUES)[number], string> = {

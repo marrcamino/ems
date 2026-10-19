@@ -9,8 +9,13 @@
   import * as Select from "$lib/components/ui/select/index.js";
   import { Switch } from "$lib/components/ui/switch/index.js";
   import type { OrgUnit } from "$lib/types";
+  import DateInput from "$lib/components/date-input.svelte";
+  import { Textarea } from "$lib/components/ui/textarea/index.js";
+  import AnimateContent from "@/components/transition/animate-content.svelte";
+  import HiddenInput from "@/components/ui/hidden-input.svelte";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
   import { capitalize } from "@/utils";
+  import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
   import { AlertCircle, Info, TriangleAlert } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
   import { getEmployeesContext, type EmployeeRow } from "./context.svelte.js";
@@ -18,6 +23,7 @@
   import {
     CIVIL_STATUS_LABELS,
     CIVIL_STATUS_VALUES,
+    POSITION_TITLE_MAX_LENGTH,
     SEX_LABELS,
     SEX_VALUES,
     TENURE_STATUS_LABELS,
@@ -28,6 +34,15 @@
 
   let submitting = $state(false);
   const formAction = $derived(ctx.mode === "edit" ? "?/update" : "?/create");
+
+  /**
+   * The list change from a successful save, held back until the dialog has
+   * finished closing. The duplicate check, "Bring this person back" and the
+   * last-super-admin check all read the list while the form still holds what
+   * was typed, so updating it during the closing animation made them flash —
+   * a person just added showed up as their own duplicate.
+   */
+  let applyAfterClose: (() => void) | null = null;
 
   const LEVEL_ORDER: OrgUnit["level"][] = [
     "office",
@@ -47,17 +62,36 @@
     ctx.formOrgUnitFk ? ctx.orgUnitByPk(Number(ctx.formOrgUnitFk)) : undefined,
   );
 
-  // A date input will happily accept a year in the far future, so the field
-  // is capped at today rather than left open.
-  const today = new Date().toISOString().slice(0, 10);
+  const POSITION_TITLE_MAX = POSITION_TITLE_MAX_LENGTH;
+  /** The count appears once the title is this close to the limit. */
+  const POSITION_TITLE_WARN_WITHIN = 25;
+  // Every character counts, spaces included, because `maxlength` counts them
+  // too. Leading, trailing and doubled spaces are trimmed only when the field
+  // loses focus, and the count is hidden by then.
+  const positionTitleLength = $derived(ctx.formPositionTitle.length);
+  let positionTitleFocused = $state(false);
+  const showPositionTitleCount = $derived(
+    positionTitleFocused &&
+      positionTitleLength > POSITION_TITLE_MAX - POSITION_TITLE_WARN_WITHIN,
+  );
 
+  // A birthday can't be in the future, so the field is capped at today.
+  const todayDate = today(getLocalTimeZone());
+
+  // The form keeps the birthday as yyyy-mm-dd text, which the duplicate
+  // check compares; the date field works with a date value.
+  const birthDate = $derived(
+    ctx.formBirthDate ? parseDate(ctx.formBirthDate) : undefined,
+  );
+
+  /**
+   * Missing fields don't turn the button off. Pressing it with one empty
+   * lets the browser stop the save, move to the first empty required field
+   * and say what is missing, which a grayed-out button never explains.
+   * The button is turned off only while a reason is already on screen.
+   */
   const canSubmit = $derived(
     !submitting &&
-      !!ctx.formFirstName.trim() &&
-      !!ctx.formLastName.trim() &&
-      !!ctx.formPositionTitle.trim() &&
-      !!ctx.formTenureStatus &&
-      !!ctx.formBirthDate &&
       // An exact match is never saved as a new or renamed person. Where the
       // matched person has left, the way forward is the button inside the
       // alert instead of this one.
@@ -74,12 +108,14 @@
   onOpenChangeComplete={(open) => {
     if (open) return;
 
+    applyAfterClose?.();
+    applyAfterClose = null;
     ctx.resetFormInputValues();
   }}
 >
-  <Dialog.Content class="px-0 sm:max-w-125">
+  <Dialog.Content class="px-0 sm:max-w-md max-w-md">
     <form
-      class="grid gap-4"
+      class="grid"
       method="POST"
       action={formAction}
       autocomplete="off"
@@ -100,8 +136,10 @@
                 }
               | undefined;
 
-            if (data?.newRow) ctx.addEmployee(data.newRow);
-            if (data?.updatedRow) ctx.updateEmployee(data.updatedRow);
+            applyAfterClose = () => {
+              if (data?.newRow) ctx.addEmployee(data.newRow);
+              if (data?.updatedRow) ctx.updateEmployee(data.updatedRow);
+            };
 
             toast.success(
               data?.reinstated
@@ -125,7 +163,7 @@
         };
       }}
     >
-      <Dialog.Header class="px-4">
+      <Dialog.Header class="px-4 mb-4">
         <Dialog.Title>
           {ctx.mode === "edit" ? "Edit employee" : "Add employee"}
         </Dialog.Title>
@@ -136,7 +174,10 @@
         </Dialog.Description>
       </Dialog.Header>
 
-      <ScrollArea viewPortClasses="px-4 size-full max-h-[calc(100vh-16rem)]">
+      <ScrollArea
+        viewPortClasses="px-4 size-full max-h-[calc(100vh-16rem)] pb-4 scroll-fade-y"
+        type="always"
+      >
         {#if ctx.employeeToEdit}
           <input
             type="hidden"
@@ -152,7 +193,6 @@
         <input type="hidden" name="orgUnitFk" value={ctx.formOrgUnitFk} />
         <input type="hidden" name="sex" value={ctx.formSex} />
         <input type="hidden" name="civilStatus" value={ctx.formCivilStatus} />
-        <input type="hidden" name="tenureStatus" value={ctx.formTenureStatus} />
 
         <div class="grid gap-4">
           <!--
@@ -176,9 +216,10 @@
                   and all of them will show the corrected name straight away.
                 {/if}
                 <br /><br />
-                If this person's name or position really changed, close this and
-                use "Add name or position change" instead, so older documents keep
-                the wording they were filed with.
+                If this person's name or position really changed, close this,
+                open "Name and position history" from their row menu, and use
+                "Add a change" there. Older documents then keep the wording they
+                were filed with.
               </Alert.Description>
             </Alert.Root>
           {/if}
@@ -215,7 +256,7 @@
             </Alert.Root>
           {/if}
 
-          <div class="grid gap-2 sm:grid-cols-2">
+          <div class="grid gap-4">
             <div class="grid gap-2">
               <Label for="firstName">First name</Label>
               <Input
@@ -273,29 +314,73 @@
             reads it.
           -->
           <div class="grid gap-2">
-            <Label for="birthDate">Birthday</Label>
-            <Input
+            <!-- DateInput is labelled by id: a label's `for` cannot reach it. -->
+            <Label id="birthDate-label">Birthday</Label>
+            <DateInput
               id="birthDate"
               name="birthDate"
-              type="date"
+              aria-labelledby="birthDate-label"
               required
-              max={today}
-              bind:value={ctx.formBirthDate}
+              maxValue={todayDate}
+              captionLayout="dropdown"
+              bind:value={
+                () => birthDate,
+                (date) => (ctx.formBirthDate = date?.toString() ?? "")
+              }
             />
           </div>
 
           <DuplicateAlert {submitting} />
 
           <div class="grid gap-2">
-            <Label for="positionTitle">Position title</Label>
-            <Input
-              id="positionTitle"
-              name="positionTitle"
-              required
-              maxlength={100}
-              placeholder="Administrative Officer III (Records Officer II)"
-              bind:value={ctx.formPositionTitle}
-            />
+            <Label for="positionTitle" class="gap-1 items-end">
+              Position title
+            </Label>
+            <!--
+              A textarea so a long title wraps instead of scrolling sideways out
+              of sight. It is still one line of text: Enter doesn't add a line
+              break, and a pasted one becomes a space, because a title is
+              printed on one line.
+            -->
+
+            <div>
+              <Textarea
+                id="positionTitle"
+                name="positionTitle"
+                required
+                maxlength={POSITION_TITLE_MAX}
+                autoTrim
+                placeholder="Administrative Officer III (Records Officer II)"
+                bind:value={ctx.formPositionTitle}
+                onfocus={() => (positionTitleFocused = true)}
+                onblur={() => (positionTitleFocused = false)}
+                onkeydown={(e) => {
+                  if (e.key === "Enter") e.preventDefault();
+                }}
+                oninput={(e) => {
+                  const text = e.currentTarget.value;
+                  if (text.includes("\n")) {
+                    ctx.formPositionTitle = text.replace(/\s*\n\s*/g, " ");
+                  }
+                }}
+              />
+
+              <div>
+                <!--
+                  Only while typing in the field and close to the limit. The
+                  spacing is inside the part that slides, so it opens smoothly.
+                -->
+                {#if showPositionTitleCount}
+                  <AnimateContent delay={0}>
+                    <p
+                      class="pt-1.5 text-right text-xs text-muted-foreground tabular-nums"
+                    >
+                      {positionTitleLength}/{POSITION_TITLE_MAX}
+                    </p>
+                  </AnimateContent>
+                {/if}
+              </div>
+            </div>
           </div>
 
           <div class="grid gap-2">
@@ -310,10 +395,6 @@
               placeholder="AO III (Records Officer II)"
               bind:value={ctx.formPositionShortForm}
             />
-            <p class="text-xs text-muted-foreground">
-              Used where space is limited — ID badges, tables, org charts, and
-              printouts.
-            </p>
           </div>
 
           <div class="grid gap-2">
@@ -363,6 +444,15 @@
                       ctx.formTenureStatus as keyof typeof TENURE_STATUS_LABELS
                     ]
                   : "Choose one"}
+                <!--
+                  A real input the browser can check, so saving with no
+                  type picked stops at this field with the browser's message.
+                -->
+                <HiddenInput
+                  name="tenureStatus"
+                  value={ctx.formTenureStatus}
+                  required
+                />
               </Select.Trigger>
               <Select.Content>
                 {#each TENURE_STATUS_VALUES as value (value)}
@@ -379,67 +469,67 @@
             staff list looking for these, and they do not need to sit on screen
             where anybody walking past can read them.
           -->
-          <div class="grid gap-3 rounded-lg border p-3">
-            <span class="text-xs font-medium text-muted-foreground uppercase">
-              Personal details (optional)
-            </span>
-
-            <div class="grid gap-2 sm:grid-cols-2">
-              <div class="grid gap-2">
-                <Label for="sex">Sex</Label>
-                <Select.Root
-                  type="single"
-                  value={ctx.formSex || "none"}
-                  onValueChange={(value) => {
-                    ctx.formSex = value === "none" ? "" : value;
-                  }}
-                >
-                  <Select.Trigger id="sex" class="w-full">
-                    {ctx.formSex
-                      ? SEX_LABELS[ctx.formSex as keyof typeof SEX_LABELS]
-                      : "Not set"}
-                  </Select.Trigger>
-                  <Select.Content>
-                    <Select.Item value="none" label="Not set">
-                      Not set
+          <div class="grid gap-2 sm:grid-cols-2">
+            <div class="grid gap-2">
+              <Label for="sex" class="gap-1">
+                Sex
+                <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
+              </Label>
+              <Select.Root
+                type="single"
+                value={ctx.formSex || "none"}
+                onValueChange={(value) => {
+                  ctx.formSex = value === "none" ? "" : value;
+                }}
+              >
+                <Select.Trigger id="sex" class="w-full">
+                  {ctx.formSex
+                    ? SEX_LABELS[ctx.formSex as keyof typeof SEX_LABELS]
+                    : "Not set"}
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Item value="none" label="Not set">
+                    Not set
+                  </Select.Item>
+                  {#each SEX_VALUES as value (value)}
+                    <Select.Item {value} label={SEX_LABELS[value]}>
+                      {SEX_LABELS[value]}
                     </Select.Item>
-                    {#each SEX_VALUES as value (value)}
-                      <Select.Item {value} label={SEX_LABELS[value]}>
-                        {SEX_LABELS[value]}
-                      </Select.Item>
-                    {/each}
-                  </Select.Content>
-                </Select.Root>
-              </div>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
+            </div>
 
-              <div class="grid gap-2">
-                <Label for="civilStatus">Civil status</Label>
-                <Select.Root
-                  type="single"
-                  value={ctx.formCivilStatus || "none"}
-                  onValueChange={(value) => {
-                    ctx.formCivilStatus = value === "none" ? "" : value;
-                  }}
-                >
-                  <Select.Trigger id="civilStatus" class="w-full">
-                    {ctx.formCivilStatus
-                      ? CIVIL_STATUS_LABELS[
-                          ctx.formCivilStatus as keyof typeof CIVIL_STATUS_LABELS
-                        ]
-                      : "Not set"}
-                  </Select.Trigger>
-                  <Select.Content>
-                    <Select.Item value="none" label="Not set">
-                      Not set
+            <div class="grid gap-2">
+              <Label for="civilStatus" class="gap-1">
+                Civil status
+                <span class="text-muted-foreground">&lpar;Optional&rpar;</span>
+              </Label>
+              <Select.Root
+                type="single"
+                value={ctx.formCivilStatus || "none"}
+                onValueChange={(value) => {
+                  ctx.formCivilStatus = value === "none" ? "" : value;
+                }}
+              >
+                <Select.Trigger id="civilStatus" class="w-full">
+                  {ctx.formCivilStatus
+                    ? CIVIL_STATUS_LABELS[
+                        ctx.formCivilStatus as keyof typeof CIVIL_STATUS_LABELS
+                      ]
+                    : "Not set"}
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Item value="none" label="Not set">
+                    Not set
+                  </Select.Item>
+                  {#each CIVIL_STATUS_VALUES as value (value)}
+                    <Select.Item {value} label={CIVIL_STATUS_LABELS[value]}>
+                      {CIVIL_STATUS_LABELS[value]}
                     </Select.Item>
-                    {#each CIVIL_STATUS_VALUES as value (value)}
-                      <Select.Item {value} label={CIVIL_STATUS_LABELS[value]}>
-                        {CIVIL_STATUS_LABELS[value]}
-                      </Select.Item>
-                    {/each}
-                  </Select.Content>
-                </Select.Root>
-              </div>
+                  {/each}
+                </Select.Content>
+              </Select.Root>
             </div>
           </div>
         </div>

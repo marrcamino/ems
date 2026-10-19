@@ -30,6 +30,7 @@ import {
 import {
   CIVIL_STATUS_VALUES,
   EMPLOYMENT_STATUS_VALUES,
+  POSITION_TITLE_MAX_LENGTH,
   SEX_VALUES,
   TENURE_STATUS_VALUES,
   type TenureStatus,
@@ -154,10 +155,13 @@ function validatePrintedForm(input: PrintedInput): string | null {
   if (
     input.firstName.length > NAME_MAX_LENGTH ||
     input.lastName.length > NAME_MAX_LENGTH ||
-    (input.middleName?.length ?? 0) > NAME_MAX_LENGTH ||
-    input.positionTitle.length > NAME_MAX_LENGTH
+    (input.middleName?.length ?? 0) > NAME_MAX_LENGTH
   ) {
-    return `Names and the position can be at most ${NAME_MAX_LENGTH} characters.`;
+    return `Names can be at most ${NAME_MAX_LENGTH} characters.`;
+  }
+
+  if (input.positionTitle.length > POSITION_TITLE_MAX_LENGTH) {
+    return `The position can be at most ${POSITION_TITLE_MAX_LENGTH} characters.`;
   }
 
   if ((input.suffix?.length ?? 0) > SUFFIX_MAX_LENGTH) {
@@ -183,10 +187,13 @@ function validateEmployeeForm(input: EmployeeInput): string | null {
   if (
     input.firstName.length > NAME_MAX_LENGTH ||
     input.lastName.length > NAME_MAX_LENGTH ||
-    (input.middleName?.length ?? 0) > NAME_MAX_LENGTH ||
-    input.positionTitle.length > NAME_MAX_LENGTH
+    (input.middleName?.length ?? 0) > NAME_MAX_LENGTH
   ) {
-    return `Names and the position can be at most ${NAME_MAX_LENGTH} characters.`;
+    return `Names can be at most ${NAME_MAX_LENGTH} characters.`;
+  }
+
+  if (input.positionTitle.length > POSITION_TITLE_MAX_LENGTH) {
+    return `The position can be at most ${POSITION_TITLE_MAX_LENGTH} characters.`;
   }
 
   if ((input.suffix?.length ?? 0) > SUFFIX_MAX_LENGTH) {

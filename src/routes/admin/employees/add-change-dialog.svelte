@@ -14,6 +14,7 @@
     getEmployeesContext,
     type EmployeeRow,
   } from "./context.svelte";
+  import { POSITION_TITLE_MAX_LENGTH } from "./labels.js";
 
   const ctx = getEmployeesContext();
 
@@ -169,7 +170,7 @@
                 id="changePositionTitle"
                 name="positionTitle"
                 bind:value={ctx.changePositionTitle}
-                maxlength={100}
+                maxlength={POSITION_TITLE_MAX_LENGTH}
                 required
               />
             </div>

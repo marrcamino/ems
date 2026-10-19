@@ -25,6 +25,7 @@ import { ROLE_TEMPLATES } from "../src/lib/server/role-templates";
 // for each. Read from that file rather than listed again here, so the choice
 // offered on the server can never drift from the choice offered in the app.
 import {
+  POSITION_TITLE_MAX_LENGTH,
   TENURE_STATUS_LABELS,
   TENURE_STATUS_VALUES,
   type TenureStatus,
@@ -266,7 +267,7 @@ async function main() {
     );
     const positionTitle = await askRequiredText(
       "Position or designation",
-      NAME_MAX_LENGTH,
+      POSITION_TITLE_MAX_LENGTH,
     );
 
     const tenureStatus = bailIfCancelled(
