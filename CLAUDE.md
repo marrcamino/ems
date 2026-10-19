@@ -1,28 +1,34 @@
-- When reporting information to me, be concise and sacrifice grammar for the sake of concision.
-- When a reply covers more than one thing — more than one fix, finding, suggestion, or option — number the items. Do not run them together in a paragraph. Prose is fine when there is genuinely only one point. The numbers let me reply to one item at a time and say which one I disagree with.
+# EMS — Environmental Management System for DENR-PENRO Dinagat Islands
 
-# EMS Project — Claude Context
+SvelteKit + TypeScript (Svelte 5 runes), Tailwind, shadcn-svelte, Drizzle ORM + MySQL 8.4, adapter-node; fully offline on a LAN server.
+Run `npm run dev`. Check `npm run check`. Test `npm run test:e2e` (Playwright, `e2e/`).
 
-Never access, search, or modify files outside the project directory.
+## Where everything lives
+| Area | Home |
+|---|---|
+| Module status | `cards/`: one card per module |
+| Rules, conventions, card format | `_meta/schema.md` |
+| Code connections / dependencies | `graphify-out/` (`GRAPH_REPORT.md`, `graph.json`) |
+| Decisions & history | `.claude/docs/features/` (one per feature), `.claude/docs/decisions/` |
+| Scope, users, deployment | `.claude/docs/project-brief.md` |
+| Locked how-tos (RBAC, git, UI messages…) | `.claude/skills/` |
+| Source | `src/` (DB schema in `src/lib/server/db/schema/`), `scripts/` |
+| Retired content and backups | `tmp/archive/` |
 
-Stack: SvelteKit + TypeScript (Svelte 5 runes), Tailwind, shadcn-svelte,
-Drizzle ORM + MySQL 8.4, adapter-node. Fully offline on a LAN server —
-no CDN assets, no external auth providers, no network calls at runtime.
+## Routing
+| Task | Go to |
+|---|---|
+| Status / next step of a module | `cards/<module>.md` first. Open more only if the card isn't enough. |
+| How X connects, what uses X, what breaks if X changes | Graphify first (`graphify query "..."`, `graphify path "A" "B"`, `graphify explain "X"`, `graphify affected "X"`, or `GRAPH_REPORT.md`), **before** broad grep/search |
+| Writing or changing code | `_meta/schema.md` + the module's card |
+| Any query, migration or table change | read `src/lib/server/db/schema/index.ts` fresh first |
+| Commit, merge or branch switch | `.claude/skills/git-feature-flow/SKILL.md` first |
+| Recording a decision | the feature doc's topic, or a new file in `.claude/docs/decisions/`; link it from the card |
+| End of a work session | update the card's `status`, `next`, `updated` |
 
-## Conventions
-
-- Files and Svelte components: `kebab-case`.
-- Commits: conventional prefix, lowercase first letter after the prefix.
-- Untracked/new files are `feat:`, not `refactor:`.
-
-## Before acting
-
-- Do not use the graphify knowledge graph unless I ask for it by name. A question about this codebase is an ordinary question: answer it by reading the files. This holds even though `graphify-out/` exists in this repo and the graphify skill invites you to use it.
-- Schema changes reach the database through `drizzle-kit push`. When a change needs it, ask me — either ask me to run it, or ask whether you should run it yourself. Do not run it unannounced.
-
-## Read only when relevant
-
-- `src/lib/server/db/schema/index.ts` — before writing any query, migration, or table change. Read it fresh; never work from a remembered copy.
-- `.claude/docs/project-brief.md` — only for questions about scope, users, deployment, or an item listed as still open.
-- `.claude/docs/features/signatory.md` — before touching signatory tables, routes, or approval flow. Contains locked decisions and open questions.
-- `.claude/skills/git-feature-flow/SKILL.md` — before any commit, merge, or branch switch. Defines where a change belongs and how feature work reaches main; never improvise the git steps.
+## Rules
+- Never access, search, or modify files outside the project directory.
+- Never run `drizzle-kit push` unannounced: ask me to run it, or ask whether you should.
+- When a reply covers more than one thing, number the items, so I can reply to one at a time.
+- Keep this file short. New info goes in a card or `_meta/`, plus at most one line here.
+- One home per fact: link, don't copy.

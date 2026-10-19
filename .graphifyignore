@@ -1,0 +1,19 @@
+# Keep the graph to the app's code and the feature documents.
+# .gitignore is read too, so node_modules, build output and tmp/ are already out.
+
+# Third-party skill docs (and their copies), not part of the app
+.claude/skills/
+.agents/
+
+# Routing and status files: they point at things, they are not knowledge
+CLAUDE.md
+cards/
+_meta/
+
+graphify-out/
+static/
+.vscode/
+skills-lock.json
+
+# Logos and icons: no relationships to extract
+*.png
