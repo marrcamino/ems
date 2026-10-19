@@ -12,7 +12,7 @@
  * is freely grantable and says nothing about super-admin status.
  *
  * Shared by create-admin.ts and reset-admin-password.ts, which both need to
- * know which role holds the key and which active users sit under it.
+ * know which role holds the key and which users under it can still sign in.
  */
 
 import type mysql from "mysql2/promise";
@@ -48,7 +48,15 @@ export async function findSuperAdminRolePk(
   return rows.length > 0 ? (rows[0].role_pk as number) : null;
 }
 
-/** Active users whose role holds `admin:manage_roles`. */
+/**
+ * Users whose role holds `admin:manage_roles` and who can actually sign in:
+ * an active account, and still employed here.
+ *
+ * The employee half matters. Somebody marked as no longer employed keeps an
+ * active account but is refused at sign-in, so counting them would make
+ * reset-admin-password offer a password nobody can use, and make create-admin
+ * refuse to set up a replacement while nobody can get in.
+ */
 export async function getActiveSuperAdmins(
   connection: mysql.Connection,
 ): Promise<SuperAdmin[]> {
@@ -56,10 +64,12 @@ export async function getActiveSuperAdmins(
     `
     SELECT DISTINCT u.user_pk, u.username
     FROM user u
+    JOIN employee e ON e.employee_pk = u.employee_fk
     JOIN role r ON u.role_fk = r.role_pk
     JOIN role_permission rp ON rp.role_fk = r.role_pk
     JOIN permission p ON p.permission_pk = rp.permission_fk
     WHERE u.account_status = 'active'
+      AND e.employment_status = 'active'
       AND p.\`key\` = ?
     ORDER BY u.username
     `,

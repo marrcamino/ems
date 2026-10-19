@@ -83,7 +83,7 @@
     <DropdownMenu.Content align="end" class="w-full">
       <DropdownMenu.Item
         onclick={() => {
-          ctx.userToEdit = user;
+          ctx.startEditing(user);
           ctx.addEditDialog = true;
         }}
       >
