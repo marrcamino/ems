@@ -83,6 +83,11 @@ export const reportPages = [
         permission: "admin:view_fuel",
       },
       {
+        name: "Purchase Orders",
+        url: "/admin/fuel/purchase-orders",
+        permission: "admin:view_purchase_orders",
+      },
+      {
         name: "Assets",
         url: "/admin/fuel/assets",
         permission: "admin:view_assets",
