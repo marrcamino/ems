@@ -23,6 +23,7 @@
   import {
     CIVIL_STATUS_LABELS,
     CIVIL_STATUS_VALUES,
+    POSITION_TITLE_MAX_LENGTH,
     SEX_LABELS,
     SEX_VALUES,
     TENURE_STATUS_LABELS,
@@ -61,10 +62,9 @@
     ctx.formOrgUnitFk ? ctx.orgUnitByPk(Number(ctx.formOrgUnitFk)) : undefined,
   );
 
-  /** The `position_title` column holds at most 100 characters. */
-  const POSITION_TITLE_MAX = 100;
+  const POSITION_TITLE_MAX = POSITION_TITLE_MAX_LENGTH;
   /** The count appears once the title is this close to the limit. */
-  const POSITION_TITLE_WARN_WITHIN = 20;
+  const POSITION_TITLE_WARN_WITHIN = 25;
   // Every character counts, spaces included, because `maxlength` counts them
   // too. Leading, trailing and doubled spaces are trimmed only when the field
   // loses focus, and the count is hidden by then.

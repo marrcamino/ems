@@ -24,7 +24,10 @@ export const employee = mysqlTable("employee", {
   // Required: the office hires into a named position, so a person on file
   // without one is not a real case. Contract of Service and Job Order staff
   // hold no plantilla item but still have a position or a designation.
-  positionTitle: varchar("position_title", { length: 100 }).notNull(),
+  // 225 characters, so a long title with a designation in brackets fits.
+  // Keep it equal to POSITION_TITLE_MAX_LENGTH in
+  // `src/routes/admin/employees/labels.ts`, which the forms check against.
+  positionTitle: varchar("position_title", { length: 225 }).notNull(),
   // The short form printed on documents, for example "AO-I/Supply Officer"
   // for "Administrative Officer I (Supply Officer)". The boxes on the paper
   // forms are too small for a full title. Nullable because it has to be

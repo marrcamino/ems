@@ -48,11 +48,12 @@ export const employeeHistoryCorrection = mysqlTable(
       "position_title",
       "position_short_form",
     ]).notNull(),
-    // 100 characters covers the longest of the six, `position_title`. Both are
+    // 225 characters covers the longest of the six, `position_title`, and must
+    // grow with it, or correcting a long title fails to log. Both are
     // nullable because a middle name, a suffix and a short form are all allowed
     // to be empty, so a repair can add one or take one away.
-    oldValue: varchar("old_value", { length: 100 }),
-    newValue: varchar("new_value", { length: 100 }),
+    oldValue: varchar("old_value", { length: 225 }),
+    newValue: varchar("new_value", { length: 225 }),
     // Who did it — a semantic foreign key pointing at `user_pk`, named for its
     // meaning rather than for the table it references, the same as
     // `employee_history.created_by_fk`.

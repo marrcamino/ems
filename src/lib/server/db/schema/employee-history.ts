@@ -40,7 +40,8 @@ export const employeeHistory = mysqlTable("employee_history", {
   lastName: varchar("last_name", { length: 100 }).notNull(),
   suffix: varchar("suffix", { length: 20 }),
   // The full title, for example "Administrative Officer I (Supply Officer)".
-  positionTitle: varchar("position_title", { length: 100 }).notNull(),
+  // The same length as `employee.position_title`.
+  positionTitle: varchar("position_title", { length: 225 }).notNull(),
   // What is actually printed, for example "AO-I/Supply Officer". Nullable
   // because nobody has typed one for the employees already on file, and no
   // rule turns the full title into the short form reliably. A document that
