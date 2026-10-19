@@ -1,5 +1,5 @@
 <svelte:head>
-  <title>Dashbaord - EMS</title>
+  <title>Dashboard - EMS</title>
 </svelte:head>
 
 Admin
