@@ -30,7 +30,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
   create: async ({ request, locals }) => {
     if (!can(locals.permissions, "admin:manage_org_units")) {
-      throw fail(403, "You do not have permission to manage this page.");
+      return fail(403, {
+        error: "You do not have permission to manage this page.",
+      });
     }
 
     const form = await request.formData();
@@ -73,7 +75,9 @@ export const actions: Actions = {
 
   update: async ({ request, locals }) => {
     if (!can(locals.permissions, "admin:manage_org_units")) {
-      throw fail(403, "You do not have permission to manage this page.");
+      return fail(403, {
+        error: "You do not have permission to manage this page.",
+      });
     }
 
     async function getUpdatedRow(orgUnitPk: number) {
@@ -156,7 +160,9 @@ export const actions: Actions = {
 
   delete: async ({ request, locals }) => {
     if (!can(locals.permissions, "admin:manage_org_units")) {
-      throw fail(403, "You do not have permission to manage this page.");
+      return fail(403, {
+        error: "You do not have permission to manage this page.",
+      });
     }
 
     const form = await request.formData();
@@ -207,7 +213,9 @@ export const actions: Actions = {
   // a move that the chart refuses can not be forced through by hand either.
   move: async ({ request, locals }) => {
     if (!can(locals.permissions, "admin:manage_org_units")) {
-      throw fail(403, "You do not have permission to manage this page.");
+      return fail(403, {
+        error: "You do not have permission to manage this page.",
+      });
     }
 
     const form = await request.formData();
