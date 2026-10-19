@@ -4,7 +4,11 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { LOCALE } from "$lib/utils/format-number.js";
   import { cn } from "$lib/utils/index.js";
-  import type { DateValue } from "@internationalized/date";
+  import {
+    DateFormatter,
+    getLocalTimeZone,
+    type DateValue,
+  } from "@internationalized/date";
   import CalendarIcon from "@lucide/svelte/icons/calendar";
   import { DateField } from "bits-ui";
   import { untrack } from "svelte";
@@ -23,11 +27,12 @@
    * `value` is a CalendarDate, or undefined until all three parts are
    * filled in. Emptying one part leaves the other two as they were. A
    * typed date outside minValue and maxValue is kept and the field turns
-   * red; the page decides what message to show.
+   * red.
    *
    * Inside a form it acts like a normal input. With `required`, saving
    * with no date stops the form and the browser shows its own message on
-   * the field. Resetting the form puts the field back to the date that it
+   * the field. A date outside minValue and maxValue stops it the same way,
+   * with a message that names the limit. Resetting the form puts the field back to the date that it
    * started with. To empty the field from code, call `clear()`; setting
    * `value` to undefined misses the leftover parts of a half-typed date.
    *
@@ -164,6 +169,27 @@
       ((!!minValue && value.compare(minValue) < 0) ||
         (!!maxValue && value.compare(maxValue) > 0)),
   );
+
+  const longDate = new DateFormatter(LOCALE, { dateStyle: "long" });
+  const spell = (date: DateValue) =>
+    longDate.format(date.toDate(getLocalTimeZone()));
+
+  // A date outside minValue and maxValue also stops the form, the same as a
+  // missing required date, and the browser puts this message on the field.
+  const rangeMessage = $derived.by(() => {
+    if (!value) return "";
+    if (maxValue && value.compare(maxValue) > 0) {
+      return `Choose a date on or before ${spell(maxValue)}.`;
+    }
+    if (minValue && value.compare(minValue) < 0) {
+      return `Choose a date on or after ${spell(minValue)}.`;
+    }
+    return "";
+  });
+
+  $effect(() => {
+    standIn?.setCustomValidity(rangeMessage);
+  });
 </script>
 
 <Popover.Root bind:open>
