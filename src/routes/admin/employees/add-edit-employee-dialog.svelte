@@ -216,9 +216,10 @@
                   and all of them will show the corrected name straight away.
                 {/if}
                 <br /><br />
-                If this person's name or position really changed, close this and
-                use "Add name or position change" instead, so older documents keep
-                the wording they were filed with.
+                If this person's name or position really changed, close this,
+                open "Name and position history" from their row menu, and use
+                "Add a change" there. Older documents then keep the wording they
+                were filed with.
               </Alert.Description>
             </Alert.Root>
           {/if}

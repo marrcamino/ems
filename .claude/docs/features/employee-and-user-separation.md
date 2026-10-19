@@ -1653,8 +1653,9 @@ The two jobs:
    hidden, because silence would read as "nothing to think about here" when the
    choice still matters.
 2. **Point at the other action.** If the name genuinely changed, this dialog is
-   the wrong place, so the warning names the **Add name or position change**
-   action.
+   the wrong place, so the warning says where the other action is: open
+   **Name and position history** from the row menu and use **Add a change**
+   there.
 
 **The count is zero today, and the code must be honest about that.** No document
 table exists, so nothing points at a version yet. The count comes from one small
@@ -1766,13 +1767,23 @@ The entries are fetched when the panel opens rather than loaded with the page.
 Almost nobody opens it, and loading every person's whole history in order to
 draw a table of names would read far more than the page needs.
 
-### Still to decide
+### Decision — the action is "Add a change", inside the history panel
 
-**What the new action is called.** It was built as **"Add name or position
-change"**, which is my wording rather than the user's *"Add name and position
-history"*. Theirs matches the panel's title; mine names what the action
-produces, and the user has not objected to it since it appeared on screen.
-Renaming it is one line in `employee-actions-cell.svelte`.
+Decided by the user on 19 October 2026. Since commit `68796d0` (7 September)
+the action is no longer in the row menu: it is the **Add a change** button at
+the top of the **Name and position history** panel, so whoever records a change
+reads the entries already there first. The button keeps that short label,
+because the panel around it already says what kind of change is meant. The
+dialog it opens keeps its title, **Add name or position change**.
+
+The warning in the employee editor used to name "Add name or position change",
+which no button on screen carries. It now says where to go: open "Name and
+position history" from the row menu and use "Add a change" there.
+
+The names considered before: **"Add name or position change"** (Claude's, as
+first built in the row menu) and the user's *"Add name and position history"*.
+
+### Still to decide
 
 One gap found while drawing the flowchart is still open: **what the admin is
 shown if the save itself fails.** Nothing lands, which is correct, but no
