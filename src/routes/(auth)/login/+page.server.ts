@@ -25,7 +25,22 @@ import type { Actions, PageServerLoad } from "./$types";
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 
-export const load: PageServerLoad = ({ locals, url }) => {
+export const load: PageServerLoad = ({ locals, url, request }) => {
+  // A form sent without its JavaScript — while the server was down, say —
+  // goes to the action's address, `/login?/login`, and the browser keeps it.
+  // Opening that address again is a plain visit, so it is sent on to the same
+  // page without the action part. A real form post is left alone: without
+  // JavaScript the page is drawn from that post, and its error message would
+  // be lost in a redirect.
+  const actionKeys = [...url.searchParams.keys()].filter((key) =>
+    key.startsWith("/"),
+  );
+  if (request.method === "GET" && actionKeys.length > 0) {
+    const clean = new URL(url);
+    for (const key of actionKeys) clean.searchParams.delete(key);
+    throw redirect(303, clean.pathname + clean.search);
+  }
+
   const requested = url.searchParams.get("redirectTo");
 
   if (locals.user) {
