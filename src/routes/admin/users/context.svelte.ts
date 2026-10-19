@@ -2,7 +2,6 @@ import { roleKindOf, type RoleKind } from "$lib/rbac/permission-tree";
 import type { PermissionKey, PermissionRow } from "$lib/server/permissions";
 import type { Employee, OrgUnit, Role, User } from "$lib/types";
 import { fullName, makeContext } from "@/utils";
-import { untrack } from "svelte";
 
 /**
  * The person half of a row, as it comes down from the load: the fields of the
@@ -153,15 +152,22 @@ export class UsersContext {
     return this.roles.find((r) => r.rolePk === rolePk);
   }
 
-  /** How many accounts can manage roles right now and are switched on. */
+  /**
+   * Whether this login can manage roles and could actually sign in to do it:
+   * on the role, switched on, and still employed. Somebody who has left keeps
+   * an active account but is refused at sign-in, so they don't count.
+   */
+  canSignInAsSuperAdmin(user: UserRow): boolean {
+    return (
+      this.isSuperAdminRole(user.roleFk) &&
+      user.accountStatus === "active" &&
+      user.employee.employmentStatus === "active"
+    );
+  }
+
+  /** How many logins can manage roles and could sign in right now. */
   activeSuperAdminCount = $derived(
-    this.superAdminRolePk === null
-      ? 0
-      : this.users.filter(
-          (u) =>
-            u.roleFk === this.superAdminRolePk &&
-            u.accountStatus === "active",
-        ).length,
+    this.users.filter((u) => this.canSignInAsSuperAdmin(u)).length,
   );
 
   /**
@@ -170,10 +176,7 @@ export class UsersContext {
    * say so before the button is pressed rather than after.
    */
   impactOfLeaving(user: UserRow, holdsAfter: boolean): SuperAdminImpact {
-    const holdsNow =
-      this.isSuperAdminRole(user.roleFk) && user.accountStatus === "active";
-
-    if (!holdsNow || holdsAfter) return "none";
+    if (!this.canSignInAsSuperAdmin(user) || holdsAfter) return "none";
     if (this.activeSuperAdminCount <= 1) return "block";
     return this.activeSuperAdminCount === 2 ? "warn" : "none";
   }
@@ -235,19 +238,18 @@ export class UsersContext {
       : undefined,
   );
 
-  constructor() {
-    $effect(() => {
-      this.userToEdit;
-
-      untrack(() => {
-        if (!this.userToEdit) return;
-
-        this.formEmployeeFk = String(this.userToEdit.employeeFk);
-        this.formUsername = this.userToEdit.username;
-        this.formRoleFk = String(this.userToEdit.roleFk);
-        this.formIsActive = this.userToEdit.accountStatus === "active";
-      });
-    });
+  /**
+   * Picks the account to edit and fills the form from it in the same step.
+   * Filling it later, from an effect, left one render where the form still
+   * held its empty defaults — long enough for the dialog to read an empty
+   * role as "moving off the super-admin role" and flash that notice.
+   */
+  startEditing(user: UserRow) {
+    this.userToEdit = user;
+    this.formEmployeeFk = String(user.employeeFk);
+    this.formUsername = user.username;
+    this.formRoleFk = String(user.roleFk);
+    this.formIsActive = user.accountStatus === "active";
   }
 
   resetFormInputValues() {

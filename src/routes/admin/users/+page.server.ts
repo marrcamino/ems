@@ -16,6 +16,7 @@ import {
   user,
 } from "$lib/server/db/schema";
 import { PERMISSIONS, type PermissionKey } from "$lib/server/permissions";
+import { listSuperAdminsWhoCanSignIn } from "$lib/server/super-admin";
 import { getPasswordStrengthError } from "$lib/validation/password";
 import { error, fail } from "@sveltejs/kit";
 import { and, asc, eq, ne } from "drizzle-orm";
@@ -46,26 +47,17 @@ async function getSuperAdminRolePk(): Promise<number | null> {
 }
 
 /**
- * How many active users can currently manage roles. The rule that this must
- * never reach zero is checked against this count before any change that would
- * move somebody out of that group.
+ * Whether this account is the only one left that can manage roles and still
+ * sign in. The rule that this group must never be emptied is checked against
+ * it before any change that would move somebody out.
+ *
+ * Counted by who can sign in, not by account status alone: somebody marked as
+ * no longer employed keeps an active account but is refused at sign-in, so
+ * counting them would let the last real super admin be switched off.
  */
-async function countActiveSuperAdminUsers(
-  superAdminRolePk: number | null,
-): Promise<number> {
-  if (superAdminRolePk === null) return 0;
-
-  const holders = await db
-    .select({ userPk: user.userPk })
-    .from(user)
-    .where(
-      and(
-        eq(user.roleFk, superAdminRolePk),
-        eq(user.accountStatus, "active"),
-      ),
-    );
-
-  return holders.length;
+async function isLastSuperAdminWhoCanSignIn(userPk: number): Promise<boolean> {
+  const holders = await listSuperAdminsWhoCanSignIn();
+  return holders.length === 1 && holders[0].userPk === userPk;
 }
 
 /**
@@ -483,8 +475,7 @@ export const actions: Actions = {
       input.roleFk === superAdminRolePk && input.accountStatus === "active";
 
     if (holdsNow && !holdsAfter) {
-      const holders = await countActiveSuperAdminUsers(superAdminRolePk);
-      if (holders <= 1) {
+      if (await isLastSuperAdminWhoCanSignIn(userPk)) {
         return fail(409, {
           error:
             "This is the last active account that can manage roles. Set up another one first, or nobody will be able to.",
@@ -688,8 +679,7 @@ export const actions: Actions = {
       existing.roleFk === superAdminRolePk &&
       existing.accountStatus === "active"
     ) {
-      const holders = await countActiveSuperAdminUsers(superAdminRolePk);
-      if (holders <= 1) {
+      if (await isLastSuperAdminWhoCanSignIn(userPk)) {
         return fail(409, {
           error:
             "This is the last active account that can manage roles. Set up another one first, or nobody will be able to.",

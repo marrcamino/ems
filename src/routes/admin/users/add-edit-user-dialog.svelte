@@ -10,11 +10,17 @@
   import * as Select from "$lib/components/ui/select/index.js";
   import { Switch } from "$lib/components/ui/switch/index.js";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
+  import AnimateContent from "@/components/transition/animate-content.svelte";
+  import { easeOut } from "$lib/utils/animation.js";
   import { fullName } from "@/utils";
   import { getPasswordStrengthError } from "$lib/validation/password";
   import { AlertCircle, Info, Lock, ShieldCheck } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
-  import { getUsersContext, type UserRow } from "./context.svelte.js";
+  import {
+    getUsersContext,
+    type SuperAdminImpact,
+    type UserRow,
+  } from "./context.svelte.js";
   import { roleAreaLabels } from "./filters.js";
 
   const ctx = getUsersContext();
@@ -78,14 +84,54 @@
    * roles. The server refuses the last one leaving outright; saying so here
    * means the admin finds out before pressing the button rather than after.
    */
-  const superAdminImpact = $derived(
-    ctx.mode === "edit" && ctx.userToEdit
-      ? ctx.impactOfLeaving(
-          ctx.userToEdit,
-          ctx.formRoleFk === String(ctx.superAdminRolePk) && ctx.formIsActive,
-        )
-      : "none",
-  );
+  /** How long a super-admin notice takes to slide open. */
+  const NOTICE_SLIDE_MS = 300;
+
+  let scrollViewport: HTMLElement | null = $state(null);
+
+  /**
+   * The notices open at the bottom of the scroll area, while the switch that
+   * usually triggers them sits in the footer — an admin scrolled to the top
+   * would see Save turn off with no reason in view. So the scroll follows the
+   * notice down as it opens. It eases toward the bottom frame by frame rather
+   * than scrolling once, because the notice is still growing when it starts
+   * and a single scroll would stop short of it.
+   */
+  function revealNotice() {
+    const viewport = scrollViewport;
+    if (!viewport) return;
+
+    const from = viewport.scrollTop;
+    const began = performance.now();
+
+    const step = (now: number) => {
+      const progress = Math.min((now - began) / NOTICE_SLIDE_MS, 1);
+      const bottom = viewport.scrollHeight - viewport.clientHeight;
+      viewport.scrollTop = from + (bottom - from) * easeOut(progress);
+      if (progress < 1) requestAnimationFrame(step);
+    };
+
+    requestAnimationFrame(step);
+  }
+
+  let impactOnScreen: SuperAdminImpact = "none";
+  const superAdminImpact = $derived.by(() => {
+    // A successful save updates the list in the same step that closes the
+    // dialog, while the form still describes the old row. Recomputing then
+    // would swap or drop the notice during the closing animation, so it keeps
+    // whatever was on screen until the dialog is gone.
+    if (!ctx.addEditDialog) return impactOnScreen;
+
+    impactOnScreen =
+      ctx.mode === "edit" && ctx.userToEdit
+        ? ctx.impactOfLeaving(
+            ctx.userToEdit,
+            ctx.formRoleFk === String(ctx.superAdminRolePk) &&
+              ctx.formIsActive,
+          )
+        : "none";
+    return impactOnScreen;
+  });
 
   const passwordProblem = $derived(
     ctx.formSetPasswordManually && ctx.formPassword
@@ -168,7 +214,10 @@
         </Dialog.Description>
       </Dialog.Header>
 
-      <ScrollArea viewPortClasses="px-4 size-full max-h-[calc(100vh-16rem)]">
+      <ScrollArea
+        bind:viewportRef={scrollViewport}
+        viewPortClasses="px-4 size-full max-h-[calc(100vh-16rem)]"
+      >
         {#if ctx.userToEdit}
           <input type="hidden" name="userPk" value={ctx.userToEdit.userPk} />
         {/if}
@@ -188,30 +237,6 @@
               <Alert.Description>
                 They cannot sign in, whatever this account says. To let them
                 back in, mark them as employed again on the Employees page.
-              </Alert.Description>
-            </Alert.Root>
-          {/if}
-
-          {#if superAdminImpact === "block"}
-            <Alert.Root variant="danger">
-              <AlertCircle />
-              <Alert.Title
-                >This is the last account that can manage roles</Alert.Title
-              >
-              <Alert.Description>
-                Moving this person to another role, or switching their account
-                off, would leave nobody able to manage roles. Set up another
-                account on this role first.
-              </Alert.Description>
-            </Alert.Root>
-          {:else if superAdminImpact === "warn"}
-            <Alert.Root variant="info">
-              <Info />
-              <Alert.Title>One account will be left</Alert.Title>
-              <Alert.Description>
-                After this change, only one active account will be able to
-                manage roles. If that one is lost, roles can only be recovered
-                from the server.
               </Alert.Description>
             </Alert.Root>
           {/if}
@@ -446,6 +471,54 @@
             </div>
           {/if}
         </div>
+
+        <!--
+          The super-admin notices sit at the bottom of the scroll area, just
+          above the Active switch that usually triggers them. They stay inside
+          the scroll so a tall notice can't push the footer off a short screen.
+          They are kept out of the grid above, which has a gap: the notice
+          carries its spacing inside the part that slides, so it opens smoothly
+          instead of jumping by the grid's gap first.
+        -->
+        {#if superAdminImpact === "block"}
+          <AnimateContent
+            delay={0}
+            animationDuration={NOTICE_SLIDE_MS}
+            onintrostart={revealNotice}
+          >
+            <div class="pt-4">
+              <Alert.Root variant="danger">
+                <AlertCircle />
+                <Alert.Title
+                  >This is the last account that can manage roles</Alert.Title
+                >
+                <Alert.Description>
+                  Moving this person to another role, or switching their
+                  account off, would leave nobody able to manage roles. Set up
+                  another account on this role first.
+                </Alert.Description>
+              </Alert.Root>
+            </div>
+          </AnimateContent>
+        {:else if superAdminImpact === "warn"}
+          <AnimateContent
+            delay={0}
+            animationDuration={NOTICE_SLIDE_MS}
+            onintrostart={revealNotice}
+          >
+            <div class="pt-4">
+              <Alert.Root variant="info">
+                <Info />
+                <Alert.Title>One account will be left</Alert.Title>
+                <Alert.Description>
+                  After this change, only one active account will be able to
+                  manage roles. If that one is lost, roles can only be
+                  recovered from the server.
+                </Alert.Description>
+              </Alert.Root>
+            </div>
+          </AnimateContent>
+        {/if}
       </ScrollArea>
 
       <Dialog.Footer class="mx-0 px-4">
