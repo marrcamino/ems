@@ -2,7 +2,7 @@
 type: module
 status: blocked
 next: wait for the fuel document screens; a signature block only exists on a document
-updated: 2026-10-19
+updated: 2026-10-20
 ---
 # Signatories
 
@@ -17,12 +17,11 @@ Who signs each printed document. No signatory table: a document points at one `e
 | Graph nodes | `tab-content-fuel.svelte`, `settingUsingOrgUnit`, `config` |
 | Related cards | `cards/fuel.md`, `cards/employees-and-users.md`, `cards/org-structure.md` |
 
-## Open
-- The document screens themselves; until they exist, none of the signature-block rules are in code.
-- Where a default name comes from: two of the three answers are still open (signatory.md).
-- A document that prints the abbreviated position title must refuse to print when it is empty.
-- Check that the standing OIC's position title reads correctly on the RIS.
-- Tabs for the other five areas arrive as each area is built.
+## Open (tracked in Linear)
+- MPP-80 the fuel document screens; until they exist, no signature-block rule is in code
+- MPP-74 where a default name comes from
+- MPP-102 refuse to print with an empty abbreviated title · MPP-103 check the OIC's title on the RIS
+- Tabs for the other five areas arrive with each area (MPP-84 to MPP-89).
 
 ## Gotchas
 - The people offered are those valid on the document's filed date, not today.

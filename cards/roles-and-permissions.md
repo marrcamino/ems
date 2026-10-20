@@ -2,7 +2,7 @@
 type: module
 status: done
 next: none planned
-updated: 2026-10-19
+updated: 2026-10-20
 ---
 # Roles and permissions
 
@@ -17,8 +17,8 @@ Each user has one role; a role is a set of permission keys fixed in code.
 | Graph nodes | `PERMISSION_DEFS`, `expandPermissions`, `permission-picker.svelte`, `access.ts` |
 | Related cards | `cards/employees-and-users.md`, `cards/app-foundation.md` |
 
-## Open
-- Staff keys beyond `view` (fuel will need `submit` and `approve`): set aside while the work is on the admin side.
+## Open (tracked in Linear)
+- None. Staff keys beyond `view` (fuel will need `submit` and `approve`) were set aside with the staff side (MPP-72, canceled).
 
 ## Gotchas
 - After changing `PERMISSION_DEFS`, run `npm run sync-permissions`.

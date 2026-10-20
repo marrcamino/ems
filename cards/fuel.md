@@ -2,7 +2,7 @@
 type: module
 status: active
 next: unknown (ask the owner): finish POs (edit, delete, view allocations) or start withdrawal slips
-updated: 2026-10-19
+updated: 2026-10-20
 ---
 # Fuel
 
@@ -17,11 +17,11 @@ Assets, suppliers, purchase orders, and later the withdrawal slips. The only are
 | Graph nodes | `po-actions.server.ts`, `po-math.ts`, `add-purchase-order-dialog.svelte`, `suppliers-dialog.svelte`, `add-edit-asset-dialog.svelte` |
 | Related cards | `cards/signatories.md`, `cards/app-foundation.md` (DialogViews, Stepper) |
 
-## Open
-- POs: editing, deleting and viewing a PO's allocations are not built.
-- Recording a withdrawal slip, marking it approved, and the fuel reports: not started.
-- Questions still waiting for GSU, PO closing and overruns: fuel-purchase-orders.md, last three sections.
-- Whether an asset needs more states, and whether assets also serve electricity: same document, "Also undecided".
+## Open (tracked in Linear)
+- MPP-60 edit, delete and view a PO's allocations · MPP-61 close a PO by hand
+- MPP-80 record a fuel issuance · MPP-81 mark a slip approved · MPP-82 fuel reports
+- MPP-75 answers from GSU · MPP-76 overruns
+- MPP-77 more asset states? · MPP-78 assets for electricity?
 
 ## Gotchas
 - Liters and pesos are counted in whole hundredths (`po-math.ts`), so allocations add up exactly.

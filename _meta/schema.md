@@ -73,11 +73,16 @@ Read this before writing or changing code, together with the module's card.
 1. New module: copy the card template. Add nothing to CLAUDE.md; it already points
    to `cards/`.
 2. End of a session, a merged feature branch, or a closed open item: update the
-   card's `status`, `next`, `updated` and its Open list, without being asked, and
-   say which cards changed.
-3. New decision: put it in the feature document's topic, or in a short new file in
+   card's `status`, `next`, `updated` and its Open list, and the matching Linear
+   issues, without being asked, and say which cards and issues changed.
+3. Tasks live in Linear: team `MPP`, project `EMS`. A new task gets an issue, and
+   the card's Open list gets one line with its `MPP-<n>` id. Finished work moves the
+   issue to Done; dropped work moves it to Canceled. Linear has no delete through
+   the tools, so an issue the owner wants removed is listed for them to delete.
+   Issue descriptions point at cards and `.claude/docs/`, never at `tmp/`.
+4. New decision: put it in the feature document's topic, or in a short new file in
    `.claude/docs/decisions/`, and link it from the card.
-4. One home per fact. If a fact already lives somewhere, link to it.
-5. Tempted to add a paragraph to CLAUDE.md? Put it in a file instead, and add at
+5. One home per fact. If a fact already lives somewhere, link to it.
+6. Tempted to add a paragraph to CLAUDE.md? Put it in a file instead, and add at
    most one pointer line.
-6. Retired or replaced content goes to `tmp/archive/`, never deleted.
+7. Retired or replaced content goes to `tmp/archive/`, never deleted.

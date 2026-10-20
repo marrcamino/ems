@@ -2,7 +2,7 @@
 type: module
 status: active
 next: build "Mark as employed" (Topic 13)
-updated: 2026-10-19
+updated: 2026-10-20
 ---
 # Employees and users
 
@@ -17,12 +17,11 @@ updated: 2026-10-19
 | Graph nodes | `employee-actions-cell.svelte`, `name-position-history-sheet.svelte`, `listSuperAdminsWhoCanSignIn`, `duplicate-check.ts` |
 | Related cards | `cards/roles-and-permissions.md`, `cards/signatories.md` |
 
-## Open
-- Topic 13 "Mark as employed": designed, not built. The edit dialog's Currently employed switch must change with it.
-- The reset script's message when the only super admin has left: waits for Topic 13.
-- Topic 10: the message when saving a change fails (today "Something went wrong.").
-- Not built: a screen for the correction log; the "Give this person a login" idea (never discussed).
-- Nobody has an abbreviated position title yet; the first printed document will force it.
+## Open (tracked in Linear)
+- MPP-67 "Mark as employed" (Topic 13) · MPP-70 reset script message, waits for MPP-67
+- MPP-71 message when saving a change fails · MPP-63 try the history panel
+- MPP-90 correction log screen · MPP-79 "Give this person a login" idea
+- MPP-91 type an abbreviated position title for each person
 
 ## Gotchas
 - Two different statuses: `employee.employment_status` (works here?) vs `user.account_status` (may sign in?).

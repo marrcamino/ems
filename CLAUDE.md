@@ -7,6 +7,7 @@ Run `npm run dev`. Check `npm run check`. Test `npm run test:e2e` (Playwright, `
 | Area | Home |
 |---|---|
 | Module status | `cards/`: one card per module |
+| Tasks to do and done | Linear, team `MPP`, project `EMS` |
 | Rules, conventions, card format | `_meta/schema.md` |
 | Code connections / dependencies | `graphify-out/` (`GRAPH_REPORT.md`, `graph.json`) |
 | Decisions & history | `.claude/docs/features/` (one per feature), `.claude/docs/decisions/` |

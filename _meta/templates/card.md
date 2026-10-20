@@ -17,8 +17,8 @@ updated: YYYY-MM-DD
 | Graph nodes | `<main file or function names to query in Graphify>` |
 | Related cards | `cards/<other>.md` |
 
-## Open
-- <one line per open item, pointing at where it is described in full>
+## Open (tracked in Linear)
+- MPP-<n> <a few words naming the task>. The task itself lives in Linear.
 
 ## Gotchas
 - <max 3 short bullets. Anything longer goes in .claude/docs/ and gets linked here.>

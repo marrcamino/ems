@@ -2,7 +2,7 @@
 type: module
 status: done
 next: none planned; the two home pages are still placeholders
-updated: 2026-10-19
+updated: 2026-10-20
 ---
 # App foundation
 
@@ -17,10 +17,10 @@ Sign-in, sessions, the sidebars, shared components, and the command-line scripts
 | Graph nodes | `hooks.server.ts`, `session.ts`, `redirect.ts`, `dialog-views-content.svelte`, `cli.ts` |
 | Related cards | `cards/roles-and-permissions.md` |
 
-## Open
-- `e2e/test-page.spec.ts` fails: the combo box it drives was removed from `/admin/test`. Delete or replace it.
-- `npm run create-admin` has not been run on an empty database since 7 September.
-- The staff home `/` and the admin home `/admin` are placeholders.
+## Open (tracked in Linear)
+- MPP-101 fix or remove the failing `e2e/test-page.spec.ts`
+- MPP-64 run `create-admin` on an empty database
+- MPP-83 build the admin home page (the staff home `/` waits with the staff side)
 
 ## Gotchas
 - Anybody holding `admin:view` is sent into `/admin`; everybody else is kept out (`hooks.server.ts`).
