@@ -21,7 +21,9 @@ is about the assets recorded under them.
 ## Evidence — the GSU fuel logbook
 
 A photo of the paper logbook GSU keeps, shared by the user on 14 September
-2026. Its columns are: Date, Control No. / Withdrawal Slip No., Gasoline
+2026. The logbook as a whole is described under "GSU's fuel logbook" in
+[fuel-purchase-orders.md](fuel-purchase-orders.md); this section is about what
+it shows of the assets. The photo's columns are: Date, Control No. / Withdrawal Slip No., Gasoline
 (issued, balance, amount), Diesel (issued, balance, amount),
 Vehicle/Equipment, Trip Ticket No., Remarks.
 
@@ -144,3 +146,101 @@ implies it.
 - The table is a TanStack data table, the same as the users page, with a
   pager that appears only past 10 rows.
 - The description line under the "Assets" heading was removed.
+
+## Which assets the office fuels
+
+1. **No published list exists.** DENR's procurement notices, disposal listings
+   and the PENRO Dinagat site do not list the fleet; that lives in the property
+   custodian's ledger. Fuel procurement is worded as covering "service vehicles
+   and generator sets", sometimes with hired hauling in the same contract.
+2. **The office's own kinds come from the withdrawal slip's printed lines,**
+   split by fuel first:
+
+   | Gasoline | Diesel |
+   | --- | --- |
+   | Motorcycle (+ plate no.) | Pick-up (+ plate no.) |
+   | Grass cutter | Generator |
+   | Others | Others |
+
+   The asset types start from this list, because it is the words staff already
+   use. A broader list, not checked against the office: service vehicles,
+   motorcycles, hauling trucks, boats and outboard motors, heavy equipment,
+   generator sets, chainsaws, grass cutters, water pumps and lawn mowers. Being
+   an island, the office is likely to have more boats than most.
+
+## Naming
+
+1. **The record is called an "Asset",** the page "Assets", with one "Add asset"
+   button where the type is the first field. Rejected: one button per type
+   (unusable past about five types), "Property" (reads as land at DENR), and
+   "Vehicles & Equipment" (breaks once air conditioners join).
+2. **For assets the office does not own, the term is "non-office-owned".** The
+   trip ticket's "RP vehicle" comes from the red government plates, so it only
+   works for vehicles; for equipment, ownership shows in the property record
+   instead. Still to ask GSU: the phrase they use, which would be preferred.
+
+## Fuel type belongs to the asset
+
+One engine cannot switch between gasoline and diesel: diesel does not ignite in
+a gasoline engine, and gasoline destroys a diesel engine and its injection pump.
+So the fuel is stored on each asset, and a withdrawal takes it from the asset;
+nobody picks it, so nobody can pick it wrong. Two-stroke mix (chainsaws, grass
+cutters) is still gasoline, and dual-fuel engines are rare enough in government
+fleets that the system does not allow for them. If somebody says an asset "uses both", the unit was
+probably replaced, or two assets share one name; ask which one.
+
+The fuel is not stored on the asset type: a pick-up is diesel in this office's
+fleet, but not by definition.
+
+## Asset types
+
+1. **A lookup table, not a list in the code** (`asset_type`), so GSU can add a
+   kind the day it arrives. The name is `asset_type`, not `fuel_asset_type`,
+   because GEMP's inventory also covers air conditioners and lighting.
+2. **The meter is set on the type** (`meter_type`: odometer, hour meter or none),
+   once per kind. Checks branch on the meter, not on the type: a pick-up and a
+   dump truck both read an odometer, a genset and a backhoe both count hours.
+3. **No "Others" type.** On paper, "Others" is an escape hatch for a kind the
+   form does not print; with an editable list, GSU adds "Chainsaw" instead.
+4. **Deleting and duplicate names** work as drawn in
+   `tmp/asset-type-lifecycle.drawio`. A type that no asset uses is deleted; one
+   in use cannot be, and the dialog offers to switch it off instead. Saving the
+   name of a switched-off type offers to switch that type back on; the name of a
+   type in use is refused.
+5. **The hour meter is recorded, but no form asks for a reading yet.** No paper
+   form has a line for engine hours, and neither the MFCR nor GEMP asks for them.
+   Recording the meter on the type now means that adding an hour field later is
+   only a form change. It waits for the generator logbook question (MPP-75).
+
+## Also undecided
+
+1. **Whether an asset needs more states than active and inactive** (MPP-77).
+   Government property has a formal unserviceable state, which starts the
+   disposal process, and a disposed asset must stay in the table because old
+   fuel records point at it. Suggested: active, inactive, unserviceable and
+   disposed, with disposed assets left out of the withdrawal screen but kept in
+   reports.
+2. **Whether the asset list also serves electricity** (MPP-78). GEMP asks for an
+   inventory of everything that uses energy, air conditioners and lighting
+   included.
+3. **Columns considered but not built:** make, model, serial number, the unit
+   that holds the asset, the accountable officer, the acquisition date and cost,
+   and for some types the MV file number, engine number, chassis number, chainsaw
+   registration (RA 9175) and capacity. They would stay in the one table as
+   nullable columns.
+
+## Parked: assets the office does not own
+
+The page holds office-owned assets only (24 September 2026). If GSU ever asks to
+record others, these were the points raised, and the questions for GSU were:
+
+1. Ownership is a separate thing from the asset type: owned, rented or borrowed.
+   The fuel still counts as the office's consumption in the MFCR and as Scope 1
+   in GHG, so leaving such assets out would understate both reports.
+2. What decides whether something gets a row is whether it comes back, not who
+   owns it: a borrowed backhoe used monthly deserves a row, a boat rented once
+   does not.
+3. Questions: is it the same rented boat every time; is its fuel given to the
+   operator or paid back afterwards; what paper backs it; are other assets the
+   office does not own being fuelled; is seized equipment ever fuelled; and does
+   anyone say "RP" about equipment, or only about vehicles.

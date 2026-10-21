@@ -31,5 +31,6 @@ Run `npm run dev`. Check `npm run check`. Test `npm run test:e2e` (Playwright, `
 - Never access, search, or modify files outside the project directory.
 - Never run `drizzle-kit push` unannounced: ask me to run it, or ask whether you should.
 - When a reply covers more than one thing, number the items, so I can reply to one at a time.
+- A scenario or example about how the office works uses only facts written in the feature doc. If the fact isn't there, ask me; don't assume.
 - Keep this file short. New info goes in a card or `_meta/`, plus at most one line here.
 - One home per fact: link, don't copy.

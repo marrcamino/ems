@@ -80,6 +80,9 @@ Read this before writing or changing code, together with the module's card.
    issue to Done; dropped work moves it to Canceled. Linear has no delete through
    the tools, so an issue the owner wants removed is listed for them to delete.
    Issue descriptions point at cards and `.claude/docs/`, never at `tmp/`.
+   An issue that is waiting for an answer from someone (GSU, the supplier, or the
+   owner) gets the label **Ask**, and keeps its other labels, such as Decision.
+   When the answer comes, record it and remove the label (added 20 October 2026).
 4. New decision: put it in the feature document's topic, or in a short new file in
    `.claude/docs/decisions/`, and link it from the card.
 5. One home per fact. If a fact already lives somewhere, link to it.
