@@ -72,7 +72,10 @@
     const next = view;
     if (next === previous) return;
     const focused = document.activeElement;
-    if (focused instanceof HTMLElement && views.nodeOf(previous)?.contains(focused)) {
+    if (
+      focused instanceof HTMLElement &&
+      views.nodeOf(previous)?.contains(focused)
+    ) {
       lastFocus.set(previous, focused);
     }
     move = { from: previous, to: next };
