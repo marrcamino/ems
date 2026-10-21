@@ -43,8 +43,8 @@ export async function selectUnitOptions(): Promise<UnitOption[]> {
 }
 
 /**
- * Every PO with its supplier and fuel rows, newest PO date first, for the
- * list on the page.
+ * Every PO with its supplier, fuel rows and allocations, newest PO date
+ * first, for the list on the page.
  */
 export async function selectPurchaseOrders(): Promise<PurchaseOrderRow[]> {
   const orders = await db
@@ -52,6 +52,7 @@ export async function selectPurchaseOrders(): Promise<PurchaseOrderRow[]> {
       purchaseOrderPk: purchaseOrder.purchaseOrderPk,
       poNumber: purchaseOrder.poNumber,
       poDate: purchaseOrder.poDate,
+      supplierFk: purchaseOrder.supplierFk,
       supplierName: supplier.supplierName,
       note: purchaseOrder.note,
     })
@@ -63,6 +64,7 @@ export async function selectPurchaseOrders(): Promise<PurchaseOrderRow[]> {
 
   const items = await db
     .select({
+      purchaseOrderItemPk: purchaseOrderItem.purchaseOrderItemPk,
       purchaseOrderFk: purchaseOrderItem.purchaseOrderFk,
       fuelType: purchaseOrderItem.fuelType,
       liters: purchaseOrderItem.liters,
@@ -76,14 +78,46 @@ export async function selectPurchaseOrders(): Promise<PurchaseOrderRow[]> {
       ),
     );
 
+  // Each fuel row's allocations, with the unit's short name for the card.
+  const allocations =
+    items.length === 0
+      ? []
+      : await db
+          .select({
+            purchaseOrderItemFk: purchaseOrderAllocation.purchaseOrderItemFk,
+            orgUnitPk: orgUnit.orgUnitPk,
+            orgUnitName: orgUnit.orgUnitName,
+            abbr: orgUnit.abbr,
+            level: orgUnit.level,
+            liters: purchaseOrderAllocation.liters,
+          })
+          .from(purchaseOrderAllocation)
+          .innerJoin(
+            orgUnit,
+            eq(purchaseOrderAllocation.orgUnitFk, orgUnit.orgUnitPk),
+          )
+          .where(
+            inArray(
+              purchaseOrderAllocation.purchaseOrderItemFk,
+              items.map((i) => i.purchaseOrderItemPk),
+            ),
+          )
+          .orderBy(asc(purchaseOrderAllocation.purchaseOrderAllocationPk));
+
   return orders.map((order) => ({
     ...order,
     items: items
       .filter((item) => item.purchaseOrderFk === order.purchaseOrderPk)
-      .map(({ fuelType, liters, unitCost }) => ({
+      .map(({ purchaseOrderItemPk, fuelType, liters, unitCost }) => ({
         fuelType,
         litersH: toHundredths(liters) ?? 0,
         unitCostC: toHundredths(unitCost) ?? 0,
+        allocations: allocations
+          .filter((a) => a.purchaseOrderItemFk === purchaseOrderItemPk)
+          .map(({ liters, ...unit }) => ({
+            ...unit,
+            litersH: toHundredths(liters) ?? 0,
+          })),
       })),
   }));
 }
@@ -127,12 +161,22 @@ function isRefusal(value: Checked | Refusal): value is Refusal {
 }
 
 /**
+ * What an edited PO may keep although it could not be chosen for a new one:
+ * its own supplier if it was archived since, and its own units if they were
+ * deactivated since.
+ */
+type Kept = { supplierFk: number; unitPks: Set<number> };
+
+/**
  * Everything the dialog already checks, checked again, since a request can
  * be sent without the dialog. Plus what only the server can know: whether
  * the supplier and units are still active, and whether the PO number is
  * taken.
  */
-async function check(payload: Payload): Promise<Checked | Refusal> {
+async function check(
+  payload: Payload,
+  kept: Kept = { supplierFk: 0, unitPks: new Set() },
+): Promise<Checked | Refusal> {
   const poNumber = String(payload.poNumber ?? "").trim();
   if (!poNumber) return { field: "poNumber", error: "Enter the PO number." };
   if (poNumber.length > 50) {
@@ -157,7 +201,7 @@ async function check(payload: Payload): Promise<Checked | Refusal> {
         .where(eq(supplier.supplierPk, supplierFk))
     : [];
   if (!chosen) return { field: "supplierFk", error: "Choose the supplier." };
-  if (chosen.status !== "active") {
+  if (chosen.status !== "active" && supplierFk !== kept.supplierFk) {
     return {
       field: "supplierFk",
       error: `${chosen.supplierName} is archived. Restore it, or choose another supplier.`,
@@ -213,7 +257,7 @@ async function check(payload: Payload): Promise<Checked | Refusal> {
         return { field: fuelType, error: `Each unit can have only one ${label.toLowerCase()} allocation.` };
       }
       allocations.push({ orgUnitFk, litersH: allocationH });
-      unitPks.add(orgUnitFk);
+      if (!kept.unitPks.has(orgUnitFk)) unitPks.add(orgUnitFk);
     }
 
     if (allocations.length === 0) {
@@ -230,12 +274,18 @@ async function check(payload: Payload): Promise<Checked | Refusal> {
     items.push({ fuelType, litersH, unitCostC, allocations });
   }
 
-  const activeUnits = await db
-    .select({ orgUnitPk: orgUnit.orgUnitPk })
-    .from(orgUnit)
-    .where(
-      and(inArray(orgUnit.orgUnitPk, [...unitPks]), eq(orgUnit.status, "active")),
-    );
+  const activeUnits =
+    unitPks.size === 0
+      ? []
+      : await db
+          .select({ orgUnitPk: orgUnit.orgUnitPk })
+          .from(orgUnit)
+          .where(
+            and(
+              inArray(orgUnit.orgUnitPk, [...unitPks]),
+              eq(orgUnit.status, "active"),
+            ),
+          );
   if (activeUnits.length !== unitPks.size) {
     return { error: "A unit was deactivated a moment ago. Choose the units again." };
   }
@@ -246,6 +296,31 @@ async function check(payload: Payload): Promise<Checked | Refusal> {
 /** MySQL reports a broken constraint by number; 1062 is a duplicate value. */
 function mysqlErrno(err: unknown) {
   return (err as { errno?: number })?.errno;
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** The fuel rows and their allocations, inside the caller's transaction. */
+async function insertItems(
+  tx: Tx,
+  purchaseOrderPk: number,
+  items: Checked["items"],
+) {
+  for (const item of items) {
+    const [row] = await tx.insert(purchaseOrderItem).values({
+      purchaseOrderFk: purchaseOrderPk,
+      fuelType: item.fuelType,
+      liters: fromHundredths(item.litersH),
+      unitCost: fromHundredths(item.unitCostC),
+    });
+    await tx.insert(purchaseOrderAllocation).values(
+      item.allocations.map((a) => ({
+        purchaseOrderItemFk: row.insertId,
+        orgUnitFk: a.orgUnitFk,
+        liters: fromHundredths(a.litersH),
+      })),
+    );
+  }
 }
 
 function poNumberTaken(poNumber: string): Refusal {
@@ -288,22 +363,7 @@ export const purchaseOrderActions = {
           createdByFk: locals.user?.userPk ?? null,
         });
 
-        for (const item of checked.items) {
-          const [row] = await tx.insert(purchaseOrderItem).values({
-            purchaseOrderFk: po.insertId,
-            fuelType: item.fuelType,
-            liters: fromHundredths(item.litersH),
-            unitCost: fromHundredths(item.unitCostC),
-          });
-          await tx.insert(purchaseOrderAllocation).values(
-            item.allocations.map((a) => ({
-              purchaseOrderItemFk: row.insertId,
-              orgUnitFk: a.orgUnitFk,
-              liters: fromHundredths(a.litersH),
-            })),
-          );
-        }
-
+        await insertItems(tx, po.insertId, checked.items);
         return po.insertId;
       });
     } catch (err) {
@@ -323,5 +383,121 @@ export const purchaseOrderActions = {
     }
 
     return { success: true, newRow };
+  },
+
+  /**
+   * Saves an edited PO: its details, and its fuel rows and allocations,
+   * which are replaced as a whole rather than matched up row by row.
+   *
+   * TODO(MPP-60): once withdrawals exist (MPP-80), refuse an edit that leaves
+   * a unit's allocation below what that unit has already used: lowering its
+   * liters, removing it, or lowering the fuel's unit cost. Refuse any edit to
+   * a closed PO (MPP-106). Replacing the rows will then also need care, since
+   * slips will point at allocations. Nothing is used yet, so nothing is
+   * checked today.
+   */
+  updatePurchaseOrder: async ({ request, locals }) => {
+    if (!can(locals.permissions, "admin:manage_purchase_orders")) {
+      return fail(403, { error: "You do not have permission to do this." });
+    }
+
+    let payload: Payload & { purchaseOrderPk?: unknown };
+    try {
+      payload = JSON.parse(String((await request.formData()).get("payload")));
+    } catch {
+      return fail(400, { error: "The form could not be read. Try again." });
+    }
+
+    const purchaseOrderPk = Number(payload.purchaseOrderPk);
+    const existing = purchaseOrderPk
+      ? (await selectPurchaseOrders()).find(
+          (row) => row.purchaseOrderPk === purchaseOrderPk,
+        )
+      : undefined;
+    if (!existing) return fail(404, { error: "That PO no longer exists." });
+
+    const checked = await check(payload, {
+      supplierFk: existing.supplierFk,
+      unitPks: new Set(
+        existing.items.flatMap((i) => i.allocations.map((a) => a.orgUnitPk)),
+      ),
+    });
+    if (isRefusal(checked)) return fail(400, checked);
+
+    const [taken] = await db
+      .select({ pk: purchaseOrder.purchaseOrderPk })
+      .from(purchaseOrder)
+      .where(eq(purchaseOrder.poNumber, checked.poNumber));
+    if (taken && taken.pk !== purchaseOrderPk) {
+      return fail(409, poNumberTaken(checked.poNumber));
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(purchaseOrder)
+          .set({
+            poNumber: checked.poNumber,
+            poDate: checked.poDate,
+            supplierFk: checked.supplierFk,
+            note: checked.note,
+            updatedAt: new Date(),
+          })
+          .where(eq(purchaseOrder.purchaseOrderPk, purchaseOrderPk));
+        // The allocations go with their fuel rows (the foreign key cascades).
+        await tx
+          .delete(purchaseOrderItem)
+          .where(eq(purchaseOrderItem.purchaseOrderFk, purchaseOrderPk));
+        await insertItems(tx, purchaseOrderPk, checked.items);
+      });
+    } catch (err) {
+      if (mysqlErrno(err) === 1062) {
+        return fail(409, poNumberTaken(checked.poNumber));
+      }
+      throw err;
+    }
+
+    const newRow = (await selectPurchaseOrders()).find(
+      (row) => row.purchaseOrderPk === purchaseOrderPk,
+    );
+    if (!newRow) {
+      return fail(500, {
+        error: "It was saved, but could not be read back afterwards.",
+      });
+    }
+
+    return { success: true, newRow };
+  },
+
+  /**
+   * Deletes a PO, with its fuel rows and allocations (the foreign keys
+   * cascade).
+   *
+   * TODO(MPP-60): check before deleting. A PO is part of the audit trail, so
+   * Delete is only for a PO typed by mistake. Refuse it once any withdrawal
+   * slip is charged to the PO, and once the PO is closed; say which in the
+   * message. Withdrawal slips and closing do not exist yet, so nothing is
+   * checked today.
+   */
+  deletePurchaseOrder: async ({ request, locals }) => {
+    if (!can(locals.permissions, "admin:manage_purchase_orders")) {
+      return fail(403, { error: "You do not have permission to do this." });
+    }
+
+    const purchaseOrderPk = Number(
+      (await request.formData()).get("purchaseOrderPk"),
+    );
+    if (!purchaseOrderPk) {
+      return fail(400, { error: "The form could not be read. Try again." });
+    }
+
+    const [deleted] = await db
+      .delete(purchaseOrder)
+      .where(eq(purchaseOrder.purchaseOrderPk, purchaseOrderPk));
+    if (deleted.affectedRows === 0) {
+      return fail(404, { error: "That PO no longer exists." });
+    }
+
+    return { success: true, deletedPk: purchaseOrderPk };
   },
 } satisfies Actions;

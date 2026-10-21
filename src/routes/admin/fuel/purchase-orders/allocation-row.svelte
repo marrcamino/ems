@@ -2,9 +2,9 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as InputGroup from "$lib/components/ui/input-group/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
+  import NumberInput from "@/components/number-input.svelte";
   import { X } from "@lucide/svelte/icons";
   import type { Allocation } from "./add-po-form.svelte.js";
-  import NumberInput from "@/components/number-input.svelte";
   import { amountInCentavos, litersForPesos, toHundredths } from "./po-math.js";
   import type { UnitOption } from "./po-types.js";
 
@@ -119,7 +119,9 @@
       {#if chosenUnit}
         {chosenUnit.orgUnitName}
       {:else}
-        <span class="text-muted-foreground">Choose a unit</span>
+        <span class="text-muted-foreground"
+          >Choose a division, section, or unit</span
+        >
       {/if}
     </Select.Trigger>
     <Select.Content>

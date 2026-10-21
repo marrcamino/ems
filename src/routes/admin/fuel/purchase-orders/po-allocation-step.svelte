@@ -38,6 +38,7 @@
     form,
     unitOptions,
     submitting = $bindable(false),
+    editing = false,
     onBack,
     onSaved,
     onDetailsRefused,
@@ -47,6 +48,8 @@
     unitOptions: UnitOption[];
     /** Read by the dialog, which shows a spinner in the stepper meanwhile. */
     submitting?: boolean;
+    /** Opened from a PO's Edit button: Save updates that PO rather than adding one. */
+    editing?: boolean;
     onBack: () => void;
     onSaved: (row: PurchaseOrderRow) => void;
     /**
@@ -187,7 +190,7 @@
 <form
   class="flex min-h-0 flex-col gap-4"
   method="POST"
-  action="?/createPurchaseOrder"
+  action={editing ? "?/updatePurchaseOrder" : "?/createPurchaseOrder"}
   novalidate
   autocomplete="off"
   use:enhance={({ cancel }) => {
@@ -204,7 +207,7 @@
 
       if (result.type === "success") {
         const row = result.data?.newRow as PurchaseOrderRow;
-        toast.success(`PO ${row.poNumber} added`);
+        toast.success(`PO ${row.poNumber} ${editing ? "saved" : "added"}`);
         onSaved(row);
         return;
       }
@@ -219,13 +222,13 @@
           else showFirstProblem();
           return;
         }
-        toast.error("Purchase order not added", {
+        toast.error(editing ? "Changes not saved" : "Purchase order not added", {
           description: data?.error ?? "Try again.",
         });
         return;
       }
 
-      toast.error("Purchase order not added", {
+      toast.error(editing ? "Changes not saved" : "Purchase order not added", {
         description: "Try again. If it keeps happening, contact ICT.",
       });
     };
@@ -325,7 +328,7 @@
         {#if submitting}
           <Spinner />
         {/if}
-        Save purchase order
+        {editing ? "Save changes" : "Save purchase order"}
       </Button>
     </div>
   </div>

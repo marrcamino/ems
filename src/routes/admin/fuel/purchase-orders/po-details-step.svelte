@@ -29,8 +29,11 @@
     onManageSuppliers,
   }: {
     form: AddPurchaseOrderForm;
-    /** Active suppliers only: a new PO cannot name an archived one. */
-    suppliers: Supplier[];
+    /**
+     * Active suppliers only: a new PO cannot name an archived one. An edited
+     * PO also gets its own supplier, archived or not.
+     */
+    suppliers: Pick<Supplier, "supplierPk" | "supplierName">[];
     /** Lets the dialog put the cursor here when it opens. */
     poNumberInput?: HTMLInputElement | null;
     onNext: () => void;
