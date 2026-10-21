@@ -1,6 +1,7 @@
 import { formatLiters } from "$lib/utils/format-number";
 import {
   getLocalTimeZone,
+  parseDate,
   today,
   type DateValue,
 } from "@internationalized/date";
@@ -13,6 +14,7 @@ import {
   toHundredths,
   type Fuel,
 } from "./po-math";
+import type { PurchaseOrderRow } from "./po-types";
 
 /** One fuel row on the PO. `null` because an empty number field binds as null. */
 export type FuelRow = { liters: number | null; unitCost: number | null };
@@ -55,6 +57,9 @@ export class AddPurchaseOrderForm {
   rows = $state<Record<Fuel, FuelRow>>(blankRows());
   allocations = $state<Record<Fuel, Allocation[]>>(noAllocations());
 
+  /** The PO being edited, or null while a new one is being added. */
+  editingPk = $state<number | null>(null);
+
   /** Messages that belong to one field or one fuel, shown beside it. */
   errors = $state<Record<string, string>>({});
 
@@ -62,12 +67,36 @@ export class AddPurchaseOrderForm {
 
   /** Empties the form. With only one supplier, it is chosen already. */
   reset(supplierPks: number[]) {
+    this.editingPk = null;
     this.poNumber = "";
     this.poDate = today(getLocalTimeZone());
     this.supplierFk = supplierPks.length === 1 ? String(supplierPks[0]) : "";
     this.note = "";
     this.rows = blankRows();
     this.allocations = noAllocations();
+    this.errors = {};
+  }
+
+  /** Fills the form with a saved PO, for the Edit button on its card. */
+  load(po: PurchaseOrderRow) {
+    this.editingPk = po.purchaseOrderPk;
+    this.poNumber = po.poNumber;
+    this.poDate = parseDate(po.poDate);
+    this.supplierFk = String(po.supplierFk);
+    this.note = po.note ?? "";
+    this.rows = blankRows();
+    this.allocations = noAllocations();
+    for (const item of po.items) {
+      this.rows[item.fuelType] = {
+        liters: item.litersH / 100,
+        unitCost: item.unitCostC / 100,
+      };
+      this.allocations[item.fuelType] = item.allocations.map((a) => ({
+        id: this.#nextAllocationId++,
+        orgUnitFk: String(a.orgUnitPk),
+        liters: a.litersH / 100,
+      }));
+    }
     this.errors = {};
   }
 
@@ -236,6 +265,7 @@ export class AddPurchaseOrderForm {
   /** Everything the server needs, sent as one JSON field. */
   payload = $derived(
     JSON.stringify({
+      purchaseOrderPk: this.editingPk ?? undefined,
       poNumber: this.poNumber.trim(),
       poDate: this.poDate?.toString() ?? "",
       supplierFk: Number(this.supplierFk),

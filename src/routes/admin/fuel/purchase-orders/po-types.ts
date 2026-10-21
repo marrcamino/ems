@@ -16,7 +16,14 @@ export type PurchaseOrderRow = {
   purchaseOrderPk: number;
   poNumber: string;
   poDate: string;
+  supplierFk: number;
   supplierName: string;
   note: string | null;
-  items: { fuelType: Fuel; litersH: number; unitCostC: number }[];
+  items: {
+    fuelType: Fuel;
+    litersH: number;
+    unitCostC: number;
+    /** Each unit's allocation of this fuel, in the order they were typed. */
+    allocations: (UnitOption & { litersH: number })[];
+  }[];
 };

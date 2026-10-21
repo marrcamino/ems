@@ -1,19 +1,25 @@
 <script lang="ts">
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
-  import * as Empty from "$lib/components/ui/empty/index.js";
+  import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Table from "$lib/components/ui/table/index.js";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { getGlobalContext } from "$routes/global-context.svelte";
   import Header from "@/components/header.svelte";
   import type { Supplier } from "@/types";
-  import { FileText, Plus, Store } from "@lucide/svelte/icons";
+  import { Plus, Store } from "@lucide/svelte/icons";
   import { untrack } from "svelte";
   import AddPurchaseOrderDialog from "./add-purchase-order-dialog.svelte";
-  import { formatLiters, formatPesos } from "$lib/utils/format-number.js";
-  import { amountInCentavos, type Fuel } from "./po-math.js";
+  import { formatPesos } from "$lib/utils/format-number.js";
+  import { formatDate } from "./format-date.js";
+  import AnimatedList from "$lib/components/transition/animated-list.svelte";
+  import OpenPoCard from "./open-po-card.svelte";
   import type { PurchaseOrderRow } from "./po-types.js";
+  import {
+    SAMPLE_CLOSED_COUNT,
+    SAMPLE_CLOSED_POS,
+  } from "./sample-purchase-orders.js";
   import SuppliersDialog from "./suppliers/suppliers-dialog.svelte";
 
   let { data } = $props();
@@ -26,11 +32,6 @@
   // page to reload. The page keeps it, not the dialog, because the add PO
   // form picks from it, and a new PO only ever names an active supplier.
   let suppliers = $state<Supplier[]>(untrack(() => data.suppliers));
-
-  // Held here for the same reason: a PO saved in the dialog shows at once.
-  let purchaseOrders = $state<PurchaseOrderRow[]>(
-    untrack(() => data.purchaseOrders),
-  );
 
   /**
    * The suppliers dialog is opened through the address (`?suppliers`), the
@@ -59,40 +60,57 @@
 
   let addDialogOpen = $state(false);
 
+  /** The PO whose Edit button opened the dialog, or null when adding one. */
+  let editing = $state<PurchaseOrderRow | null>(null);
+
+  function openAdd() {
+    editing = null;
+    addDialogOpen = true;
+  }
+
+  function openEdit(po: PurchaseOrderRow) {
+    editing = po;
+    addDialogOpen = true;
+  }
+
+  function onDeleted(purchaseOrderPk: number) {
+    purchaseOrders = purchaseOrders.filter(
+      (po) => po.purchaseOrderPk !== purchaseOrderPk,
+    );
+  }
+
   /** From the add PO dialog, when there is no supplier to pick yet. */
   function switchToSuppliers() {
     addDialogOpen = false;
     setSuppliersOpen(true);
   }
 
-  function onSaved(row: PurchaseOrderRow) {
-    purchaseOrders = [row, ...purchaseOrders].sort(
+  // Held here for the same reason: a PO saved in the dialog shows at once.
+  let purchaseOrders = $state<PurchaseOrderRow[]>(
+    untrack(() => data.purchaseOrders),
+  );
+
+  /**
+   * Every PO counts as open until closing one is built. Oldest first, the
+   * order slips are charged in, so the first one is used first.
+   */
+  const openPos = $derived(
+    [...purchaseOrders].sort(
       (a, b) =>
-        b.poDate.localeCompare(a.poDate) ||
-        b.purchaseOrderPk - a.purchaseOrderPk,
-    );
-  }
+        a.poDate.localeCompare(b.poDate) ||
+        a.purchaseOrderPk - b.purchaseOrderPk,
+    ),
+  );
 
-  function litersOf(row: PurchaseOrderRow, fuel: Fuel) {
-    const item = row.items.find((i) => i.fuelType === fuel);
-    return item ? formatLiters(item.litersH) : "—";
-  }
-
-  function totalOf(row: PurchaseOrderRow) {
-    return formatPesos(
-      row.items.reduce(
-        (sum, item) => sum + amountInCentavos(item.litersH, item.unitCostC),
-        0,
-      ),
-    );
-  }
-
-  const dateFormat = new Intl.DateTimeFormat("en-PH", { dateStyle: "medium" });
-
-  /** "2026-03-22" → "Mar 22, 2026", read as a calendar date, not UTC. */
-  function formatDate(isoDate: string) {
-    const [y, m, d] = isoDate.split("-").map(Number);
-    return dateFormat.format(new Date(y, m - 1, d));
+  /** A new PO is added to the list; an edited one replaces its old self. */
+  function onSaved(row: PurchaseOrderRow) {
+    purchaseOrders = purchaseOrders.some(
+      (po) => po.purchaseOrderPk === row.purchaseOrderPk,
+    )
+      ? purchaseOrders.map((po) =>
+          po.purchaseOrderPk === row.purchaseOrderPk ? row : po,
+        )
+      : [...purchaseOrders, row];
   }
 </script>
 
@@ -119,14 +137,15 @@
 </Header>
 
 <div class="flex min-w-0 flex-1 flex-col items-center gap-4 p-4 pt-0">
-  <div class="flex w-full max-w-5xl flex-wrap items-start gap-x-4 gap-y-2 pt-1">
+  <div class="flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+    <h1 class="text-xl font-semibold">Purchase orders</h1>
     <div class="ml-auto flex gap-2">
       <Button variant="outline" onclick={() => setSuppliersOpen(true)}>
         <Store />
         Manage suppliers
       </Button>
       {#if canManage}
-        <Button onclick={() => (addDialogOpen = true)}>
+        <Button onclick={openAdd}>
           <Plus />
           Add purchase order
         </Button>
@@ -135,66 +154,79 @@
   </div>
 
   <!--
-    A plain list for now, so a saved PO shows somewhere. What a PO's page
-    or row should show beyond this (each unit's allocation, used, left) is still
-    to be designed.
+    The open POs come from the database. What depends on withdrawal slips or
+    on closing a PO is still made up (sample-purchase-orders.ts): the slips not
+    back, and the Closed list.
   -->
-  <div class="w-full max-w-5xl">
-    {#if purchaseOrders.length > 0}
-      <div class="rounded-xl border">
+  <div class="grid w-full max-w-5xl gap-4">
+    <h2 class="flex items-center gap-2 text-sm font-semibold text-foreground/75">
+      Open
+      <Badge variant="secondary">{openPos.length}</Badge>
+    </h2>
+
+    <!-- A saved PO slides in and a deleted one out; the rest move over. -->
+    <AnimatedList
+      items={openPos}
+      key={(po) => po.purchaseOrderPk}
+      listClass="gap-4"
+    >
+      {#snippet item(po, i)}
+        <OpenPoCard
+          {po}
+          useFirst={i === 0 && openPos.length > 1}
+          {canManage}
+          onEdit={() => openEdit(po)}
+        />
+      {/snippet}
+      {#snippet empty()}
+        <p
+          class="text-muted-foreground rounded-xl border px-4 py-6 text-center text-sm"
+        >
+          No open purchase orders.
+        </p>
+      {/snippet}
+    </AnimatedList>
+
+    <h2
+      class="mt-1.5 flex items-center gap-2 text-sm font-semibold text-foreground/75"
+    >
+      Closed
+      <Badge variant="secondary">{SAMPLE_CLOSED_COUNT}</Badge>
+    </h2>
+
+    <div class="overflow-hidden rounded-xl border">
+      <div class="overflow-x-auto">
         <Table.Root>
           <Table.Header>
             <Table.Row class="hover:bg-transparent">
-              <Table.Head>PO number</Table.Head>
+              <Table.Head class="pl-4">PO number</Table.Head>
               <Table.Head>PO date</Table.Head>
               <Table.Head>Supplier</Table.Head>
-              <Table.Head class="text-right">Gasoline</Table.Head>
-              <Table.Head class="text-right">Diesel</Table.Head>
               <Table.Head class="text-right">Amount</Table.Head>
+              <Table.Head class="pr-4">Closed on</Table.Head>
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {#each purchaseOrders as row (row.purchaseOrderPk)}
+            {#each SAMPLE_CLOSED_POS as row (row.poNumber)}
               <Table.Row>
-                <Table.Cell class="font-medium">{row.poNumber}</Table.Cell>
+                <Table.Cell class="pl-4 font-medium">{row.poNumber}</Table.Cell>
                 <Table.Cell>{formatDate(row.poDate)}</Table.Cell>
                 <Table.Cell>{row.supplierName}</Table.Cell>
                 <Table.Cell class="text-right tabular-nums">
-                  {litersOf(row, "gasoline")}
+                  {formatPesos(row.amountC)}
                 </Table.Cell>
-                <Table.Cell class="text-right tabular-nums">
-                  {litersOf(row, "diesel")}
-                </Table.Cell>
-                <Table.Cell class="text-right tabular-nums">
-                  {totalOf(row)}
-                </Table.Cell>
+                <Table.Cell class="pr-4">{formatDate(row.closedOn)}</Table.Cell>
               </Table.Row>
             {/each}
           </Table.Body>
         </Table.Root>
       </div>
-    {:else}
-      <Empty.Root class="border">
-        <Empty.Header>
-          <Empty.Media variant="icon">
-            <FileText />
-          </Empty.Media>
-          <Empty.Title>No purchase orders yet</Empty.Title>
-          <Empty.Description>
-            Add a PO once it is approved, and allocate its fuel to each
-            division, section or unit.
-          </Empty.Description>
-        </Empty.Header>
-        {#if canManage}
-          <Empty.Content>
-            <Button onclick={() => (addDialogOpen = true)}>
-              <Plus />
-              Add purchase order
-            </Button>
-          </Empty.Content>
-        {/if}
-      </Empty.Root>
-    {/if}
+      <div class="bg-muted/40 flex justify-center border-t px-4 py-2.5">
+        <Button variant="link" size="sm" class="h-auto p-0">
+          Show all {SAMPLE_CLOSED_COUNT} closed POs
+        </Button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -208,6 +240,8 @@
   bind:open={addDialogOpen}
   {suppliers}
   unitOptions={data.unitOptions}
+  {editing}
   {onSaved}
+  {onDeleted}
   onManageSuppliers={switchToSuppliers}
 />
