@@ -1,9 +1,6 @@
 import { getPasswordStrengthError } from "$lib/validation/password";
 import { hashPassword } from "$lib/server/auth/password"; // stays server-only, that one's fine
-import {
-  getDefaultLandingRoute,
-  getSafeRedirectTarget,
-} from "$lib/server/auth/redirect";
+import { getSafeRedirectTarget } from "$lib/server/auth/redirect";
 import { db } from "$lib/server/db";
 import { user } from "$lib/server/db/schema";
 import { fail, redirect } from "@sveltejs/kit";
@@ -56,15 +53,11 @@ export const actions: Actions = {
       })
       .where(eq(user.userPk, locals.user.userPk));
 
-    // Back to the page they were pulled off, or their own landing page when
-    // they simply signed in for the first time and were headed nowhere.
-    const fallback = getDefaultLandingRoute(locals.permissions);
+    // Back to the page they were pulled off, or the dashboard when they
+    // simply signed in for the first time and were headed nowhere.
     redirect(
       302,
-      getSafeRedirectTarget(
-        typeof redirectTo === "string" ? redirectTo : null,
-        fallback,
-      ),
+      getSafeRedirectTarget(typeof redirectTo === "string" ? redirectTo : null),
     );
   },
 };

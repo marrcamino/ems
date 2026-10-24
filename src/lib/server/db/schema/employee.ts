@@ -26,7 +26,7 @@ export const employee = mysqlTable("employee", {
   // hold no plantilla item but still have a position or a designation.
   // 225 characters, so a long title with a designation in brackets fits.
   // Keep it equal to POSITION_TITLE_MAX_LENGTH in
-  // `src/routes/admin/employees/labels.ts`, which the forms check against.
+  // `src/routes/(app)/(admin)/employees/labels.ts`, which the forms check against.
   positionTitle: varchar("position_title", { length: 225 }).notNull(),
   // The short form printed on documents, for example "AO-I/Supply Officer"
   // for "Administrative Officer I (Supply Officer)". The boxes on the paper

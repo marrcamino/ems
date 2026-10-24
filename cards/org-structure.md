@@ -6,12 +6,12 @@ updated: 2026-10-21
 ---
 # Organizational structure
 
-Offices, divisions, sections and units, shown as a chart or a table at `/admin/org-structure`.
+Offices, divisions, sections and units, shown as a chart or a table at `/org-structure`.
 
 ## Home
 | Source | Path |
 |---|---|
-| Code | `src/routes/admin/org-structure/`, schema `org-unit.ts`, `src/lib/server/org-unit-guard.ts` |
+| Code | `src/routes/(app)/(admin)/org-structure/`, schema `org-unit.ts`, `src/lib/server/org-unit-guard.ts` |
 | Tests | none |
 | Decisions / notes | none of its own; the GSU guard is in `.claude/docs/features/signatory.md` |
 | Graph nodes | `org-chart.svelte`, `chart-layout.ts`, `move-rules.ts`, `settingUsingOrgUnit` |

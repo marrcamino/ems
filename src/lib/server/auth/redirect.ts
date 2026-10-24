@@ -5,8 +5,8 @@
 // "where should this person end up" question, just at different moments.
 
 const LOGIN_PATH = "/login";
+// Everyone lands on the dashboard; there is no separate admin area.
 const DEFAULT_REDIRECT = "/";
-const ADMIN_ROUTE = "/admin";
 const CHANGE_PASSWORD_PATH = "/change-password";
 // Neither of these is ever somewhere to land after signing in: both send
 // people onward by themselves, so storing one as a target only bounces.
@@ -42,17 +42,6 @@ export function buildLoginRedirect(url: URL): string {
 }
 
 /**
- * Decides where a logged-in user should land by default, based on
- * their permissions. Admin-capable users land on /admin; everyone
- * else lands on the default route. This is only ever a FALLBACK —
- * an explicit redirectTo (e.g. from being bounced off a protected
- * page) should still win over this when present.
- */
-export function getDefaultLandingRoute(permissions: Set<string>): string {
-  return permissions.has("admin:view") ? ADMIN_ROUTE : DEFAULT_REDIRECT;
-}
-
-/**
  * PIECE 2 — login +page.server.ts action, after a successful login.
  * Validates the redirectTo value before trusting it. Returns a safe
  * internal path, or the fallback if missing/malformed/off-site.
@@ -77,7 +66,7 @@ export function getSafeRedirectTarget(
   // origin — a stray backslash, a control character, an embedded scheme — comes
   // back under a different origin and is rejected. Parsing rather than string
   // matching also keeps a colon inside a query string legal, so a target like
-  // /admin/fuel?from=2026-09-11T08:00 still survives.
+  // /fuel?from=2026-09-11T08:00 still survives.
   let parsed: URL;
   try {
     parsed = new URL(value, INTERNAL_ORIGIN);
@@ -102,8 +91,6 @@ export function getSafeRedirectTarget(
  * Returns null if the user is NOT logged in (caller should render
  * the login form as normal). Returns a redirect target string if
  * they ARE logged in (caller should redirect).
- * getAlreadyLoggedInRedirect now needs to accept the computed fallback
- * instead of always using DEFAULT_REDIRECT
  */
 export function getAlreadyLoggedInRedirect(
   hasSession: boolean,

@@ -21,11 +21,12 @@
  *      because `role_permission` has no `onDelete` rule and MySQL restricts.
  *      Which roles held a key is recorded nowhere but the database, which is
  *      why the answer has to be yours.
- *   3. Backfill the super-admin role with any `admin:*` key it is missing. That
- *      role is frozen — the role editor renders it as plain text with nothing
- *      to tick — so this script is its only way to gain a newly added admin
- *      page. Without this step a new page is unreachable by everybody, and the
- *      only remedy is editing role_permission by hand.
+ *   3. Backfill the super-admin role with any key it is missing: it holds
+ *      every key. That role is frozen — the role editor renders it as plain
+ *      text with nothing to tick — so this script is its only way to gain a
+ *      newly added key. Without this step the Roles page and any new module
+ *      are unreachable by everybody, and the only remedy is editing
+ *      role_permission by hand.
  *   4. Re-normalize every role to the implication closure of what it already
  *      holds, so existing roles pick up newly implied permissions.
  *
@@ -202,7 +203,7 @@ async function main() {
       permRows.map((r) => [r.key as string, r.permission_pk as number]),
     );
 
-    // ── Step 3: give the super-admin role any admin key it is missing ──
+    // ── Step 3: give the super-admin role any key it is missing ──
     const backfillSpinner = p.spinner();
     backfillSpinner.start("Checking the super-admin role");
 
@@ -222,7 +223,7 @@ async function main() {
     if (superAdminRows.length === 0) {
       // A fresh database where create-admin.ts has not run yet. Nothing to
       // backfill, and nothing wrong — that script creates the role holding
-      // every admin key.
+      // every key.
       backfillSpinner.stop("No super-admin role yet — nothing to backfill.");
       p.log.warn(
         wrap(
@@ -245,19 +246,15 @@ async function main() {
 
       const held = new Set(heldRows.map((r) => r.key as string));
 
-      // Every admin key defined in code, which is what this role is supposed
-      // to hold. Staff keys are deliberately excluded: a user holding
-      // admin:view is sent to /admin, where a staff key could never be used.
+      // Every key defined in code, which is what this role is supposed to
+      // hold.
       const missing = PERMISSIONS.filter(
-        (perm) =>
-          perm.module === "admin" &&
-          !held.has(perm.key) &&
-          pkByKey.has(perm.key),
+        (perm) => !held.has(perm.key) && pkByKey.has(perm.key),
       ).map((perm) => perm.key);
 
       if (missing.length === 0) {
         backfillSpinner.stop(
-          `"${superAdminName}" already holds every admin permission.`,
+          `"${superAdminName}" already holds every permission.`,
         );
       } else {
         await connection.beginTransaction();
@@ -276,7 +273,7 @@ async function main() {
         }
 
         backfillSpinner.stop(
-          `"${superAdminName}" gained ${missing.length} admin permission(s).`,
+          `"${superAdminName}" gained ${missing.length} permission(s).`,
         );
         p.note(missing.join("\n"), `Added to "${superAdminName}"`);
       }

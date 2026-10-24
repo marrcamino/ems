@@ -8,25 +8,19 @@
  * - The "Super Admin" entry here is also what create-admin.ts reads to
  *   bootstrap the very first super-admin role + user on a fresh server.
  *
- * ADMIN vs STAFF: a role is either an admin role (only `admin:*` keys) or a
- * staff role (only non-admin keys) — never both. Holding `admin:view`
- * redirects the user into /admin, so a staff key on an admin role could
- * never be exercised. Every template below picks a side.
+ * A role may mix any keys. The four templates are the starting points
+ * decided on 24 October 2026
+ * (.claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md).
  *
- * CRITICAL: no template may include `admin:manage_roles` except "Super
- * Admin". Exactly one role in the system may hold that key, and it is
- * created only by scripts/create-admin.ts — the role editor never renders
- * it at all.
+ * CRITICAL: no template may include `roles:manage` or `roles:view` except
+ * "Super Admin". Exactly one role in the system may hold `roles:manage`, and
+ * it is created only by scripts/create-admin.ts — the role editor never
+ * renders either key at all.
  *
  * Descriptions are shown verbatim in the role editor, so they're written for
  * a non-technical admin: plain language, no permission keys.
- *
- * NOTE: This is a SAMPLE set showing the pattern. Role names, and exactly
- * which permissions each one starts with, are yours to edit — nothing here
- * is locked except the overall shape (roleName / description / permissions).
  */
 
-import { RESTRICTED_PERMISSION_KEYS } from "$lib/rbac/permission-tree";
 import { PERMISSIONS, type PermissionKey } from "./permissions";
 
 export interface RoleTemplate {
@@ -35,26 +29,9 @@ export interface RoleTemplate {
   permissions: readonly PermissionKey[];
 }
 
-// Every `admin:*` key. PERMISSIONS is the single source of the full key list
-// — it already handles flattening nested submodules, so this stays correct as
-// the admin module grows. Deliberately NOT every permission in the system:
-// staff keys are unreachable for a user who lands in /admin.
-const ALL_ADMIN_PERMISSIONS: readonly PermissionKey[] = PERMISSIONS.filter(
-  (p) => p.module === "admin",
-).map((p) => p.key);
-
-// The same list minus the two roles-page keys. An ordinary Admin gains any
-// new admin page automatically, but the Roles page stays super-admin-only:
-// with `admin:manage_roles` restricted to one role, a view-only Roles page
-// would be a dead end for everyone else. Role details are surfaced in the
-// user editor instead.
-// RESTRICTED_PERMISSION_KEYS is the same list the role editor hides and the
-// Roles page load strips from anything submitted — kept in one place so a
-// template can never quietly reintroduce a key the UI refuses to render.
-const rolesPageKeys = new Set<string>(RESTRICTED_PERMISSION_KEYS);
-
-const ADMIN_PERMISSIONS: readonly PermissionKey[] =
-  ALL_ADMIN_PERMISSIONS.filter((key) => !rolesPageKeys.has(key));
+// Every key. PERMISSIONS is the single source of the full key list, so a new
+// module reaches the super-admin template without anyone listing it here.
+const ALL_PERMISSIONS: readonly PermissionKey[] = PERMISSIONS.map((p) => p.key);
 
 export const ROLE_TEMPLATES = [
   {
@@ -62,59 +39,51 @@ export const ROLE_TEMPLATES = [
     // is inserted.
     roleName: "Super Admin",
     description:
-      "Highest level of access. Can do everything an Admin can, and is the only role allowed to create and edit roles. Set up once when the system is installed, and cannot be renamed, deactivated, or deleted afterwards.",
-    permissions: ALL_ADMIN_PERMISSIONS,
+      "Highest level of access. Can do everything in the system, and is the only role allowed to create and edit roles. Set up once when the system is installed, and cannot be renamed, deactivated, or deleted afterwards.",
+    permissions: ALL_PERMISSIONS,
   },
 
   {
+    // No Roles keys, and no fuel work: the admin does not do GSU's job.
     roleName: "Admin",
     description:
-      "Full access to every admin page: all consumption records, user accounts, and the organizational structure. Does not have access to role management.",
-    permissions: ADMIN_PERMISSIONS,
+      "Runs the system: user accounts, employee records, the organizational structure, and the signatories. Does not do fuel work or manage roles.",
+    permissions: [
+      "users:view",
+      "users:manage",
+      "employees:view",
+      "employees:manage",
+      "org_units:view",
+      "org_units:manage",
+      "signatories:view",
+      "signatories:manage",
+    ],
   },
 
   {
     roleName: "GSU",
     description:
-      "General Services Unit. Can open every consumption section and reviews the entries submitted by encoders.",
+      "General Services Unit. Records fuel purchase orders and assets, and sees the fuel records of every office.",
     permissions: [
       "fuel:view",
-      "electricity:view",
-      "water:view",
-      "paper:view",
-      "eswm:view",
+      "fuel:view_all_offices",
+      "purchase_orders:view",
+      "purchase_orders:manage",
+      "assets:view",
+      "assets:manage",
     ],
   },
 
   {
-    roleName: "Electricity Encoder",
-    description: "Records electricity consumption.",
-    permissions: ["electricity:view"],
-  },
-
-  {
-    roleName: "Air Travel Encoder",
-    description: "Records air travel details.",
-    permissions: ["air_travel:view"],
-  },
-
-  {
-    roleName: "ESWM Encoder",
-    description: "Records ecological solid waste management data.",
-    permissions: ["eswm:view"],
-  },
-
-  {
-    roleName: "GHG Focal",
-    description:
-      "Views the greenhouse gas figures compiled from fuel, electricity, and air travel. Does not record anything.",
-    permissions: ["ghg:view"],
+    roleName: "Staff",
+    description: "Sees the fuel records of their own office.",
+    permissions: ["fuel:view"],
   },
 ] as const satisfies readonly RoleTemplate[];
 
 /**
  * Convenience type: a union of the role names above, e.g.
- *   "Super Admin" | "Admin" | "GSU" | ... | "GHG Focal"
+ *   "Super Admin" | "Admin" | "GSU" | "Staff"
  * Handy if you ever want to look up a specific template by name with
  * type-checking (e.g. in create-admin.ts, which looks up "Super Admin").
  */

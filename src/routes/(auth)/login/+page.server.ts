@@ -3,7 +3,6 @@ import { verifyPassword } from "$lib/server/auth/password";
 import {
   buildChangePasswordRedirect,
   getAlreadyLoggedInRedirect,
-  getDefaultLandingRoute,
   getSafeRedirectTarget,
 } from "$lib/server/auth/redirect";
 import {
@@ -12,12 +11,7 @@ import {
   setSessionTokenCookie,
 } from "$lib/server/auth/session";
 import { db } from "$lib/server/db";
-import {
-  employee,
-  permission,
-  rolePermission,
-  user,
-} from "$lib/server/db/schema";
+import { employee, user } from "$lib/server/db/schema";
 import { fail, redirect } from "@sveltejs/kit";
 import { eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
@@ -44,13 +38,8 @@ export const load: PageServerLoad = ({ locals, url, request }) => {
   const requested = url.searchParams.get("redirectTo");
 
   if (locals.user) {
-    const fallback = getDefaultLandingRoute(locals.permissions);
-    const target = getAlreadyLoggedInRedirect(
-      !!locals.user,
-      requested,
-      fallback,
-    );
-    throw redirect(302, target || fallback);
+    const target = getAlreadyLoggedInRedirect(!!locals.user, requested);
+    throw redirect(302, target || "/");
   }
 
   // The form posts to `?/login`, and that replaces the whole query string —
@@ -161,23 +150,9 @@ export const actions: Actions = {
       );
     }
 
-    // look up this user's permissions fresh from the DB, since
-    // event.locals.permissions is stale (hooks ran before this session existed)
-    const perms = await db
-      .select({ key: permission.key })
-      .from(rolePermission)
-      .innerJoin(
-        permission,
-        eq(rolePermission.permissionFk, permission.permissionPk),
-      )
-      .where(eq(rolePermission.roleFk, found.roleFk));
-
-    const permissionKeys = new Set(perms.map((p) => p.key));
-
-    const fallback = getDefaultLandingRoute(permissionKeys);
+    // Everyone lands on the dashboard unless they were heading somewhere.
     const redirectTarget = getSafeRedirectTarget(
       typeof redirectTo === "string" ? redirectTo : null,
-      fallback,
     );
     throw redirect(302, redirectTarget);
   },

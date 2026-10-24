@@ -29,7 +29,7 @@ import {
   TENURE_STATUS_LABELS,
   TENURE_STATUS_VALUES,
   type TenureStatus,
-} from "../src/routes/admin/employees/labels";
+} from "../src/routes/(app)/(admin)/employees/labels";
 import {
   bailIfCancelled,
   connectToDatabase,
@@ -197,7 +197,7 @@ async function main() {
     checkSpinner.stop("No account exists yet.");
 
     // ── Step 3: ensure the super-admin role exists (create from template) ──
-    // Looked up by the role holding admin:manage_roles, not by role name —
+    // Looked up by the role holding roles:manage, not by role name —
     // holding that key is what makes a role the super-admin role, and exactly
     // one role in the system may ever hold it.
     const roleSpinner = p.spinner();

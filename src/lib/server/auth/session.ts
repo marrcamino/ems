@@ -98,8 +98,7 @@ export async function validateSessionToken(token: string) {
     .where(eq(rolePermission.roleFk, row.user.roleFk));
 
   // Expand into the implication closure: a role granted only
-  // `admin:manage_org_units` effectively holds `admin:view_org_units` and
-  // `admin:view` too. Roles saved through the UI are already stored expanded,
+  // `org_units:manage` effectively holds `org_units:view` too. Roles saved through the UI are already stored expanded,
   // but doing it here as well covers rows written by scripts/create-admin.ts
   // and any role saved before the closure existed — no backfill needed.
   const permissions = expandPermissions(permRows.map((p) => p.key));

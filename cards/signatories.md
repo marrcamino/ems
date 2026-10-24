@@ -11,7 +11,7 @@ Who signs each printed document. No signatory table: a document points at one `e
 ## Home
 | Source | Path |
 |---|---|
-| Code | `src/routes/admin/signatories/`, schema `config.ts`, `src/lib/server/org-unit-guard.ts` |
+| Code | `src/routes/(app)/(admin)/signatories/`, schema `config.ts`, `src/lib/server/org-unit-guard.ts` |
 | Tests | none |
 | Decisions / notes | `.claude/docs/features/signatory.md` (start at "Where this stands") |
 | Graph nodes | `tab-content-fuel.svelte`, `settingUsingOrgUnit`, `config` |

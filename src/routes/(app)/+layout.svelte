@@ -1,5 +1,5 @@
 <script lang="ts">
-  import StaffSidebar from "@/components/navigation/staff-sidebar.svelte";
+  import AppSidebar from "@/components/navigation/app-sidebar.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { setGlobalContext } from "../global-context.svelte";
 
@@ -11,8 +11,12 @@
   <title>EMS</title>
 </svelte:head>
 
+<!--
+  One layout for every signed-in page, the (admin) group included. It checks
+  no key itself: each page's load checks the one it needs.
+-->
 <Sidebar.Provider>
-  <StaffSidebar />
+  <AppSidebar />
   <Sidebar.Inset>
     {@render children()}
   </Sidebar.Inset>

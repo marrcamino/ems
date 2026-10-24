@@ -1,7 +1,14 @@
 # Fuel assets
 
+> **Paths and keys updated on 24 October 2026.** The pages moved out of
+> `/admin` and every permission key was renamed to `thing:action` (MPP-121,
+> `.claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md`).
+> The paths and keys below are the new ones, also where an older date stands
+> next to them. Passages that explain the old split into an admin area and
+> staff pages are kept as they were written.
+
 The vehicles, boats and machines the office fuels, and the dialog on
-`/admin/fuel/assets` where an admin adds one. Asset types (motorcycle,
+`/fuel/assets` where an admin adds one. Asset types (motorcycle,
 pick-up, generator) are managed in a dialog on the same page (`?asset-types`), which
 replaced their own page on 24 September 2026; this document
 is about the assets recorded under them.
@@ -14,7 +21,7 @@ is about the assets recorded under them.
   later wants them entered, they are added then.
 - Topic 2, the database columns: decided.
 - Built (24 September 2026): the `asset` table, the list on
-  `/admin/fuel/assets`, and the add, edit and delete dialogs. Delete is
+  `/fuel/assets`, and the add, edit and delete dialogs. Delete is
   allowed because no fuel record points at an asset yet; once one does, the
   server refuses and says to switch the asset off instead.
 

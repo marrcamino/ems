@@ -11,8 +11,7 @@ import {
   type HandleServerError,
 } from "@sveltejs/kit";
 
-const ADMIN_ROUTE_PREFIX = "/admin";
-const ROLE_ROUTING_EXEMPT = ["/logout"];
+const PASSWORD_CHANGE_EXEMPT = ["/logout"];
 const CHANGE_PASSWORD_ROUTE = "/change-password";
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -82,10 +81,9 @@ function guardOrResolve(
 
   if (event.locals.user && routeExists) {
     const isChangePasswordRoute = event.url.pathname === CHANGE_PASSWORD_ROUTE;
-    const isExempt = ROLE_ROUTING_EXEMPT.includes(event.url.pathname);
+    const isExempt = PASSWORD_CHANGE_EXEMPT.includes(event.url.pathname);
 
-    // must-change-password takes priority over the admin-area guard —
-    // an admin with this flag still gets sent here, not to /admin
+    // must-change-password comes before every other page
     if (
       event.locals.user.mustChangePassword &&
       !isChangePasswordRoute &&
@@ -97,22 +95,11 @@ function guardOrResolve(
     // the inverse: don't let someone who does NOT need to change their
     // password sit on /change-password indefinitely (e.g. via back button)
     if (!event.locals.user.mustChangePassword && isChangePasswordRoute) {
-      const isAdmin = event.locals.permissions.has("admin:view");
-      throw redirect(302, isAdmin ? ADMIN_ROUTE_PREFIX : "/");
+      throw redirect(302, "/");
     }
 
-    if (!isExempt && !isChangePasswordRoute) {
-      const isAdmin = event.locals.permissions.has("admin:view");
-      const inAdminArea = event.url.pathname.startsWith(ADMIN_ROUTE_PREFIX);
-
-      if (isAdmin && !inAdminArea) {
-        throw redirect(302, ADMIN_ROUTE_PREFIX);
-      }
-
-      if (!isAdmin && inAdminArea) {
-        throw redirect(302, "/");
-      }
-    }
+    // Nobody is sent into or kept out of an area by address: each page's own
+    // load checks the key it needs.
   }
 
   return resolve(event);
