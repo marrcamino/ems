@@ -1,7 +1,7 @@
 ---
 type: module
 status: done
-next: fix MPP-120; then MPP-121, moving the pages out of /admin and renaming every key (decided 24 October 2026, not started)
+next: MPP-121, moving the pages out of /admin and renaming every key (decided 24 October 2026, not started)
 updated: 2026-10-24
 ---
 # Roles and permissions
@@ -20,9 +20,9 @@ Each user has one role; a role is a set of permission keys fixed in code.
 ## Open (tracked in Linear)
 - MPP-121 move the pages out of /admin and switch to the new permission keys
 - MPP-123 decide whether the super-admin needs a "view as this role" tool
-- MPP-120 switching a role off does not take access away from the people who hold it
 - Fuel's later keys, `fuel:approve` and one for recording withdrawals, come with MPP-80 and MPP-81 (shape in the 24 October decision).
 
 ## Gotchas
 - After changing `PERMISSION_DEFS`, run `npm run sync-permissions`.
 - The super-admin role is frozen except its description, and at least one active user must hold it.
+- A role is switched off only once no user holds it; a user left on an inactive role holds no keys (`validateSessionToken`, MPP-120).
