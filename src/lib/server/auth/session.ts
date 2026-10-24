@@ -3,6 +3,7 @@ import { expandPermissions } from "$lib/server/permissions";
 import {
   employee,
   permission,
+  role,
   rolePermission,
   session,
   user,
@@ -45,14 +46,17 @@ export async function validateSessionToken(token: string) {
 
   // The employee join is inner, not left: user.employee_fk is NOT NULL, so a
   // login without a person cannot exist.
-  const [row] = await db
-    .select({ session, user, employee })
+  const [found] = await db
+    .select({ session, user, employee, roleStatus: role.status })
     .from(session)
     .innerJoin(user, eq(session.userFk, user.userPk))
     .innerJoin(employee, eq(user.employeeFk, employee.employeePk))
+    .innerJoin(role, eq(user.roleFk, role.rolePk))
     .where(eq(session.sessionPk, sessionPk));
 
-  if (!row) return emptySession();
+  if (!found) return emptySession();
+
+  const { roleStatus, ...row } = found;
 
   // Somebody who no longer works here cannot stay signed in, whatever their
   // account status says. The row is deleted rather than merely refused, so an
@@ -74,6 +78,14 @@ export async function validateSessionToken(token: string) {
       .set({ expiresAt: newExpiresAt })
       .where(eq(session.sessionPk, sessionPk));
     row.session.expiresAt = newExpiresAt;
+  }
+
+  // A switched-off role grants nothing. The Roles page refuses to switch off
+  // a role that people still hold, so this only matters for someone left on a
+  // role that was switched off before that check existed, or by a request
+  // that skipped it. They stay signed in, but every page refuses them.
+  if (roleStatus !== "active") {
+    return { ...row, permissions: new Set<string>() };
   }
 
   const permRows = await db

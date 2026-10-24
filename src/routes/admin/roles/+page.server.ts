@@ -324,6 +324,26 @@ export const actions: Actions = {
       });
     }
 
+    /**
+     * A role is switched off only once nobody holds it, so that switching it
+     * off never takes access away from people the admin is not looking at.
+     * The editor already makes the switch unavailable while the role has
+     * users; this catches a stale page or a request from elsewhere. A role
+     * that is already inactive keeps its users and can still be edited.
+     */
+    if (existing.status === "active" && status === "inactive") {
+      const [{ total: holders }] = await db
+        .select({ total: count() })
+        .from(user)
+        .where(eq(user.roleFk, rolePk));
+
+      if (holders > 0) {
+        return fail(409, {
+          error: `${holders === 1 ? "1 user is" : `${holders} users are`} assigned to this role, so it can't be switched off. Move them to another role on the Users page first.`,
+        });
+      }
+    }
+
     await db
       .update(role)
       .set({
