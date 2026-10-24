@@ -46,6 +46,8 @@ Access is role-based — one role per user, no per-user overrides. Current roles
 
 Approvers may approve their own submissions — this matches actual agency practice for GSU and is deliberate, not an oversight.
 
+**Officers-in-charge.** When an officer is away, an officer-in-charge always takes over (told by the owner, 24 October 2026). EMS has no feature for it and none is wanted: nobody would keep such a setting up to date, and the office does not mind someone else using the absent officer's account. So a record of who did what names the account, which is not always the person at the keyboard.
+
 **Fuel is the only feature with an approval step.** A staff member requests a fuel withdrawal slip and GSU approves it. The approval itself is physical — a GSU person signs the printed slip — and afterwards someone marks the slip as approved in the system. So the system records an approval that already happened on paper; it is not where the approving takes place. The other tracked areas (electricity, water, paper, ESWM, GHG) are recorded without anyone approving them.
 
-Full RBAC design: see `RBAC-design-locked-decisions.md`.
+Full RBAC design: see `.claude/skills/rbac-design/SKILL.md`, partly replaced by `.claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md`.

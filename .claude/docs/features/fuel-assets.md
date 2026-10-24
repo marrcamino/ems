@@ -100,6 +100,9 @@ ask for.
 **Property number stays required.** On 24 September 2026 the user limited the
 page to office-owned assets, every one of which has a property number. If a
 borrowed or rented asset ever has to be entered, this rule is revisited then.
+Small items, such as chainsaws and grass cutters, have property numbers too
+(told by the user, 22 October 2026, MPP-110). The field takes any text, so a
+number in another series still fits, and the rule stays.
 
 **How the plate rule was chosen (14 September 2026).** Two ways were
 considered: a separate "needs a plate number" setting on each asset type, or
@@ -210,7 +213,8 @@ fleet, but not by definition.
 5. **The hour meter is recorded, but no form asks for a reading yet.** No paper
    form has a line for engine hours, and neither the MFCR nor GEMP asks for them.
    Recording the meter on the type now means that adding an hour field later is
-   only a form change. It waits for the generator logbook question (MPP-75).
+   only a form change. GSU keeps no generator logbook (22 October 2026, MPP-111),
+   so the withdrawal form asks for no hour reading.
 
 ## Also undecided
 

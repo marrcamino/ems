@@ -6,26 +6,13 @@
  * created/edited by an admin at runtime (roles, which ARE runtime-editable,
  * just pick from this list).
  *
- * ── Two route trees, two kinds of role ──────────────────────────────────
+ * ── Being replaced ──────────────────────────────────────────────────────
  *
- * The app has two parallel route trees over the same data:
- *
- *   staff:  /fuel, /paper, /electricity, ...
- *   admin:  /admin/fuel, /admin/paper, /admin/electricity, ...
- *           /admin/users, /admin/roles, /admin/org-structure
- *
- * These are genuinely different pages, not one page branching on which keys
- * you hold — the admin table has different columns and different actions
- * from the staff one. So each tree gets its own keys: the staff modules
- * below gate the staff tree, and the `admin` module's submodules gate the
- * admin tree, one submodule per admin page.
- *
- * Because holding `admin:view` redirects a user into /admin (see
- * hooks.server.ts), an admin user can never reach /fuel — a staff key on an
- * admin role would be a key that can never be exercised. A role is therefore
- * EITHER an admin role (only `admin:*` keys) OR a staff role (only non-admin
- * keys), never a mix. That is structural, not a rule the role editor
- * enforces reactively.
+ * The keys below still follow the old split into an admin tree and a staff
+ * tree. They are being renamed to `thing:action` (such as
+ * `purchase_orders:manage`), with no `admin` module and no submodules — see
+ * .claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md
+ * and Linear MPP-121. Add new keys in that shape.
  *
  * ── Nesting ─────────────────────────────────────────────────────────────
  *
@@ -95,10 +82,7 @@ export const PERMISSION_DEFS = {
   },
 
   // ── Admin module: the /admin/* tree ───────────────────────────────────
-  // One submodule per admin page. The data submodules mirror the staff
-  // modules above one-for-one; keep the two lists in step when adding a
-  // module (they are spelled out separately because the literal `as const`
-  // object is what PermissionKey is derived from).
+  // One submodule per admin page (being replaced, see the top of this file).
   admin: {
     view: "Access the Admin area",
 

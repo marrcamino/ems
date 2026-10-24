@@ -30,10 +30,12 @@ that is not written here, ask the owner instead of assuming one.
    its own fuel from its own budget, and GSU is one of these units, with its own
    budget too (11 and 20 October 2026). GSU's budget does not pay for the whole
    PO. The units are the ones on the Organizational Structure page.
-3. **Each unit asks GSU for the fuel it needs,** such as CSD 30 L and OPENRO
+3. **Each unit asks GSU for the fuel it needs,** such as CDS 30 L and OPENRO
    25 L. The request is probably verbal; no separate document per unit has been
-   seen (7 October 2026). Whether each unit makes a purchase request is still to
-   be asked (MPP-75).
+   seen (7 October 2026). Whether each unit makes a purchase request (PR) does
+   not matter to EMS, so GSU is not asked (decided by the user, 22 October 2026,
+   MPP-115): if PRs exist, GSU can write their numbers in the PO's optional
+   "Basis for the allocation" note.
 4. **GSU adds up all the requests into one PO for the whole office.** GSU does
    not decide how the fuel is split; making the PO is simply its job as General
    Services (20 October 2026). The sample PO's purpose reads "Requested fuel to be
@@ -44,8 +46,11 @@ that is not written here, ask the owner instead of assuming one.
 6. **A withdrawal counts down one unit's allocation, for one fuel.** A unit may
    use another unit's fuel with that unit's agreement: when Planning uses CDS's
    fuel, the withdrawal is recorded under CDS and counts down CDS's allocation
-   (7 October 2026). Whether the record must also show that Planning used it is
-   still to be asked (MPP-75).
+   (7 October 2026). Planning asks CDS in person or by chat, and a CDS staff
+   member records the withdrawal. Planning may also go to GSU, but GSU still
+   needs CDS's agreement (told by the user, 22 October 2026). The record does
+   not show that Planning used the fuel, because CDS knows it anyway (point 7
+   of "Recording a fuel issuance").
 7. **A new PO is supposed to wait until the whole PO is used up,** because the
    PO's terms say so. In practice this is not always followed: a new PO can be
    made earlier, so a unit can have fuel on two POs at once. There is no fixed
@@ -207,8 +212,12 @@ The shared pieces they use went to `main` first (see
 
 ## Questions that are still waiting for GSU
 
-They are listed in Linear, in MPP-75, which carries the Ask label. Answers that
-have come back are written into "How the office handles fuel today" above.
+Each question is its own Linear issue with the Ask label, with its background
+and an example, and the open ones are listed in the Open list of
+`cards/fuel.md`. Until 21 October 2026 they were all in MPP-75. An answer that
+comes back is written where its fact belongs in this document, mostly in "How
+the office handles fuel today" or "The paperwork". Each place in this document
+that is still waiting for an answer names its issue.
 
 ## How POs and withdrawal slips work (decided 6–20 October 2026)
 
@@ -225,6 +234,15 @@ have come back are written into "How the office handles fuel today" above.
    the PO. A PO may have only one fuel, and the whole of a fuel may go to one unit
    (7 October 2026). An optional note records where the allocations came from,
    such as a memo number; it is built as "Basis for the allocation".
+   **Whole liters only** on the PO and in its allocations (decided by the user,
+   22 October 2026, MPP-105). The PO rows in GSU's logbook have no decimals,
+   and a unit has no reason to ask for part of a liter. A withdrawal's actual
+   liters still have decimals (point 9 of "How the office handles fuel today").
+   The pesos of an allocation are only an estimate anyway, because each
+   withdrawal is charged at that day's pump price. So an allocation is typed in
+   liters only, and EMS shows its pesos beside them; typing an allocation in
+   pesos is dropped (decided by the user, 22 October 2026). Not built yet
+   (MPP-118): the PO form still accepts two decimals and pesos typing.
 3. **The slip.** It records the litres the driver requested. When it comes back
    from the station, a GSU user types what the supplier wrote on it. **Changed on
    20 October 2026:** the unit price (that day's pump price) is required, and at
@@ -233,16 +251,21 @@ have come back are written into "How the office handles fuel today" above.
    and the unit price, for that slip alone. This replaces the rule of 15 October,
    under which the litres and the unit price were required and the amount was
    optional. Today's slip has no boxes for these, so the printed slip gets new
-   boxes for the supplier; GSU and the supplier still have to agree to that.
+   boxes for the supplier. GSU agreed to the new boxes when the user talked it
+   through with GSU staff (told by the user, 22 October 2026). The supplier has
+   not been asked, but the user does not expect the supplier to object.
 
    Each withdrawal keeps both numbers: the litres for the DOE monthly report, and
    the pesos to count down the PO.
 
-   The user's plan, not yet told to GSU (20 October 2026): the slip shows an
+   The user's plan of 20 October 2026, told to GSU (confirmed by the user,
+   22 October 2026, MPP-114): the slip shows an
    estimated amount when it is requested, and the amount that the supplier
    writes is what is deducted from the unit's allocation and the PO, even when
    the supplier rounded it. If the pump charged ₱881.24 and the supplier wrote
    ₱881, the system deducts ₱881, and the 24 centavos are the supplier's loss.
+   Never the requested liters or an estimated price, because the pump price
+   changes from day to day.
 4. **Which PO.** One slip is charged to one PO: the oldest PO where that unit
    still has an allocation of that fuel. Several POs can be open at once. The PO
    on a slip is therefore worked out by the system, not picked by anyone.
@@ -300,11 +323,11 @@ three problems for a price-based PO, which are being discussed one at a time.
    rounded on their own today, so together they can come to a centavo more or
    less than the PO's amount. Discussed on 20 October 2026: with whole liters it
    cannot happen, and the units ask in liters (point 3 of "How the office handles
-   fuel today"). The owner leans towards allowing decimals, but only quarter
-   liters (.25, .50, .75); whether to allow them is to be asked of GSU or decided
-   (MPP-105). Quarter liters still need rounding at some prices (12.5 L at
-   ₱65.75 is ₱821.875), so with any decimals the system has to make the units'
-   pesos add up to the PO's amount. Not decided.
+   fuel today"). **Settled on 22 October 2026:** the PO and its allocations take
+   whole liters only (point 2, "Allocations", of "How POs and withdrawal slips
+   work"), so this cannot happen. Quarter liters were considered and dropped,
+   because they still need rounding at some prices (12.5 L at ₱65.75 is
+   ₱821.875).
 3. **Tiny leftovers.** A few centavos, or 0.01 L, cannot be pumped. But a unit
    must use up what is left on the old PO (point 5, "Leftovers", of "How POs and
    withdrawal slips work"), and a PO cannot be closed while money is left
@@ -351,7 +374,7 @@ GSU's fuel logbook.
 ### Which forms apply
 
 The RIS and the withdrawal slip are always used; the trip ticket only when
-something travels with a driver (a genset or a grass cutter uses a slip alone,
+something travels with a driver (a genset or a grass cutter has no trip ticket,
 told on 10 October 2026). When nothing travels, the RIS "Purpose" is the only
 justification, so it carries more weight.
 
@@ -377,11 +400,29 @@ lines).
 
 ### What the observed forms showed
 
-1. **Document numbers:** trip ticket `2026-06-070`, WS `06-070` (the same
-   sequence), office control number `GSU-2026-06-002` (GSU's own sequence), RIS
-   `2026-06-094` (a separate, higher sequence, probably shared with supplies that
-   are not fuel). If it is shared, gaps in the RIS numbers are normal and must
-   not be checked for (MPP-75).
+1. **Document numbers:** trip ticket `2026-06-070`, WS `06-070`, office
+   control number `GSU-2026-06-002` (a separate sequence), RIS
+   `2026-06-094` (a separate, higher sequence). The RIS numbering is shared with
+   supplies that are not fuel (told by the user, 21 October 2026), so the fuel
+   RIS numbers alone have gaps. Its running number starts again at 001 every
+   January, not every month (told by GSU, 21 October 2026), so the first RIS of
+   July carries on from the last number of June. How EMS hands out these numbers
+   is point 6 of "Recording a fuel issuance". **The trip ticket and the WS each
+   have their own running number** (seen by the user in GSU's logbook and
+   explained by GSU, 22 October 2026). They match only while every withdrawal
+   has both. A slip with no trip ticket, such as for the generator, moves the
+   WS ahead, and a trip with no slip moves the trip ticket ahead, so the two
+   can drift apart and later match again. The WS's running number starts again
+   every January, like the RIS; only the month part changes during the year
+   (told by the user, 22 October 2026). How the trip ticket's number runs, and
+   whether it starts again every January, is still to be asked (MPP-108).
+   **The office control
+   number is counted per division, section, or unit,** and each one writes its
+   own, because each manages its own fuel from its own budget (told by the
+   user, 22 October 2026). GSU writes only its own. Its code shows whose slip it is, and its running number
+   shows the order of that unit's own slips, so `GSU-2026-06-002` and
+   `CDS-2026-06-002` can both exist. EMS does not produce it (point 8 of
+   "Recording a fuel issuance").
 2. **The trip ticket's tank lines:** balance in tank 0.50 L, issued 6.00 L, total
    6.50 L, used 6.00 L, balance after 0.50 L.
 3. **The slip's running balance:** 19 available, 6 issued, 13 left. GSU checks
@@ -392,7 +433,12 @@ lines).
    km/L figure, the full-tank method and the MFCR's total kilometres cannot be
    worked out. Requiring an odometer reading in the system asks staff for
    something the paper let them skip, so raise it with GSU before making it
-   required (MPP-75).
+   required (MPP-116). Drivers fill in the tank lines (the balance in the tank
+   before and after the trip) but prefer to skip the odometer readings (told by
+   the user, 22 October 2026). No report needs the kilometres (point 2 of "The
+   rules and reports that apply"), so **EMS keeps the odometer readings
+   optional** (MPP-116, 22 October 2026). Kilometres per litre can be worked out
+   only for the trips that have both readings.
 
 ### GSU's fuel logbook
 
@@ -400,18 +446,22 @@ GSU keeps one logbook for all assets together, one line per withdrawal. It is
 the closest thing on paper to the record this module builds, so its columns are
 the best evidence for the fields a withdrawal needs.
 
-1. **Its columns,** as checked for the discovery notes: WS control no., DTT
-   control no., TT control no., vehicle name, date, type of gasoline, issued,
-   amount, balance, remarks. The photo of 14 September 2026 in
-   [fuel-assets.md](fuel-assets.md) reads them a little differently; whether
-   "DTT" and "TT" are two numbers is asked in MPP-75.
+1. **Its columns:** WS control no., trip ticket no., vehicle name, date, type
+   of gasoline, issued, amount, balance, remarks. There is one trip ticket
+   number, not two. The discovery notes listed a "DTT control no." and a "TT
+   control no.", but DTT (Driver's Trip Ticket) and TT (Trip Ticket) are two
+   names for the same form (told by the user, 21 October 2026). Neither the
+   photo of 14 September 2026 in [fuel-assets.md](fuel-assets.md), which shows a
+   single "Trip Ticket No." column, nor the owner's own sample of the logbook
+   has two columns for it. The owner shortens the form's name to DTT, not TT.
 2. **"Issued" is litres and "Amount" is pesos,** copied from what the supplier
    writes on the slip (answered on 6 October 2026).
 3. **The balance is kept per fuel type,** in a gasoline set and a diesel set of
    columns, as a running ledger: each row's balance is the next row's
    "available".
 4. **There is no meter column at all,** no odometer and no engine hours, for any
-   asset. Whether a separate generator logbook exists is asked in MPP-75.
+   asset. GSU keeps no separate generator logbook either (asked by the user,
+   22 October 2026), so nothing on paper records engine hours.
 5. **Three headings use a looser word than the data under them,** and the system
    uses the precise one: "Speedometer" on the trip ticket holds the odometer
    reading, "Vehicle name" holds any asset, and "Type of gasoline" holds diesel
@@ -433,22 +483,34 @@ also the column name and the label on screen.
    less fuel than the average month of the first half of 2005, and an inventory
    of all energy-using equipment. Reports go through the GEMP Online System;
    since the app is offline, its export must suit somebody typing or uploading it
-   there.
+   there. **But the office submits no GEMP fuel report** (told by the user,
+   22 October 2026).
 2. **The DOE Monthly Fuel Consumption Report (MFCR)** asks for the monthly
    baseline and current gasoline litres, the same for diesel, and the total
    kilometres travelled. So every withdrawal must resolve to gasoline or diesel,
-   and the kilometres come only from assets with an odometer.
+   and the kilometres come only from assets with an odometer. **But the office
+   does not report to the DOE** (told by the user, 22 October 2026, after
+   asking the GHG Focal Person, MPP-116). The GHG Focal Person submits the
+   office's report to the DENR regional office, which may use its own form, and
+   no part of that report needs the kilometres travelled. Only the litres of
+   gasoline and diesel are needed.
 3. **A DOE advisory of March 2026** asks agencies for regular vehicle
    maintenance, a standard vehicle monitoring system, better trip planning, a
    gradual move to electric or hybrid vehicles, fuel-saving driving, the monthly
    report, and the full-tank method for fuel efficiency: fill to full, note the
-   odometer, drive, fill to full again; litres over kilometres gives km/L. That
-   needs the odometer at filling, the litres to full, and whether the tank was
-   filled.
+   odometer, drive, fill to full again; the kilometres divided by the litres
+   give km/L. That needs the odometer at filling, the litres to full, and
+   whether the tank was filled.
 4. **Audit:** COA Circular 92-61A covers government motor vehicles. GPPB
    Resolution 05-2018 allows direct purchase of fuel for official vehicles and
    equipment. Accounting books all of it as Fuel, Oil and Lubricants Expenses,
    whoever owns the asset.
+5. **GHG reporting works from litres, not kilometres.** The GHG Protocol and the
+   IPCC prefer the fuel-based method, because the fuel burned is what produces
+   the CO2; the distance-based method is a fallback for when there is no fuel
+   data. So the GHG figures need only the litres of each withdrawal, and no
+   odometer or hour reading. The report the user checked calculates from fuel
+   too (22 October 2026).
 
 ## Recording a fuel issuance (direction discussed, partly decided)
 
@@ -479,3 +541,44 @@ also the column name and the label on screen.
    when the asset's type reads an odometer, and leaves it out for a generator,
    grass cutter, chainsaw, or boat, so the asset decides it rather than a third
    button.
+6. **RIS numbers are reserved in EMS before they are written** (the owner's
+   plan, told on 21 October 2026). Because the RIS numbering is shared with
+   supplies that are not fuel ("What the observed forms showed", point 1), EMS
+   hands out every RIS number, fuel or not.
+   1. **A fuel withdrawal gets its RIS number when it is saved.** EMS takes the
+      next number by itself; GSU never types an RIS number for a withdrawal.
+      This assumes that each withdrawal has its own RIS, which is asked in
+      MPP-109.
+   2. **A non-fuel RIS is reserved first.** A GSU staff member reserves the next
+      number in EMS, and only then writes it on the paper. Writing the paper
+      first and typing the number in later is ruled out, because someone could
+      record a withdrawal in the meantime and take the same number.
+   3. **Only GSU reserves numbers,** because GSU has control of all property.
+      Anyone outside GSU who needs an RIS number asks a GSU staff member.
+   4. **A reserved number saves who reserved it and when,** so GSU can see which
+      staff member took it, and a remarks field that says what it is for. The
+      owner would like more fields than remarks, to be thought about later.
+   5. **A reserved number that ends up unused is marked "not used",** with a
+      short reason such as "paper spoiled", and GSU reserves a new number for
+      the next RIS (decided by the owner, 21 October 2026). It is never deleted,
+      because later numbers already come after it, and it is never reused,
+      because the number holds the month: reusing `2026-03-024` for a May RIS
+      would give that RIS a March number, placed before RIS made weeks earlier.
+7. **A withdrawal counts down the allocation of the unit of the person who
+   saves it** (decided by the owner, 22 October 2026). Staff of a division,
+   section, or unit have no picker for it, so they can only use their own
+   allocation. When Planning uses CDS's fuel, a CDS staff member saves the
+   withdrawal, so CDS always knows, and the withdrawal has no "used by" field
+   (this answers MPP-113). **GSU is the exception:** a GSU staff member picks
+   the division, section, or unit whose allocation the withdrawal counts down,
+   labelled "Office" on screen, because GSU controls all the fuel. GSU still
+   needs that unit's agreement first, and EMS records which GSU staff member
+   saved the withdrawal.
+8. **No office control number** (decided by the user, 22 October 2026). EMS
+   does not produce the control number that each division, section, or unit
+   writes on its own slips, such as `GSU-2026-06-002`.
+   Without its prefix the number is not unique, and the prefix is the
+   division, section, or unit's abbreviation, which can be changed on the
+   Organizational Structure page. A slip is known by its own WS number, and
+   the list of one unit's withdrawals, in order, comes from filtering the
+   issuance page by that unit.

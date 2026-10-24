@@ -5,10 +5,29 @@ description:
   permission keys, PERMISSION_DEFS, roles, the role editor, the super-admin role,
   expandPermissions or PERMISSION_IMPLIES, session permission loading, route guards
   in hooks.server.ts, create-admin.ts, or sync-permissions.ts. Also use when deciding
-  whether a new page belongs under /admin or the staff routes.
+  where a new page belongs (the 24 October 2026 decision replaces the /admin split).
 ---
 
 ## RBAC Design — Locked Decisions
+
+> **Being replaced (decided 24 October 2026, not built yet).** The owner decided
+> on shared work pages, an `(admin)` page group with no `/admin` address, keys
+> named `thing:action`, and a rule that each person sees only their own office's
+> records: `.claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md`.
+> The code still follows the rules below until that move is done. Build new work
+> to the decision, not to these sections:
+>
+> - **"Two kinds of role"** is dropped: roles can mix any keys, and nobody is
+>   sent into or kept out of an area by address.
+> - **"Permission key shape"** is replaced: no submodules, no `admin:` keys, and
+>   no data module listed twice.
+> - **"Role templates"** become Super Admin (every key), Admin, GSU, and Staff.
+> - **Bootstrapping and the sync** find the super-admin by `roles:manage` and
+>   fill it with every key, not every `admin:*` key.
+> - The restricted Roles page, the role editor's auto-tick, and the
+>   "one role per user" rule stay.
+>
+> Rewrite this skill to the new rules once the code is moved.
 
 ### Core model
 
