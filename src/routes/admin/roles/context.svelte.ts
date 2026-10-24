@@ -73,6 +73,15 @@ export class RolesContext {
     this.roleToEdit !== null && this.isSuperAdminRole(this.roleToEdit),
   );
 
+  /**
+   * How many users keep the role open in the editor from being switched off.
+   * An active role is switched off only once nobody holds it (the server's
+   * update action refuses otherwise); 0 when the switch is free to use.
+   */
+  usersBlockingSwitchOff = $derived(
+    this.roleToEdit?.status === "active" ? this.roleToEdit.userCount : 0,
+  );
+
   constructor() {
     $effect(() => {
       this.roleToEdit;

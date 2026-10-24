@@ -146,7 +146,7 @@
             const errorMessage =
               (result.data as { error?: string } | undefined)?.error ??
               "Something went wrong.";
-            toast.error(errorMessage);
+            toast.error("Role not saved", { description: errorMessage });
           }
 
           await update({ reset: false });
@@ -374,9 +374,23 @@
       </ScrollArea>
       <Dialog.Footer class="mx-0">
         {#if ctx.mode === "edit" && !ctx.editingIsFrozen}
-          <div class="flex items-center space-x-2 mr-auto max-sm:order-1">
-            <Switch id="isActive" bind:checked={ctx.formIsActive} />
-            <Label for="isActive">Active</Label>
+          {@const blockers = ctx.usersBlockingSwitchOff}
+          <div class="grid gap-1 mr-auto max-sm:order-1">
+            <div class="flex items-center space-x-2">
+              <Switch
+                id="isActive"
+                bind:checked={ctx.formIsActive}
+                disabled={blockers > 0}
+              />
+              <Label for="isActive">Active</Label>
+            </div>
+            {#if blockers > 0}
+              <p class="text-xs text-muted-foreground max-w-64">
+                {blockers === 1 ? "1 user is" : `${blockers} users are`} assigned
+                to this role. Move them to another role on the Users page to switch
+                it off.
+              </p>
+            {/if}
           </div>
         {/if}
 
