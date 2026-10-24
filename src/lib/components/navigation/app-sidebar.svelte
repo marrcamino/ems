@@ -81,27 +81,33 @@
         </Sidebar.MenuButton>
 
         {#if item.children.length}
-          <Sidebar.MenuSub>
-            {#each item.children as subItem (subItem.url)}
-              <Sidebar.MenuSubItem>
-                <Sidebar.MenuSubButton
-                  isActive={subItem.active}
-                  class="overflow-visible text-nowrap"
-                >
-                  {#snippet child({ props })}
-                    <a
-                      href={subItem.url}
-                      aria-current={subItem.active ? "page" : undefined}
-                      {...props}
+          <div
+            class="grid grid-rows-[1fr] transition-[grid-template-rows,opacity,visibility] duration-200 ease-linear group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:grid-rows-[0fr] group-data-[collapsible=icon]:opacity-0 motion-reduce:transition-none"
+          >
+            <div class="min-h-0 overflow-hidden">
+              <Sidebar.MenuSub class="group-data-[collapsible=icon]:flex">
+                {#each item.children as subItem (subItem.url)}
+                  <Sidebar.MenuSubItem>
+                    <Sidebar.MenuSubButton
+                      isActive={subItem.active}
+                      class="overflow-visible text-nowrap group-data-[collapsible=icon]:flex"
                     >
-                      <span>{subItem.name}</span>
-                      <NavActiveIndicator active={subItem.active} />
-                    </a>
-                  {/snippet}
-                </Sidebar.MenuSubButton>
-              </Sidebar.MenuSubItem>
-            {/each}
-          </Sidebar.MenuSub>
+                      {#snippet child({ props })}
+                        <a
+                          href={subItem.url}
+                          aria-current={subItem.active ? "page" : undefined}
+                          {...props}
+                        >
+                          <span>{subItem.name}</span>
+                          <NavActiveIndicator active={subItem.active} />
+                        </a>
+                      {/snippet}
+                    </Sidebar.MenuSubButton>
+                  </Sidebar.MenuSubItem>
+                {/each}
+              </Sidebar.MenuSub>
+            </div>
+          </div>
         {/if}
       </Sidebar.MenuItem>
     {/each}
@@ -117,7 +123,6 @@
     </Sidebar.Group>
 
     {#if visibleAdminPages.length}
-      <Sidebar.Separator />
       <Sidebar.Group>
         {@render menu(visibleAdminPages)}
       </Sidebar.Group>
