@@ -179,7 +179,10 @@ Choices made while building, which the points above did not settle:
    `assets`, and later `fuel:approve`.
 5. **The old templates** (Electricity Encoder, Air Travel Encoder, ESWM
    Encoder, GHG Focal) were dropped for the four in point 5.
-6. **The existing database** was moved to the new keys by a one-off script,
-   `tmp/mpp-121-carry-keys/carry-old-keys.ts`, which gives each role the new
-   key for every old `admin:*` key it holds, before
-   `npm run sync-permissions` deletes the old ones.
+6. **The existing database.** A one-off script,
+   `tmp/mpp-121-carry-keys/carry-old-keys.ts`, was written to give each role
+   the new key for every old `admin:*` key it held, before
+   `npm run sync-permissions` deleted the old ones. On the owner's database
+   the old keys and their grants were already deleted, so both roles held
+   nothing. `tmp/mpp-121-carry-keys/restore-super-admin.ts` gave the Super
+   Admin role every key again; the other role is re-ticked on the Roles page.
