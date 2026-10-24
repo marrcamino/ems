@@ -101,11 +101,11 @@ Keep the menu the same shape for everyone at the same permission level: every re
 
 ## Examples from EMS
 
-The row menu in `src/routes/admin/employees/employee-actions-cell.svelte`:
+The row menu in `src/routes/(app)/(admin)/employees/employee-actions-cell.svelte`:
 
 | Action and situation | Question | Outcome |
 |---|---|---|
-| The whole menu, for someone without `admin:manage_employees` | 1 | Hidden |
+| The whole menu, for someone without `employees:manage` | 1 | Hidden |
 | "Mark as no longer employed", on someone who already left | 2 | Hidden |
 | "Mark as no longer employed", on yourself or on the last person who can manage roles | 3 | Unavailable, with the reason shown |
 | "Delete", on an employee who has a login | 3 | Unavailable, with the reason shown |

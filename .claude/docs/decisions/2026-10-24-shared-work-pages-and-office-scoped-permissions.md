@@ -1,9 +1,10 @@
 # Shared work pages, an (admin) page group, and permissions by office
 
 Decided by the owner on 24 October 2026, after a discussion from 22 to 24
-October. **Not built yet.** Until the code is moved, it still follows the old
-rules in `.claude/skills/rbac-design/SKILL.md`; that skill marks the parts this
-decision replaces.
+October. **Built on 24 October 2026** (MPP-121, branch `feature/shared-pages`),
+except the office rule for rows (point 4), which comes with the first page that
+needs it (MPP-125). The rules as built are in `.claude/skills/rbac-design/SKILL.md`; how
+the build filled the gaps is under "How it was built" at the end.
 
 "Office" here means any division, section, or unit, as the office itself says
 it.
@@ -154,6 +155,31 @@ it.
 6. Every `can("admin:…")` check, and every `/admin` link, breadcrumb, and data
    address.
 7. `src/routes/admin/test/`: given its own key or removed before deploying.
+   Removed (the owner's choice, 24 October 2026): the price tester and its
+   failing e2e test went to `tmp/archive/2026-10-24-price-tester/`.
 8. The office rule for rows (point 4), built with the first page that needs it.
 9. The docs: `.claude/skills/rbac-design/SKILL.md` rewritten, and the cards and
    feature docs that name `/admin` paths.
+
+## How it was built (24 October 2026)
+
+Choices made while building, which the points above did not settle:
+
+1. **A parent link in the sidebar.** Fuel shows when the person holds
+   `fuel:view` or the key of any page under it. Without `fuel:view` it is a
+   plain heading rather than a link, so that a role holding Assets but not
+   Fuel still finds the Assets page.
+2. **ESWM and Air Travel** keep their empty pages at `/eswm` and
+   `/air-travel`, with their keys, but have no sidebar link, because point 8
+   lists none. They get one when their pages are built.
+3. **`fuel:view_all_offices` exists and is in the GSU template,** but nothing
+   checks it yet. It starts to matter with the office rule (point 4).
+4. **`fuel` has no `manage` key.** The old `admin:manage_fuel` guarded nothing
+   and was dropped; the fuel work that saves is under `purchase_orders` and
+   `assets`, and later `fuel:approve`.
+5. **The old templates** (Electricity Encoder, Air Travel Encoder, ESWM
+   Encoder, GHG Focal) were dropped for the four in point 5.
+6. **The existing database** was moved to the new keys by a one-off script,
+   `tmp/mpp-121-carry-keys/carry-old-keys.ts`, which gives each role the new
+   key for every old `admin:*` key it holds, before
+   `npm run sync-permissions` deletes the old ones.

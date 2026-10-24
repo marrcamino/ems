@@ -1,5 +1,12 @@
 # Separating employees from users — decisions and open questions
 
+> **Paths and keys updated on 24 October 2026.** The pages moved out of
+> `/admin` and every permission key was renamed to `thing:action` (MPP-121,
+> `.claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md`).
+> The paths and keys below are the new ones, also where an older date stands
+> next to them. Passages that explain the old split into an admin area and
+> staff pages are kept as they were written.
+
 Working document. Updated as we discuss. Each topic has the problem, what we
 decided (if anything), and whether it still needs an answer.
 
@@ -239,11 +246,11 @@ the clearest map of which parts of the app the separation reaches.
    counts how many people hold each role.
 5. **The users admin screen.** The largest piece. One screen and one dialog
    currently create a person and a login together
-   (`src/routes/admin/users/`). Topic 5 splits this into two pages.
+   (`src/routes/(app)/(admin)/users/`). Topic 5 splits this into two pages.
 6. **Org structure screen.** Lists who is assigned to each division or section.
    That link moves from user to employee.
-7. **Permissions.** `admin:manage_users` covers this area today. Topic 6 adds
-   `admin:view_employees` and `admin:manage_employees` beside it.
+7. **Permissions.** `users:manage` covers this area today. Topic 6 adds
+   `employees:view` and `employees:manage` beside it.
 8. **Search, sort and filter on the users list.** It sorts by last name, which
    moves to another table.
 9. **Setup scripts.** `scripts/create-admin.ts` and
@@ -450,7 +457,7 @@ separation touches" list above, and it is finished — see "Progress" at the end
 
 ### The problem
 
-Before the split, `src/routes/admin/users/` had one page and one dialog that
+Before the split, `src/routes/(app)/(admin)/users/` had one page and one dialog that
 created the person and the login together in a single step. After the split
 those are two records, so the screen had to become either one page doing both
 or two pages.
@@ -499,12 +506,12 @@ here only so the idea is not lost — it is not a decision.
 A new `employees` submodule under `admin` in `PERMISSION_DEFS`
 (`src/lib/server/permissions.ts`), giving two keys:
 
-- `admin:view_employees` — open the Employees page
-- `admin:manage_employees` — add, edit, and remove employee records
+- `employees:view` — open the Employees page
+- `employees:manage` — add, edit, and remove employee records
 
 ### Why
 
-`admin:manage_users` lets someone create a login and assign a role, which
+`users:manage` lets someone create a login and assign a role, which
 decides who may do what across the whole system. Maintaining the staff list is
 not that: correcting a spelling, recording a birth date, marking that someone
 has left. Keeping the two apart means a clerk can keep the staff list current
@@ -516,7 +523,7 @@ grantable separately, or splitting them gains nothing.
 ### The Users page still works without these keys
 
 The Users page shows a list of employees so a login can be attached to a person.
-That does not require `admin:view_employees` — the key controls opening the
+That does not require `employees:view` — the key controls opening the
 Employees *page*, not reading employee names elsewhere. A user manager can still
 create logins normally.
 
@@ -538,7 +545,7 @@ sync") say the script must backfill that role with any `admin:*` key it is
 missing, for exactly this reason. The script did not do it. It had three steps:
 upsert the keys, report orphans, and re-normalize every role to its implied
 keys. Re-normalizing does not help, because nothing implies
-`admin:manage_employees` — implication only runs upward, from manage to view to
+`employees:manage` — implication only runs upward, from manage to view to
 `admin:view`.
 
 On this database nothing was broken. The user checked, and their super-admin
@@ -553,7 +560,7 @@ The user agreed to fix it now rather than wait for a page to break.
 `scripts/sync-permissions.ts` now does four things instead of three, matching
 the locked decisions. The new third step:
 
-- finds the super-admin role by the permission it holds, `admin:manage_roles`,
+- finds the super-admin role by the permission it holds, `roles:manage`,
   never by name;
 - compares what it holds against every `admin:*` key defined in code;
 - inserts whatever is missing, inside one transaction;
@@ -940,7 +947,7 @@ buttons stay the same.
 
 All of the above, in one commit on `feature/employee-user`:
 
-- **`src/routes/admin/employees/duplicate-check.ts`** — the matching rules,
+- **`src/routes/(app)/(admin)/employees/duplicate-check.ts`** — the matching rules,
   written once and run in two places: live in the dialog as the admin types,
   and again in the server actions, which cannot be bypassed.
 - **`duplicate-alert.svelte`** — the three messages, shown inside the form.
@@ -1330,7 +1337,7 @@ added and the retest showed one.
   `reinstateEmployee`. Each runs entirely inside one `db.transaction`. If a
   second place ever needs to change somebody's name, it calls these.
 - The `create`, `update`, `separate` and `reinstate` actions on
-  `src/routes/admin/employees/+page.server.ts` now go through those functions
+  `src/routes/(app)/(admin)/employees/+page.server.ts` now go through those functions
   and pass the signed-in user as the version's author. `delete` is unchanged:
   the cascade removes the versions, and the protection arrives later from the
   document side.
@@ -1383,8 +1390,8 @@ day. The last two returned nothing, which is what they must do.
 - **Schema** — `employee.ts` added, `user.ts` rewritten, `index.ts` exports it.
   Applied to the database by the user with `drizzle-kit push`.
 - **Permission keys** — `employees` submodule added to `PERMISSION_DEFS`
-  (`src/lib/server/permissions.ts`), giving `admin:view_employees` and
-  `admin:manage_employees`.
+  (`src/lib/server/permissions.ts`), giving `employees:view` and
+  `employees:manage`.
 - **The sign-in path** — repaired, and free of type errors:
   - `src/lib/server/auth/session.ts` joins `employee` when validating a session.
     The join is inner, since `user.employee_fk` cannot be null.
@@ -1414,7 +1421,7 @@ day. The last two returned nothing, which is what they must do.
   - Side effect worth noting: the list now includes people with no login, which
     is what the page was always trying to show.
 
-- **The Employees page** — new, at `/admin/employees`, with the five columns
+- **The Employees page** — new, at `/employees`, with the five columns
   from Topic 7, an editor, and a delete guard. Added to the admin sidebar.
 - **The Users page** — now about logins only.
   - Adding an account picks somebody already on the Employees page instead of
@@ -1715,7 +1722,7 @@ trusted again.
 
 ### Decision — no separate permission, for now
 
-`admin:manage_employees` governs all three doors. Anybody allowed to edit an
+`employees:manage` governs all three doors. Anybody allowed to edit an
 employee may also repair a name and use the history screen.
 
 An earlier version of this topic added a second key, `admin:correct_employees`,
@@ -1802,10 +1809,10 @@ appears today.
   `countDocumentsUsingOpenVersions` and `countDocumentsUsingVersions` are the
   two stubs that return zero and are written to be replaced together when the
   first document exists.
-- `src/routes/admin/employees/+page.server.ts` — two new actions, `addChange`
+- `src/routes/(app)/(admin)/employees/+page.server.ts` — two new actions, `addChange`
   and `correctEntry`, and the load now carries the per-person document counts
   the warning names.
-- `src/routes/admin/employees/[employee_pk]/history/+server.ts` — the panel's
+- `src/routes/(app)/(admin)/employees/[employee_pk]/history/+server.ts` — the panel's
   own read, listing every version of one person with who added it.
 - `add-change-dialog.svelte` and `name-position-history-sheet.svelte` — doors 2
   and 3 on screen. The row menu gained an item for each.
@@ -1982,7 +1989,7 @@ Done:
   about correcting a placeholder is gone; in its place is a closing note saying
   that the division or section is the one thing still missing, and where to set
   it. The list of ways somebody is hired is imported from
-  `src/routes/admin/employees/labels.ts` rather than typed again, so the choice
+  `src/routes/(app)/(admin)/employees/labels.ts` rather than typed again, so the choice
   offered on the server cannot drift from the choice offered in the app.
   It also opens the person's first `employee_history` entry, in the same
   transaction, as decided above.
@@ -1991,7 +1998,7 @@ Done:
   `scripts/reset-admin-password.ts` and `scripts/sync-permissions.ts`. Their
   over-wide message lines now pass through `wrap()`. Wrapping only; the wording
   is untouched, because rewording belongs to Topic 13.
-- **`src/routes/admin/employees/+page.server.ts`** — the comment explaining why
+- **`src/routes/(app)/(admin)/employees/+page.server.ts`** — the comment explaining why
   `birth_date` stays nullable no longer points at the placeholder row, which no
   longer exists. It now gives the reason that still holds, which is the
   duplicate check's rule for the records already on file with no birthday.
@@ -2031,7 +2038,7 @@ stops their next sign-in. Nothing checks who that person is. Two doors do it and
 neither is guarded:
 
 - the row menu action, `separate` in
-  `src/routes/admin/employees/+page.server.ts`
+  `src/routes/(app)/(admin)/employees/+page.server.ts`
 - the employee editor, when the person is switched to not employed
 
 The worst version is the super admin doing it to their own row. They are signed
@@ -2058,7 +2065,7 @@ Both apply to the menu action and the editor, because both reach the same place.
 `npm run build` pass.
 
 - The server refuses both cases in `separate` and in `update`, through
-  `refuseIfSeparationLocksOut` in `src/routes/admin/employees/+page.server.ts`.
+  `refuseIfSeparationLocksOut` in `src/routes/(app)/(admin)/employees/+page.server.ts`.
 - The count comes from `listSuperAdminsWhoCanSignIn` in the new
   `src/lib/server/super-admin.ts`, which already joins `employee`. The Users
   page still uses its own count without the join; that is Fault 4.
@@ -2116,7 +2123,7 @@ with. The two are independent and can be done in either order.
 ### Fault 4 — the Users page guards count people who cannot sign in
 
 Checked after the three above, and it is the same gap again.
-`countActiveSuperAdminUsers` in `src/routes/admin/users/+page.server.ts` counts
+`countActiveSuperAdminUsers` in `src/routes/(app)/(admin)/users/+page.server.ts` counts
 users on the super-admin role whose account is active. It does not join
 `employee` either.
 
@@ -2237,7 +2244,7 @@ as separated offers to bring them back, which posts to `reinstate`.
 ### Decision — one menu item, and a dialog asks which of the two happened
 
 Three shapes were put to the user and they chose this one. The row menu built by
-`src/routes/admin/employees/employee-actions-cell.svelte` gains a single item for
+`src/routes/(app)/(admin)/employees/employee-actions-cell.svelte` gains a single item for
 a person marked as no longer employed. Opening it shows a dialog that asks
 whether the person left and came back, or whether the record was marked by
 mistake.
@@ -2254,7 +2261,7 @@ it in one plain sentence, so the risk of clicking through without reading is muc
 lower here.
 
 Whichever wording is settled on, the employee edit dialog in
-`src/routes/admin/employees/add-edit-employee-dialog.svelte` still has to be
+`src/routes/(app)/(admin)/employees/add-edit-employee-dialog.svelte` still has to be
 dealt with, because switching its employed control back on today takes one of the
 two paths silently, without asking anything.
 
@@ -2268,7 +2275,7 @@ mistake.
 
 "Mark as employed" is the exact mirror of the item already in that same menu,
 "Mark as no longer employed" in
-`src/routes/admin/employees/employee-actions-cell.svelte`. The pair reads as
+`src/routes/(app)/(admin)/employees/employee-actions-cell.svelte`. The pair reads as
 opposites and neither claims anything about why.
 
 ### Decision — the wording inside the dialog

@@ -11,7 +11,7 @@ updated: 2026-10-20
 ## Home
 | Source | Path |
 |---|---|
-| Code | `src/routes/admin/employees/`, `src/routes/admin/users/`, `src/lib/server/super-admin.ts`, `scripts/lib/super-admin.ts`, schema `employee.ts`, `employee-history.ts`, `employee-history-correction.ts`, `user.ts` |
+| Code | `src/routes/(app)/(admin)/employees/`, `src/routes/(app)/(admin)/users/`, `src/lib/server/super-admin.ts`, `scripts/lib/super-admin.ts`, schema `employee.ts`, `employee-history.ts`, `employee-history-correction.ts`, `user.ts` |
 | Tests | none |
 | Decisions / notes | `.claude/docs/features/employee-and-user-separation.md` (Topics 1–13) |
 | Graph nodes | `employee-actions-cell.svelte`, `name-position-history-sheet.svelte`, `listSuperAdminsWhoCanSignIn`, `duplicate-check.ts` |

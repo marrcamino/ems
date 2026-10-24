@@ -1,5 +1,12 @@
 # Signatory feature — decisions and open questions
 
+> **Paths and keys updated on 24 October 2026.** The pages moved out of
+> `/admin` and every permission key was renamed to `thing:action` (MPP-121,
+> `.claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md`).
+> The paths and keys below are the new ones, also where an older date stands
+> next to them. Passages that explain the old split into an admin area and
+> staff pages are kept as they were written.
+
 Working document. Updated as we discuss. Each topic has the problem, what we
 decided (if anything), and whether it still needs an answer.
 
@@ -445,9 +452,9 @@ to somebody marked separated is simply not returned. That is the behaviour this
 document already asked for: nothing warns anybody, the approver comes up blank,
 and whoever prepares the next document picks who signs now.
 
-An admin fills it in at **`/admin/signatories`**, a page in the admin sidebar
-next to Organizational Structure, gated by `admin:view_signatories` and
-`admin:manage_signatories` so a read-only admin sees it with the pickers
+An admin fills it in at **`/signatories`**, a page in the sidebar next to
+Org Structure, gated by `signatories:view` and
+`signatories:manage` so a read-only admin sees it with the pickers
 disabled.
 
 **The page is a tab per report.** Fuel is the only tab with anything in it; the
@@ -469,7 +476,7 @@ instinct returned to the word "signatories" twice.
 **Protecting the reference, as this document required.**
 `src/lib/server/org-unit-guard.ts` answers whether an org unit is named by a
 setting, and both the delete and the deactivate paths in
-`src/routes/admin/org-structure/+page.server.ts` call it and refuse with a
+`src/routes/(app)/(admin)/org-structure/+page.server.ts` call it and refuse with a
 message naming the Signatories page. It is one function rather than a check copied
 into each screen, for the reason recorded above: the protection lives in the
 program, so it holds only while every path goes through it.
@@ -707,12 +714,12 @@ assumed one Save button that asks which of the two a change is. What was built
 instead keeps the two apart from the start, as two separate dialogs reached from
 two different places, so nobody has to answer a question after the fact.
 
-- **"Add name or position change"** is in `src/routes/admin/employees/add-change-dialog.svelte`,
+- **"Add name or position change"** is in `src/routes/(app)/(admin)/employees/add-change-dialog.svelte`,
   opened from the employees table. It ends the current history row and starts a
   new one, which is the "record a change that happened" path.
-- **"Correct this entry"** is in `src/routes/admin/employees/correct-entry-dialog.svelte`,
+- **"Correct this entry"** is in `src/routes/(app)/(admin)/employees/correct-entry-dialog.svelte`,
   opened from the name and position history sheet in
-  `src/routes/admin/employees/name-position-history-sheet.svelte`. It edits an
+  `src/routes/(app)/(admin)/employees/name-position-history-sheet.svelte`. It edits an
   existing row in place, which is the "fix a mistake in what was typed" path, and
   it carries the warning this topic asked for, headed "This corrects what is
   already filed".

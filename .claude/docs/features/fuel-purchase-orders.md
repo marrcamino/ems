@@ -1,7 +1,14 @@
 # Fuel purchase orders, suppliers and withdrawal slips
 
+> **Paths and keys updated on 24 October 2026.** The pages moved out of
+> `/admin` and every permission key was renamed to `thing:action` (MPP-121,
+> `.claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md`).
+> The paths and keys below are the new ones, also where an older date stands
+> next to them. Passages that explain the old split into an admin area and
+> staff pages are kept as they were written.
+
 Suppliers, purchase orders (POs) and their allocations at
-`/admin/fuel/purchase-orders`, how the office handles fuel today, the paperwork,
+`/fuel/purchase-orders`, how the office handles fuel today, the paperwork,
 and the decisions on how withdrawal slips will be charged to a PO.
 
 This is the one home for these facts. On 20 October 2026 everything still true in
@@ -110,11 +117,11 @@ The shared pieces they use went to `main` first (see
 `main` with `--no-ff` on 19 October 2026 (`93a4cc8`). Pushing stays with you.
 
 
-1. **Permission keys** `admin:view_purchase_orders` and
-   `admin:manage_purchase_orders`, synced on 11 October 2026. The manage key
+1. **Permission keys** `purchase_orders:view` and
+   `purchase_orders:manage`, synced on 11 October 2026. The manage key
    also covers suppliers.
-2. **Page** `/admin/fuel/purchase-orders`, in the Fuel navigation after the
-   Dashboard. It has "Manage suppliers", "Add purchase order", and the list
+2. **Page** `/fuel/purchase-orders`, in the sidebar under Fuel, after
+   Assets. It has "Manage suppliers", "Add purchase order", and the list
    of POs.
 3. **Suppliers** (11 October 2026), pushed to the database and tried in a
    browser. A dialog opened with `?suppliers` lists the
@@ -137,7 +144,7 @@ The shared pieces they use went to `main` first (see
    inactive version. A dropdown picks Active, Archived or All, kept in the
    address as `?supplier-status=`. The page loads only active suppliers,
    nothing about archived ones (not even a count); those are fetched from
-   `GET /admin/fuel/purchase-orders/suppliers?status=archived` the first time
+   `GET /fuel/purchase-orders/suppliers?status=archived` the first time
    Archived or All is picked, with a skeleton while they load (AnimatedList),
    and then kept for the rest of the visit. Each card's menu has "Archive supplier"
    or "Restore supplier", and Delete. The PO form must offer only active
@@ -200,14 +207,14 @@ The shared pieces they use went to `main` first (see
 
 ## Not started
 
-1. **The staff page** `/fuel` is an empty page with a heading.
-2. **The admin page** `/admin/fuel`, titled "Fuel Dashboard", is empty.
-3. **Recording a fuel issuance.** There is nothing in the database for the
+1. **The fuel page** `/fuel`, titled "Fuel", is empty. Until 24 October 2026
+   there was a staff page and an admin page; MPP-121 made them one.
+2. **Recording a fuel issuance.** There is nothing in the database for the
    withdrawal slip, the Driver Trip Ticket, the RIS or GSU's logbook. The
    direction discussed so far is in "Recording a fuel issuance" below; it is not
    decided.
-4. **Marking a slip as approved,** and the permission key that controls it.
-5. **The reports,** such as the DOE Monthly Fuel Consumption Report (litres of
+3. **Marking a slip as approved,** and the permission key that controls it.
+4. **The reports,** such as the DOE Monthly Fuel Consumption Report (litres of
    gasoline and diesel per month) and what GEMP asks for. Not designed.
 
 ## Questions that are still waiting for GSU
