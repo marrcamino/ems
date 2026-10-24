@@ -10,10 +10,6 @@
   // heading already says — only a thrown message adds anything.
   const GENERIC_MESSAGES = ["Not Found", "Internal Error"];
 
-  const isAdmin = $derived(
-    (page.data.permissions ?? []).includes("admin:view"),
-  );
-
   const details = $derived.by(() => {
     const rows: ErrorDetail[] = [{ label: "path", value: page.url.pathname }];
     const message = page.error?.message;
@@ -29,7 +25,7 @@
 
 <ErrorState
   status={page.status}
-  homeHref={isAdmin ? "/admin" : "/"}
+  homeHref="/"
   {details}
   class={className}
 />

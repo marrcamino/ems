@@ -1,13 +1,13 @@
 /**
  * scripts/lib/super-admin.ts
  *
- * Query helpers for the critical permission `admin:manage_roles` — see
+ * Query helpers for the critical permission `roles:manage` — see
  * "RBAC design — locked decisions.md" for the uniqueness / immutability /
  * last-user-guard rules it enforces. Exactly one role in the system may hold
  * this key, and only create-admin.ts ever creates that role; the role editor
  * never renders the key at all.
  *
- * `admin:manage_users` is deliberately NOT part of this check any more. A
+ * `users:manage` is deliberately NOT part of this check any more. A
  * role that manages users but not roles is a legitimate sub-admin, so the key
  * is freely grantable and says nothing about super-admin status.
  *
@@ -17,7 +17,7 @@
 
 import type mysql from "mysql2/promise";
 
-export const CRITICAL_PERMISSION_KEY = "admin:manage_roles";
+export const CRITICAL_PERMISSION_KEY = "roles:manage";
 
 export interface SuperAdmin {
   userPk: number;
@@ -25,7 +25,7 @@ export interface SuperAdmin {
 }
 
 /**
- * The single role holding `admin:manage_roles`, or null if it does not exist
+ * The single role holding `roles:manage`, or null if it does not exist
  * yet. Looked up by permission rather than by role name: the name is only a
  * label and is editable in principle, whereas holding the key IS what makes a
  * role the super-admin role.
@@ -49,7 +49,7 @@ export async function findSuperAdminRolePk(
 }
 
 /**
- * Users whose role holds `admin:manage_roles` and who can actually sign in:
+ * Users whose role holds `roles:manage` and who can actually sign in:
  * an active account, and still employed here.
  *
  * The employee half matters. Somebody marked as no longer employed keeps an

@@ -11,7 +11,7 @@
   <Breadcrumb.Root>
     <Breadcrumb.List>
       <Breadcrumb.Item class="hidden md:block">
-        <Breadcrumb.Link href="/admin">Dashboard</Breadcrumb.Link>
+        <Breadcrumb.Link href="/">Dashboard</Breadcrumb.Link>
       </Breadcrumb.Item>
       <Breadcrumb.Separator class="hidden md:block" />
       <Breadcrumb.Item>

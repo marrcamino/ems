@@ -5,7 +5,7 @@ import type { SessionUser } from "$lib/types";
 import { makeContext } from "$lib/utils";
 
 class GlobalContext {
-  // Cast: only ever set in (app)/admin layouts, where getSessionData()
+  // Cast: only ever set in the (app) layout, where getSessionData()
   // guarantees both fields are present — (auth) routes never set this context.
   user = $derived(page.data.user as SessionUser);
   permissions = $derived(new Set<string>(page.data.permissions as string[]));

@@ -2,7 +2,7 @@
  * scripts/reset-admin-password.ts
  *
  * CLI-only recovery script for resetting the password of an existing
- * active super-admin (a user whose role holds admin:manage_roles).
+ * active super-admin (a user whose role holds roles:manage).
  * Run via:
  *   npm run reset-admin-password   (→ tsx scripts/reset-admin-password.ts)
  *
@@ -65,7 +65,7 @@ async function main() {
       checkSpinner.stop("No active super-admin found.");
       p.cancel(
         wrap(
-          "No active user currently holds admin:manage_roles.\nRun `npm run create-admin` instead to bootstrap the first Super Admin.",
+          "No active user currently holds roles:manage.\nRun `npm run create-admin` instead to bootstrap the first Super Admin.",
         ),
       );
       process.exit(0);

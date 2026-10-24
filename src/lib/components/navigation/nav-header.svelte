@@ -9,20 +9,12 @@
   } from "$lib/components/ui/sidebar/index.js";
 </script>
 
-<script lang="ts">
-  interface Props {
-    userType: "admin" | "staff";
-  }
-
-  let { userType }: Props = $props();
-</script>
-
 <SidebarHeader>
   <SidebarMenu>
     <SidebarMenuItem>
       <SidebarMenuButton size="lg" class="hover:bg-transparent">
         {#snippet child({ props })}
-          <a href={userType === "admin" ? "/admin" : "/"} {...props}>
+          <a href="/" {...props}>
             <div
               class="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted"
             >

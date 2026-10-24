@@ -1,6 +1,9 @@
 <script lang="ts">
-  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
+  import type { PageProps } from "./$types";
   import Header from "@/components/header.svelte";
+  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
+
+  let { data }: PageProps = $props();
 </script>
 
 <svelte:head>
@@ -11,7 +14,7 @@
   <Breadcrumb.Root>
     <Breadcrumb.List>
       <Breadcrumb.Item class="hidden md:block">
-        <Breadcrumb.Link href="/admin">Dashboard</Breadcrumb.Link>
+        <Breadcrumb.Link href="/">Dashboard</Breadcrumb.Link>
       </Breadcrumb.Item>
       <Breadcrumb.Separator class="hidden md:block" />
       <Breadcrumb.Item>
