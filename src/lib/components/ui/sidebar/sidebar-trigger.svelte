@@ -41,11 +41,11 @@
         <span
           aria-hidden="true"
           class="relative block w-4 border border-transparent ring-1"
-          style="border-radius: 4px; height: 13px !important;"
+          style="border-radius: 2px; height: 11px !important;"
         >
           <span
             data-open={open ? "" : null}
-            class="absolute inset-y-[1.5px] left-0.5 rounded-s-xs rounded-e-[1px] bg-foreground duration-300 transition-[width] ease-out motion-reduce:transition-none data-open:w-1.5 w-[1.5px] group-hover/button:w-1.25 data-open:duration-150"
+            class="absolute inset-y-0 my-[0.5px] translate-y-[0.15px] left-0 translate-x-[0.5px] rounded-[1px] bg-foreground duration-50 transition-[width] ease-out motion-reduce:transition-none data-open:w-1.5 w-0.5 data-open:group-hover/button:w-0.75 data-open:duration-150 group-hover/button:w-1"
           ></span>
         </span>
         <span class="sr-only">Toggle Sidebar</span>
