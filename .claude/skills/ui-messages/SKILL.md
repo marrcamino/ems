@@ -35,8 +35,9 @@ Warning vs error: warning = might go wrong / can't start yet; error = already we
 
 | Situation | Type | Component | Title | Body | Action | Dismiss |
 |---|---|---|---|---|---|---|
-| One field has invalid input | error | `Field.Error` under the field | no | 1 sentence: the fix | no | clears when fixed |
-| Form submit with several errors | error | `Alert` destructive at top of form **+** `Field.Error` per field | yes: "2 fields need fixing" | none | no | no |
+| A field whose label already makes clear what to type | none of ours | the form's own behaviour (the browser focuses the field and shows its tooltip) | no | none | no | browser |
+| A field that needs complicated or confusing data, or follows a confusing rule (see "Field errors" below) | error | `Field.Error` under the field | no | 1 sentence: the fix, fixed or dynamic | no | clears when fixed |
+| Form submit with several of those errors | error | `Alert` destructive at top of form **+** `Field.Error` per field | yes: "2 fields need fixing" | none | no | no |
 | Routine save/create/update worked | success | `toast.success` | yes | only for undo or next step | optional: Undo / View | auto |
 | Action failed | error | `toast.error`; `Alert` destructive if it blocks the page | yes: what failed | the cause (if known), then the fix | Retry, if retry can work | toast: stays if it has an action |
 | Server refused the action because of the record's state (a business rule) | error | `Alert` destructive inside the dialog, if the action was confirmed in one (keep the dialog open; see `unavailable-actions`); otherwise `toast.error` | yes: what failed ("Role not deleted") | the cause, then the step that unblocks it | button for the step: in the dialog it replaces the refused action; in a toast, only if the step lives elsewhere | dialog: Close; toast: stays until dismissed |
@@ -45,6 +46,21 @@ Warning vs error: warning = might go wrong / can't start yet; error = already we
 | Tip / context | info | `Alert` info style, or `Field.Description` | only if it helps scanning | 1 sentence | no (link if needed) | optional |
 | Nothing to show yet | info | `Empty` | yes: the state or what to do | 1 sentence: why + next | 1 button matching the title | no |
 | Neutral status | neutral | `toast()` | yes | usually none | no | auto |
+
+**Field errors** (decided by the owner, 27 October 2026). Do not write an error
+message for every field. The test is whether the input is easy to understand:
+
+1. **The label already makes it clear,** such as "Plate number" or "Unit
+   price": no error message. Let the form do its own thing; the browser moves
+   the focus to the field and shows its tooltip.
+2. **The input needs complicated or confusing data, or follows a confusing
+   rule:** write a `Field.Error`. It can be one fixed sentence, or a dynamic
+   one that changes with what was typed. For example, the allocations of a PO
+   must add up to that fuel's row, so the message says how far off they are.
+
+A required custom picker, such as a shadcn Select, may not be a native form
+control, so the browser may not stop the form when it is empty. Check this
+when building one.
 
 ## Step 3: Parts
 
@@ -117,7 +133,7 @@ Warning vs error: warning = might go wrong / can't start yet; error = already we
 
 **Behavior** (not copy, but part of a good message)
 - On error, keep what the user typed. Never clear the form.
-- Show field errors after the user leaves the field or submits, not while they type the first time.
+- Show our own field errors after the user leaves the field or submits, not while they type the first time.
 - Use icon + color + text together; never color alone.
 
 ## Step 5: Validate
