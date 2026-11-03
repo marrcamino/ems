@@ -9,11 +9,15 @@
   import * as ButtonGroup from "$lib/components/ui/button-group/index.js";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import {
+    ChevronDown,
     Copy,
     EllipsisVertical,
+    HandCoins,
     Pencil,
+    Plus,
     Printer,
     RotateCcwClock,
+    Route,
   } from "@lucide/svelte/icons";
   import { createTable, FlexRender } from "@tanstack/svelte-table";
   import { formatLiters, formatPesos } from "$lib/utils/format-number.js";
@@ -187,33 +191,14 @@
 <Header>
   <Breadcrumb.Root>
     <Breadcrumb.List>
-      <Breadcrumb.Item class="hidden md:block">
-        <Breadcrumb.Link href="/">Dashboard</Breadcrumb.Link>
-      </Breadcrumb.Item>
-      <Breadcrumb.Separator class="hidden md:block" />
       <Breadcrumb.Item>
-        <Breadcrumb.Page>Fuel</Breadcrumb.Page>
+        <Breadcrumb.Page>Fuel withdrawals</Breadcrumb.Page>
       </Breadcrumb.Item>
     </Breadcrumb.List>
   </Breadcrumb.Root>
 </Header>
 
 <div class="flex h-[calc(100svh-4rem)] min-w-0 flex-col items-center pt-0 px-2">
-  <div class="w-full px-1 pt-2 pb-5">
-    <h1 class="text-3xl tracking-tight">Fuel withdrawals</h1>
-    <p class="mt-1 text-sm text-muted-foreground">
-      {#if inUse === null}
-        No purchase order is open.
-      {:else if inUse.poNumbers.length === 1}
-        {inUse.poNumbers[0]} has been in use since {formatDate(inUse.since)}.
-      {:else}
-        {listFormat.format(inUse.poNumbers)} have
-        {inUse.poNumbers.length === 2 ? "both" : "all"} been in use since
-        {formatDate(inUse.since)}, so the rows from then on mix them.
-      {/if}
-    </p>
-  </div>
-
   <div class="w-full px-1">
     <RadioTabs legend="Status" tabs={statusTabs} bind:value={statusTab} />
   </div>
@@ -251,6 +236,30 @@
         ? `${withdrawals.length} withdrawals`
         : `${withdrawalsShown.length} of ${withdrawals.length} withdrawals`}
     </span>
+
+    <!--
+      A withdrawal is the common case; the two trips without a withdrawal
+      slip wait in the menu. Samples only: none of these opens a form yet.
+    -->
+    <ButtonGroup.Root>
+      <Button>
+        <Plus />
+        New withdrawal
+      </Button>
+      <ButtonGroup.Separator />
+      <DropdownMenu.Root>
+        <DropdownMenu.Trigger
+          class={buttonVariants({ size: "icon" })}
+          aria-label="More ways to add"
+        >
+          <ChevronDown />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Content align="end" class="min-w-max">
+          <DropdownMenu.Item><Route />Trip only</DropdownMenu.Item>
+          <DropdownMenu.Item><HandCoins /> Reimbursed trip</DropdownMenu.Item>
+        </DropdownMenu.Content>
+      </DropdownMenu.Root>
+    </ButtonGroup.Root>
   </div>
 
   <!--

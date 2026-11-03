@@ -2,7 +2,7 @@
 type: module
 status: active
 next: build "Mark as employed" (Topic 13)
-updated: 2026-10-20
+updated: 2026-11-04
 ---
 # Employees and users
 
@@ -22,6 +22,7 @@ updated: 2026-10-20
 - MPP-71 message when saving a change fails · MPP-63 try the history panel
 - MPP-90 correction log screen · MPP-79 "Give this person a login" idea
 - MPP-91 type an abbreviated position title for each person
+- MPP-130 bug: the temporary password dialog shows a password the admin typed (add and reset) · MPP-131 username errors under the field, not in a toast
 
 ## Gotchas
 - Two different statuses: `employee.employment_status` (works here?) vs `user.account_status` (may sign in?).

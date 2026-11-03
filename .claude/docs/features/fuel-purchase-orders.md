@@ -288,6 +288,14 @@ that is still waiting for an answer names its issue.
 5. **Leftovers (12 October).** A unit must use up what is left on the old PO, even
    ₱10. So one fueling can take two or more slips: one for the leftover on the old
    PO, the next for the rest on the new PO. The supplier pumps the total of both.
+   **Each slip is its own transaction** (decided by the owner, 4 November 2026),
+   with its own control number, WS, and RIS, because each PO is liquidated
+   separately (told by GSU, MPP-109). One transaction never holds several slips,
+   which was the earlier plan: it would count down two POs at once, and closing
+   the old PO would lock half of it. When GSU makes one DTT for the trip, the
+   second transaction links to the DTT of the first instead of getting a new
+   number, which the owner likes; whether GSU makes one DTT or two is asked in
+   MPP-129.
 6. **Overruns.** Proposed on 11 October, not yet confirmed: show an overrun
    whenever the actual amount is typed in and never refuse the slip; give GSU a
    hint at approval (what is left, minus slips still out); and a per-unit report
@@ -551,10 +559,16 @@ the best evidence for the fields a withdrawal needs.
    pesos** (corrected by the owner, 27 October 2026; recorded on 6 October
    2026 as both copied from what the supplier writes). "Issued" is not what
    the supplier pumped. GSU keeps "Amount" because the supplier's pesos
-   sometimes differ from GSU's own working-out. Who works out the "Amount"
-   written in the logbook under litre-based POs, the supplier or GSU, is
-   asked in MPP-128: GSU answered "calculated based on PO", which fits more
-   than one meaning (27 October 2026). The logbook was made for
+   sometimes differ from GSU's own working-out. **GSU writes the "Amount"
+   itself** (told by the owner, 4 November 2026, MPP-128). It is filled in only
+   on the rows from the days of a sudden price rise, when trouble abroad pushed
+   up the price of imported fuel while the PO was still open, and it is empty
+   again a few rows later. GSU wrote it to keep track of the fuel left on the
+   PO while the price moved. How each figure was worked out is not known: the
+   GSU chief could only say "based on PO". EMS does not need the formula,
+   because it records the day's price and the amount on every slip and counts
+   the PO down in pesos (points 1 and 3 of "How POs and withdrawal slips
+   work"). The logbook was made for
    litre-based POs. Under price-based POs the litres actually pumped can
    differ from "Issued", so EMS keeps the requested litres and the actual
    litres as two numbers.
@@ -708,8 +722,8 @@ also the column name and the label on screen.
       a reimbursed trip, which has an RIS too. EMS takes the next number by
       itself; GSU never types an RIS number for a withdrawal or a reimbursed
       trip.
-      This assumes that each withdrawal has its own RIS, which is asked in
-      MPP-109.
+      Each withdrawal has its own RIS (told by GSU, MPP-109, answered by
+      4 November 2026), so this plan stands.
    2. **A non-fuel RIS is reserved first.** A GSU staff member reserves the next
       number in EMS, and only then writes it on the paper. Writing the paper
       first and typing the number in later is ruled out, because someone could
