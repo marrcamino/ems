@@ -10,7 +10,9 @@
    * typed: 1234567.5 shows as 1,234,567.5. `value` is the plain number, or
    * null while the field is empty; the commas are only in what is shown.
    *
-   *   <NumberInput bind:value={unitCost} wholeDigits={3} padDecimals />
+   * ```svelte
+   * <NumberInput bind:value={unitCost} wholeDigits={3} padDecimals />
+   * ```
    *
    * Only digits and one period go in. Anything else typed does nothing, and
    * pasted text keeps only its number, so ₱1,234.50 pastes as 1,234.50.

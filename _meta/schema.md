@@ -15,6 +15,8 @@ Read this before writing or changing code, together with the module's card.
    keys are rows in the database and a new key does nothing until it is written.
 6. Lists with an active/inactive flag follow `.claude/skills/active-inactive-lists/`.
    On-screen messages follow `.claude/skills/ui-messages/`.
+7. Code comments follow `.claude/skills/code-comments/`: lean by default, and
+   a complete comment only when asked.
 
 ## Database changes
 

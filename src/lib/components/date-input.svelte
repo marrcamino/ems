@@ -18,7 +18,9 @@
    * (a Popover holding a Calendar) with the button swapped for a field
    * whose month, day and year can each be typed into.
    *
-   *   <DateInput id="po-date" bind:value={poDate} maxValue={today(tz)} />
+   * ```svelte
+   * <DateInput id="po-date" bind:value={poDate} maxValue={today(tz)} />
+   * ```
    *
    * Click a part and type the number, or press the up and down arrow keys
    * to change it. The field moves to the next part by itself. Alt + down
@@ -36,8 +38,13 @@
    * started with. To empty the field from code, call `clear()`; setting
    * `value` to undefined misses the leftover parts of a half-typed date.
    *
-   *   <DateInput bind:this={slipField} bind:value={slipDate} />
-   *   slipField.clear();
+   * ```svelte
+   * <DateInput bind:this={slipField} bind:value={slipDate} />
+   * ```
+   *
+   * ```ts
+   * slipField.clear();
+   * ```
    */
   let {
     value = $bindable(),
