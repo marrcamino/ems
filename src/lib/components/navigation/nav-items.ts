@@ -2,6 +2,7 @@ import type { PermissionKey } from "$lib/server/permissions";
 import {
   Building,
   FilePenLine,
+  FlaskConical,
   Fuel,
   House,
   IdCard,
@@ -83,6 +84,12 @@ export const adminPages = [
     name: "Roles",
     url: "/roles",
     icon: ShieldCheck,
+    permission: "roles:view",
+  },
+  {
+    name: "Test",
+    url: "/test",
+    icon: FlaskConical,
     permission: "roles:view",
   },
 ] satisfies NavPage[];
