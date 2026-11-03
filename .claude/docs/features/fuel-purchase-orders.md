@@ -61,7 +61,11 @@ that is not written here, ask the owner instead of assuming one.
 7. **A new PO is supposed to wait until the whole PO is used up,** because the
    PO's terms say so. In practice this is not always followed: a new PO can be
    made earlier, so a unit can have fuel on two POs at once. There is no fixed
-   limit on how many POs are open together (7 and 10 October 2026).
+   limit on how many POs are open together (7 and 10 October 2026). GSU says
+   that this is possible but rare (told by the user, 29 October 2026). A year
+   has several POs, and some POs have only 5 to 10 withdrawals. A PO made near
+   the end of the year, such as in December, can still have fuel left in the
+   next year (told by the user, 29 October 2026).
 8. **A withdrawal, step by step** (told by the user, 6–7 October 2026):
    1. The driver fills in the withdrawal slip with the litres they want.
    2. GSU approves the litres asked for, by signing the slip.
@@ -69,9 +73,11 @@ that is not written here, ask the owner instead of assuming one.
       slip what was actually pumped.
    4. The slip has two copies: the supplier's copy stays at the station, and the
       office copy goes back to GSU.
-   5. GSU copies the litres and the pesos into its logbook, as "Issued" and
-      "Amount". In the system, a GSU user will type them in; the supplier never
-      uses the system.
+   5. GSU copies the slip into its logbook. "Issued" is the litres the driver
+      wrote on the slip, not what the supplier pumped, and "Amount" is the
+      pesos (corrected by the owner, 27 October 2026; see point 2 of "GSU's
+      fuel logbook"). In the system, a GSU user will type them in; the
+      supplier never uses the system.
 9. **The actual litres can be less than asked, and are not whole numbers.** A
    driver asks for 5 L, the tank is full at 3.7 L, and fueling stops (10 October
    2026). If the PO's money runs out first, the driver simply gets less.
@@ -207,15 +213,17 @@ The shared pieces they use went to `main` first (see
 
 ## Not started
 
-1. **The fuel page** `/fuel`, titled "Fuel", is empty. Until 24 October 2026
+1. **The fuel page** `/fuel`, titled "Fuel", shows only made-up withdrawals
+   from `sample-withdrawals.ts` (see `cards/fuel.md`). Until 24 October 2026
    there was a staff page and an admin page; MPP-121 made them one.
 2. **Recording a fuel issuance.** There is nothing in the database for the
-   withdrawal slip, the Driver Trip Ticket, the RIS or GSU's logbook. The
-   direction discussed so far is in "Recording a fuel issuance" below; it is not
-   decided.
+   transaction, the withdrawal slip, the Driver Trip Ticket, or the RIS. What
+   is decided so far, and what is still open, is in "Recording a fuel
+   issuance" below.
 3. **Marking a slip as approved,** and the permission key that controls it.
-4. **The reports,** such as the DOE Monthly Fuel Consumption Report (litres of
-   gasoline and diesel per month) and what GEMP asks for. Not designed.
+4. **The reports,** mainly the GHG Focal Person's report to the DENR regional
+   office (MPP-82), which needs the litres of gasoline and diesel (point 7 of
+   "The rules and reports that apply"). Not designed.
 
 ## Questions that are still waiting for GSU
 
@@ -262,8 +270,9 @@ that is still waiting for an answer names its issue.
    through with GSU staff (told by the user, 22 October 2026). The supplier has
    not been asked, but the user does not expect the supplier to object.
 
-   Each withdrawal keeps both numbers: the litres for the DOE monthly report, and
-   the pesos to count down the PO.
+   Each withdrawal keeps both numbers: the actual litres for the CO2 figures
+   (point 7 of "The rules and reports that apply"), and the pesos to count down
+   the PO.
 
    The user's plan of 20 October 2026, told to GSU (confirmed by the user,
    22 October 2026, MPP-114): the slip shows an
@@ -294,18 +303,65 @@ that is still waiting for an answer names its issue.
    or any money is left, because the supplier is paid only after all the fuel is
    used. **Decided on 20 October 2026:** once a PO is closed, its withdrawal
    slips cannot be edited, because their numbers make up the fuel consumed on
-   the PO, which is what the supplier is paid for. Still open (MPP-106): whether
-   the RIS and the Driver's Trip Ticket are locked too (the owner leans that way,
-   since one trip can have all three forms), and which parts stay editable
-   because they change only the consumption in the EMS reports, not the fuel
-   consumed on the PO. Proposed, not confirmed:
+   the PO, which is what the supplier is paid for. Which parts of the RIS and
+   the DTT are locked too is "What a closed PO locks" below. **Decided on
+   26 October 2026** (MPP-61), without asking
+   GSU, because the owner is sure that GSU will accept these rules; the finer
+   details are settled while testing:
    1. A Reopen action for a PO closed by mistake.
    2. On an open PO, an edit is refused when it would leave a unit's allocation
       below what that unit has already used.
    3. The user's idea, to stop an accidental close: pressing Close shows a check
       of the slips against the PO. It compares pesos, not litres, because under
       pump pricing the litres never match the PO's quantity, and when money is
-      left it lists which units have some.
+      left it lists which units have some. **Decided on 26 October 2026:** the
+      check appears when a GSU user presses Close, before the PO is closed,
+      because a warning after the close comes too late to act on. It has two
+      kinds of items, each linking to its withdrawal:
+      1. **Problems that stop the close:** a slip still out, or money left on
+         the PO. The Close button on the PO page is never disabled, because
+         the page has no place to show why a PO cannot be closed; pressing it
+         opens the check. Inside the check, the Close button is disabled while
+         any problem is listed, because the reason is shown right there. The
+         check uses what the PO page already has, such as the remaining
+         amount, and asks the server only for what the page does not have
+         (confirmed by the owner, 27 October 2026;
+         `.claude/skills/unavailable-actions/SKILL.md`). Nothing else blocks, because the locked fields are already required when a
+         withdrawal is saved.
+      2. **Warnings that do not stop it:** for example, a withdrawal with a DTT
+         whose tank balances are missing, or whose tank lines do not add up
+         (balance before plus issued, minus used, must equal the balance
+         after). GSU can still press "Close anyway", which is safe because the
+         tank balances stay editable after the close.
+
+      Missing odometer readings raise no warning: they are optional, drivers
+      usually skip them, and a warning on almost every PO would teach GSU to
+      ignore the whole list. The same warnings also show earlier, when a
+      withdrawal is saved and as a marker on its row in the issuance list, so
+      problems are fixed as they happen instead of piling up until the close.
+      An idea to make this check read each withdrawal's history is MPP-126.
+
+   **What a closed PO locks (decided by the owner on 26 October 2026, MPP-106).**
+   A withdrawal is one record, and the withdrawal slip, the RIS, and the DTT are
+   three printouts of it (point 1 of "Recording a fuel issuance"), so the lock
+   works per field, not per form: a locked field is locked on every form that
+   shows it. The rule: what the supplier wrote or what counts against the PO is
+   locked, and what describes the trip and its purpose stays open.
+   1. **Locked:** the litres, the pesos, and the unit price, which are also the
+      RIS quantity and the DTT "issued" line; the office whose allocation the
+      withdrawal counts down; the withdrawal date, because the WS and RIS
+      numbers hold the month; and the WS, RIS, and DTT numbers, because they
+      are how the supplier and COA find the paper.
+   2. **Still editable:** the DTT's trip details (destination, purpose, travel
+      dates, odometer readings, and the tank balances before and after), since
+      they change only the consumption in the EMS reports, not the fuel
+      consumed on the PO; the RIS "Purpose"; the remarks; and the asset, but only to another
+      asset with the same fuel type, because a change of fuel type moves litres
+      between gasoline and diesel on the PO.
+   3. A trip with no withdrawal has no PO, so a PO closing never locks it.
+   4. A withdrawal on a closed PO cannot be deleted, since that is the same as
+      editing its litres to zero. A locked number that is really wrong is fixed
+      by reopening the PO.
 8. **Wording on screen (15 October), proposed:** "remaining amount" for the pesos
    left and "remaining quantity" for the litres left, following the PO's own
    columns. "Remaining balance" was set aside because it can mean either. For
@@ -405,6 +461,25 @@ taken. So a trip and a withdrawal are separate events; a trip ticket records a
 trip, and only some trips include a withdrawal (its "issued" line on the tank
 lines).
 
+**A reimbursed trip has a trip ticket and an RIS, but no withdrawal slip**
+(answered on 26 October 2026, MPP-117, as a trip ticket only; corrected on
+27 October 2026, when GSU realised that a reimbursed trip has an RIS too).
+When a staff member pays for the fuel of an official trip and is paid back by
+the office afterwards, there is no withdrawal slip, because no fuel is taken
+under a PO, so a reimbursed trip never counts down a PO or an allocation. This matches case 2,
+"Privately owned", in [fuel-assets.md](fuel-assets.md). Its DTT is still
+entered in EMS and gets its number from EMS, like every DTT; GSU never writes a
+form number by hand (told by the owner, 26 October 2026). The fuel of a
+reimbursed trip is still fuel consumed, and fuel consumption for the CO2
+figures is what EMS is for; the POs are a help for GSU on the side. Its litres
+are counted in the CO2 figures, because the office paid for them (point 7 of
+"The rules and reports that apply"), but its pesos are never counted in a PO's
+total (confirmed by the owner, 27 October 2026). The driver writes the litres
+on the DTT's "purchased during trip" line. GSU's logbook lists reimbursed trips
+too, with the fuel type, the litres, and the amount: for example, DTT
+`2026-04-043`, diesel, 15.38 L, with a handwritten amount that the owner could
+not read for sure (seen by the owner, 27 October 2026).
+
 ### What the observed forms showed
 
 1. **Document numbers:** trip ticket `2026-06-070`, WS `06-070`, office
@@ -413,16 +488,27 @@ lines).
    supplies that are not fuel (told by the user, 21 October 2026), so the fuel
    RIS numbers alone have gaps. Its running number starts again at 001 every
    January, not every month (told by GSU, 21 October 2026), so the first RIS of
-   July carries on from the last number of June. How EMS hands out these numbers
-   is point 6 of "Recording a fuel issuance". **The trip ticket and the WS each
+   July carries on from the last number of June. The RIS running number can
+   reach 4 digits within a year (told by the owner, 27 October 2026). How EMS
+   hands out these numbers is point 6 of "Recording a fuel issuance".
+   **On screen (decided by the owner, 27 October 2026):** a list shows the
+   numbers without their year, as `10-118`, to keep them short; the file date
+   in the same row tells the years apart. The running number shows 3 digits,
+   and all the numbers in a list show 4 only once one of them has 4, so they
+   stay lined up. The same rule applies to the other forms' numbers. EMS still
+   saves and prints the full number with its year. **A search matches a
+   number only as the list shows it,** without the year (decided by the user,
+   28 October 2026), so typing "2026" does not find every number of the
+   year. **The trip ticket and the WS each
    have their own running number** (seen by the user in GSU's logbook and
    explained by GSU, 22 October 2026). They match only while every withdrawal
    has both. A slip with no trip ticket, such as for the generator, moves the
    WS ahead, and a trip with no slip moves the trip ticket ahead, so the two
    can drift apart and later match again. The WS's running number starts again
    every January, like the RIS; only the month part changes during the year
-   (told by the user, 22 October 2026). How the trip ticket's number runs, and
-   whether it starts again every January, is still to be asked (MPP-108).
+   (told by the user, 22 October 2026). The trip ticket's running number, the
+   last part of `2026-06-070`, also starts again every January, and only its
+   month part changes during the year (answered on 26 October 2026, MPP-108).
    **The office control
    number is counted per division, section, or unit,** and each one writes its
    own, because each manages its own fuel from its own budget (told by the
@@ -461,8 +547,17 @@ the best evidence for the fields a withdrawal needs.
    photo of 14 September 2026 in [fuel-assets.md](fuel-assets.md), which shows a
    single "Trip Ticket No." column, nor the owner's own sample of the logbook
    has two columns for it. The owner shortens the form's name to DTT, not TT.
-2. **"Issued" is litres and "Amount" is pesos,** copied from what the supplier
-   writes on the slip (answered on 6 October 2026).
+2. **"Issued" is the litres the driver wrote on the slip, and "Amount" is
+   pesos** (corrected by the owner, 27 October 2026; recorded on 6 October
+   2026 as both copied from what the supplier writes). "Issued" is not what
+   the supplier pumped. GSU keeps "Amount" because the supplier's pesos
+   sometimes differ from GSU's own working-out. Who works out the "Amount"
+   written in the logbook under litre-based POs, the supplier or GSU, is
+   asked in MPP-128: GSU answered "calculated based on PO", which fits more
+   than one meaning (27 October 2026). The logbook was made for
+   litre-based POs. Under price-based POs the litres actually pumped can
+   differ from "Issued", so EMS keeps the requested litres and the actual
+   litres as two numbers.
 3. **The balance is kept per fuel type,** in a gasoline set and a diesel set of
    columns, as a running ledger: each row's balance is the next row's
    "available".
@@ -475,6 +570,11 @@ the best evidence for the fields a withdrawal needs.
    too. With the columns already split by fuel, "Type of gasoline" may hold the
    grade instead (unleaded, premium); not confirmed, and the MFCR does not need
    it.
+6. **A new PO gets one highlighted row of its own,** with the PO's details,
+   between the last withdrawal of the old PO and the first one of the new PO.
+   The row works as a gap that shows that the old PO is used up. The logbook
+   has only one open PO at a time (seen by the user in GSU's sample logbook,
+   29 October 2026).
 
 **Decision: the trip ticket says "Odometer reading, if any:".** A speedometer
 reads zero when parked, so the number written after a trip can only be the
@@ -515,9 +615,36 @@ also the column name and the label on screen.
 5. **GHG reporting works from litres, not kilometres.** The GHG Protocol and the
    IPCC prefer the fuel-based method, because the fuel burned is what produces
    the CO2; the distance-based method is a fallback for when there is no fuel
-   data. So the GHG figures need only the litres of each withdrawal, and no
-   odometer or hour reading. The report the user checked calculates from fuel
+   data. So the GHG figures need only litres (point 7), and no odometer or
+   hour reading. The report the user checked calculates from fuel
    too (22 October 2026).
+6. **Only fuel paid for from the office's budget is counted, for now** (told by
+   the owner, 26 October 2026). The office sometimes receives fuel that is given
+   to it and that it does not pay for. That fuel is consumed, but the GHG Focal
+   Person says that it is not counted in the CO2 figures, so EMS does not cover
+   it yet; the owner expects it to be added later. Given fuel goes into the
+   same tanks, so on a trip with a DTT and no withdrawal, nobody can tell
+   whether the fuel used was left from an earlier withdrawal or was given fuel.
+7. **The CO2 figures count the fuel bought, not the DTT's litres used** (told
+   by the GHG Focal Person to the owner, 27 October 2026, MPP-127).
+   1. **A withdrawal counts its actual litres,** the litres the supplier
+      pumped, whether or not the trip has a DTT. If the supplier pumps 5 L,
+      EMS counts 5 L, even when some of it is still in the tank after the
+      trip, because that fuel will be used up anyway. The litres the driver
+      requested are never counted.
+   2. **A trip with a DTT and no withdrawal counts nothing,** whether the fuel
+      in the tank came from a withdrawal or was given fuel. Fuel from a
+      withdrawal was already counted when it was pumped, and given fuel is not
+      counted (point 6).
+   3. **A reimbursed trip counts the litres that the office paid back,**
+      because the office paid for that fuel, as if it were a direct purchase.
+      It has no withdrawal slip, so its DTT record in EMS is where those litres
+      are kept. They come from the DTT's "purchased during trip" line, where
+      the driver writes them; EMS records nothing from the official receipt
+      (told by the owner, 27 October 2026).
+   4. **The DTT's tank lines** (the balance before, the litres used, and the
+      balance after) are still recorded, but they are never counted in the
+      CO2 figures.
 
 ## Recording a fuel issuance (direction discussed, partly decided)
 
@@ -527,6 +654,31 @@ also the column name and the label on screen.
    what GSU says. Because no fuel is kept at the office, there is no delivery
    side to record. Since 21 October 2026 the log also holds trips with no
    withdrawal (point 4).
+
+   **Every transaction has a control number** (decided by the owner,
+   27 October 2026; the GHG Focal Person agreed, and GSU left the choice to
+   the owner). The control
+   number belongs to the transaction itself and is not the number of any
+   form. The forms that the transaction needs are linked to it, and which
+   forms those are depends on the asset and the case ("Which forms apply"):
+
+   ```
+   Control number (the transaction)
+   ├── WS   06-070
+   ├── RIS  2026-06-094
+   └── DTT  2026-06-070
+   ```
+
+   A generator withdrawal has only a WS and an RIS under its control number.
+   A trip-only trip has only a DTT, and a reimbursed trip has a DTT and an
+   RIS. Both get a control number too, so that they behave like any other transaction.
+   GSU's logbook gives these trips no number, but EMS hands out every number
+   anyway. Each transaction still records which kind it is, a withdrawal, a
+   trip only, or a reimbursed trip, because only a withdrawal counts down a
+   PO and an allocation; the trips are in the log because they use a DTT.
+   The list shows every kind in one order, by date and then by the order of
+   entry. What happens to the forms when a transaction is deleted, given
+   that an RIS number is never deleted (point 6.5), is still to be discussed.
 2. **The fuel type comes from the asset,** never picked on the withdrawal; see
    "Fuel type belongs to the asset" in [fuel-assets.md](fuel-assets.md).
 3. **A withdrawal for something that is not on the assets page,** such as a
@@ -552,8 +704,10 @@ also the column name and the label on screen.
    plan, told on 21 October 2026). Because the RIS numbering is shared with
    supplies that are not fuel ("What the observed forms showed", point 1), EMS
    hands out every RIS number, fuel or not.
-   1. **A fuel withdrawal gets its RIS number when it is saved.** EMS takes the
-      next number by itself; GSU never types an RIS number for a withdrawal.
+   1. **A fuel withdrawal gets its RIS number when it is saved,** and so does
+      a reimbursed trip, which has an RIS too. EMS takes the next number by
+      itself; GSU never types an RIS number for a withdrawal or a reimbursed
+      trip.
       This assumes that each withdrawal has its own RIS, which is asked in
       MPP-109.
    2. **A non-fuel RIS is reserved first.** A GSU staff member reserves the next
@@ -581,11 +735,132 @@ also the column name and the label on screen.
    labelled "Office" on screen, because GSU controls all the fuel. GSU still
    needs that unit's agreement first, and EMS records which GSU staff member
    saved the withdrawal.
-8. **No office control number** (decided by the user, 22 October 2026). EMS
-   does not produce the control number that each division, section, or unit
-   writes on its own slips, such as `GSU-2026-06-002`.
+8. **No office's own control number** (decided by the user, 22 October 2026).
+   EMS does not produce the control number that each division, section, or
+   unit writes on its own slips, such as `GSU-2026-06-002`. This is not the
+   control number of a transaction (point 1), which EMS does give out.
    Without its prefix the number is not unique, and the prefix is the
    division, section, or unit's abbreviation, which can be changed on the
    Organizational Structure page. A slip is known by its own WS number, and
    the list of one unit's withdrawals, in order, comes from filtering the
-   issuance page by that unit.
+   issuance page by that unit. **Reconsidered on 26 October 2026 and kept.**
+   Producing it would be possible: a count per office (by the office's ID, so
+   a renamed office carries on its count), with the full number saved as
+   printed so that a later rename leaves old slips unchanged. The owner still
+   prefers to leave it out.
+   **Changed on 27 October 2026:** the issuance list shows each office's own
+   count for the year as a small badge beside the control number (layout 1b of the
+   Claude Design "Withdrawals Table"). The count is worked out when the list
+   is shown, for viewing only: it is never saved in the database, never
+   printed, and it starts over every January (decided by the owner). It
+   counts every transaction of that office, trips with no withdrawal
+   included, as if the list were filtered by the office, in the order in
+   which they were entered in EMS. A cancelled withdrawal is still counted,
+   because it is still one of the office's transactions. Only GSU or an admin can move a withdrawal to another office,
+   which is allowed while its PO is open, and the move changes the counts of
+   both offices (told by the owner, 27 October 2026).
+9. **The status of a withdrawal or a trip** (decided by the owner, 27 October 2026). Before
+   this, nothing changed a withdrawal after it was approved, so EMS could not
+   tell a finished withdrawal from one still at the station.
+
+   | Status | Colour | Meaning |
+   | --- | --- | --- |
+   | Waiting for approval | gray | Entered in EMS and printed; GSU has not signed the slip yet. |
+   | Out | blue | GSU signed the slip and it was marked approved in EMS (MPP-81); the driver takes it to the gas station. |
+   | Complete | green | The slip is back, a GSU user typed the supplier's numbers and pressed **Complete**, and nothing is missing. |
+   | Incomplete | yellow | A GSU user pressed **Complete**, but the DTT's tank balances are still missing. |
+   | Cancelled | destructive | The withdrawal never happened. |
+
+   1. **Complete is a button, and only GSU presses it.** A GSU user first
+      types the unit price and the amount or the actual litres (point 3 of
+      "How POs and withdrawal slips work"), then presses Complete. The
+      withdrawal does not become complete by itself. Only GSU completes,
+      because every slip and every DTT goes back to GSU on paper, even a DTT
+      with no withdrawal slip, and GSU checks the details in EMS against the
+      paper before pressing Complete (told by the owner, 27 October 2026).
+   2. **Complete or Incomplete is decided when Complete is pressed.** When the
+      withdrawal has a DTT and its tank balances are missing, it becomes
+      Incomplete. A withdrawal with no DTT, such as one for a generator or a
+      grass cutter, has no tank balances, so it becomes Complete. Saving with
+      missing tank balances is allowed (confirmed by the owner, 27 October
+      2026), which matches the warnings of the Close check (point 7 of "How
+      POs and withdrawal slips work").
+   3. **Who may type the tank balances:** the person who entered the record,
+      and GSU. Typing them is not limited to GSU (told by the owner,
+      27 October 2026).
+   4. **From Incomplete to Complete.** Once the missing tank balances are
+      typed in, GSU checks them against the paper DTT and presses Complete
+      again. On an Incomplete withdrawal, pressing Complete while any tank
+      balance is still empty saves nothing and points to the empty fields, so
+      the second press always ends in Complete. The withdrawal never turns
+      green by itself, because a balance typed in later must still be checked
+      against the paper (decided by the owner, 27 October 2026).
+   5. **A trip with a DTT and no withdrawal slip gets statuses too,** both a
+      trip-only trip and a reimbursed trip, because every DTT goes back to GSU
+      (told by the owner, 27 October 2026). There is no slip for GSU to sign,
+      so the trip starts as Out, skipping Waiting for approval, and GSU
+      presses Complete after checking the paper DTT.
+   6. **A trip with no withdrawal slip is never Incomplete,** whether it is a
+      trip-only trip or a reimbursed trip. It has no withdrawal slip, so no
+      supplier's numbers come back later, and its DTT is submitted with every
+      detail at once. Complete is therefore refused until every detail is filled in, including the
+      tank balances, and on a reimbursed trip the litres on the "purchased
+      during trip" line (decided by the owner, 27 October 2026).
+   7. **The Complete button is never disabled.** When something is missing,
+      pressing it saves nothing, and the form points to the empty field. This
+      follows the form-submit rule of
+      `.claude/skills/unavailable-actions/SKILL.md` (told by the owner,
+      27 October 2026).
+   8. **Cancelled is the word,** not "not used"; "not used" stays the word for
+      a reserved RIS number (point 6.5). A cancelled withdrawal keeps its WS,
+      RIS, and DTT numbers, and they are never given to another withdrawal,
+      for the reason in point 6.5.
+10. **How the list shows the POs** (decided by the owner, 30 October 2026).
+    The list follows GSU's logbook (point 6 of "GSU's fuel logbook"): it has
+    no PO column, and a PO row with the PO's details goes where the PO's
+    withdrawals start.
+    1. **Only a withdrawal has a PO.** A trip-only trip and a reimbursed trip
+       save no PO in the database, because they take nothing off a PO (item 3
+       of "What a closed PO locks"). They still have a control number
+       (point 1) and sit among the withdrawals by their date.
+    2. **The PO rows show only while the list is sorted by date,** then by
+       the order of entry, which is the list's own order (point 1). Sorted by
+       any other column, a PO row would land among rows that have nothing to
+       do with it, so the PO rows are hidden until the list is sorted by date
+       again.
+    3. **Where two POs mix.** Several POs can be open at once, and each slip
+       goes to the oldest PO where its office still has an allocation of that
+       fuel (point 4 of "How POs and withdrawal slips work"). So one office's
+       slips can move to the new PO while another office's slips still use the
+       old one. EMS finds this from the PO saved on each withdrawal: when a
+       PO's first withdrawal comes before an older PO's last withdrawal, the
+       rows from the one to the other are the mixed part. The mixed part gets
+       a PO row of its own, with extra details and a colour legend on its
+       right. Inside it, each withdrawal shows its PO number under the file
+       date, with a coloured dot that the legend explains, and a trip shows
+       none. Outside a mixed part no row shows a PO number, as in the
+       logbook. The same check works when three POs mix.
+
+       ```
+       [PO-001]
+       Mar 2   CN-26-010
+       Mar 5   CN-26-011
+       [PO-001 and PO-002 mixed]                    legend
+       Mar 9   CN-26-012   ● PO-002
+       Mar 10  CN-26-013   (trip only: no PO number)
+       Mar 11  CN-26-014   ● PO-001
+       [remaining PO-002]
+       Mar 12  CN-26-015
+       ```
+    4. **No switch to open a PO** (proposed by the owner and dropped,
+       30 October 2026). The idea was that GSU opens a PO after adding it, so
+       that the list can tell when POs mix. But open means "not paid yet"
+       (point 7 of "How POs and withdrawal slips work"), so a used-up PO stays
+       open until the supplier is paid. Counting the open POs would then show
+       a mixed part even when every new withdrawal is already on the new PO.
+       The PO saved on each withdrawal shows the real mixing instead.
+    5. **Still to discuss:** what the extra details on the PO row and the
+       legend look like, and the colours of the dots; the owner's sample used
+       red and blue, which are already the colours of Cancelled and Out
+       (point 9). Also not decided: the owner's idea of 29 October 2026 that
+       the list shows only the transactions of open POs.
