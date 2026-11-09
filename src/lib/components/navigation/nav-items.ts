@@ -6,6 +6,7 @@ import {
   Fuel,
   House,
   IdCard,
+  Plus,
   ShieldCheck,
   UsersRound,
 } from "@lucide/svelte/icons";
@@ -19,6 +20,16 @@ export type NavPage = {
   /** The `view` key that opens the page. Left off for a page everyone opens. */
   permission?: PermissionKey;
   children?: NavPage[];
+  /**
+   * A small button on the right of the page's row, for the page's most
+   * common task. Shown to whoever can open the page.
+   */
+  action?: {
+    name: string;
+    url: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    icon: any;
+  };
 };
 
 /**
@@ -39,6 +50,11 @@ export const workPages = [
     url: "/fuel",
     icon: Fuel,
     permission: "fuel:view",
+    action: {
+      name: "New withdrawal",
+      url: "/fuel?new=withdrawal",
+      icon: Plus,
+    },
     children: [
       {
         name: "Assets",

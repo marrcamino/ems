@@ -29,7 +29,7 @@ const helper = createColumnHelper<typeof features, SampleWithdrawal>();
  * details in a smaller line under the main value. The cells are drawn in
  * +page.svelte by column id, and each column sorts by its main value.
  *
- * The estimated balance is not sortable: it belongs to one office's
+ * The balance is not sortable: it belongs to one office's
  * allocation of one fuel, so sorting it across offices tells nothing.
  */
 export const columns = helper.columns([
@@ -78,7 +78,7 @@ export const columns = helper.columns([
   }),
   helper.accessor("balanceH", {
     id: "balance",
-    header: "Estimated bal.",
+    header: "Balance",
     enableSorting: false,
   }),
   helper.accessor("asset", {

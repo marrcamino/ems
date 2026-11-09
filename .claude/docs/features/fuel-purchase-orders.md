@@ -93,11 +93,14 @@ that is not written here, ask the owner instead of assuming one.
     2026). An approved PO sets the money aside; it is not a payment. The paperwork
     for paying is probably a disbursement voucher with the supplier's bill rather
     than a "liquidation"; not confirmed.
-13. **The supplier charges the day's pump price** (since 6 October 2026), so a PO
-    is counted in pesos, and its litres left can only be estimated. GSU calls this
-    a price-based PO. It is new: no such PO has been used up yet, so GSU has no
-    experience of a unit going past its allocation, or of a unit leaving part of
-    it unused.
+13. **A PO is litre-based or price-based.** On a litre-based PO the price is the
+    PO's unit cost. On a price-based PO the supplier charges the day's pump price
+    (since 6 October 2026), so its litres left can only be estimated. About 80%
+    of POs are litre-based, which is the owner's rough figure (told by the owner,
+    7 November 2026). The price-based PO is new: no withdrawal has been made on
+    one yet (told by the owner, 5 November 2026), so GSU has no experience of a
+    unit going past its allocation, or of a unit leaving part of it unused, and
+    cannot yet say how such slips are written.
 14. **A real example,** PO 2026-03-22, given by the user, in litres:
 
     | unit | gasoline | diesel |
@@ -237,12 +240,28 @@ that is still waiting for an answer names its issue.
 ## How POs and withdrawal slips work (decided 6–20 October 2026)
 
 1. **The PO.** One PO covers both fuels, one row each (quantity, unit cost,
-   amount), with an overall total. It has no litre-based or price-based type: the
-   system always counts down pesos, and shows litres left only as an estimate.
-   "Price-based" is GSU's own term (told by the user, 20 October 2026) for a PO
-   that is paid at the prevailing pump price on the day of each withdrawal, and
-   so is counted down in pesos. The user knows that the term is not ideal and may
+   amount), with an overall total. "Price-based" is GSU's own term (told by the
+   user, 20 October 2026) for a PO that is paid at the prevailing pump price on
+   the day of each withdrawal. The user knows that the term is not ideal and may
    change it later.
+
+   **Every PO has a type, litre-based or price-based** (decided by the owner,
+   7 November 2026, MPP-132; until then a PO had no type). The type never
+   changes how a PO is counted: EMS has one way of counting, and every PO counts
+   down pesos, the litre-based one too. The type changes only what the screens
+   show, so that a reader can tell an exact number from an estimate:
+   1. **The list's column is called "Balance"** and shows the litres with the
+      pesos under them on every row. On a price-based PO the litres carry ≈,
+      and hovering over the balance says why. The pesos never carry it.
+   2. **The New withdrawal form names the PO, its type, and its balance,** and
+      what the request comes to at the PO's price or, on a price-based PO, at
+      the last known price.
+   3. **The type is locked once a withdrawal is charged to the PO** (not built
+      yet, because withdrawals have no table yet). The PO form's required
+      "PO type" field was built on 9 November 2026; a new PO starts as
+      liter-based (decided by the user, 9 November 2026).
+   4. **A slip that is still Out takes off the requested amount** on both types,
+      so a balance is exact only after the slip is back.
 2. **Allocations.** When adding a PO, GSU types each unit's request as its
    allocation of each fuel (see points 2 to 5 of "How the office handles fuel
    today"). Allocations are required and must add up exactly to that fuel's row on
@@ -269,6 +288,18 @@ that is still waiting for an answer names its issue.
    boxes for the supplier. GSU agreed to the new boxes when the user talked it
    through with GSU staff (told by the user, 22 October 2026). The supplier has
    not been asked, but the user does not expect the supplier to object.
+
+   **On a litre-based PO, the price is always the PO's unit cost** (decided by
+   the owner, 7 November 2026, MPP-132), so EMS fills it in and nobody types a
+   unit price when the slip comes back.
+
+   **A price-based PO can also be requested by pesos** (decided by the owner,
+   5 and 7 November 2026, MPP-132), for example when an office wants what is
+   left of its allocation (point 5). The form has a switch between litres and
+   pesos, and a "Use the rest" button that fills in that amount. Still open:
+   such a request has no requested quantity for the RIS when it is made. If the
+   RIS is signed before the fuel is pumped, it shows a blank quantity with the
+   pesos in the Description. If it is not, it is printed after the slip is back.
 
    Each withdrawal keeps both numbers: the actual litres for the CO2 figures
    (point 7 of "The rules and reports that apply"), and the pesos to count down

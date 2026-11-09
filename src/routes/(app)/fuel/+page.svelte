@@ -23,9 +23,9 @@
   import { formatLiters, formatPesos } from "$lib/utils/format-number.js";
   import { formatDate } from "./purchase-orders/format-date.js";
   import {
-    amountInCentavos,
     FUEL_LABELS,
     FUELS,
+    PO_TYPE_LABELS,
     type Fuel,
   } from "./purchase-orders/po-math.js";
   import {
@@ -47,8 +47,31 @@
   import FilterCombobox from "./filter-combobox.svelte";
   import { poInUse } from "./po-in-use.js";
   import RadioTabs, { type RadioTab } from "@/components/radio-tabs.svelte";
+  import NewWithdrawalDialog from "./new-withdrawal-dialog.svelte";
+  import { page } from "$app/state";
+  import { replaceState } from "$app/navigation";
 
   let { data }: PageProps = $props();
+
+  let newWithdrawalOpen = $state(false);
+
+  // The sidebar's + beside Fuel links to /fuel?new=withdrawal, which opens
+  // the form. The ?new is dropped when the form closes, not when it opens:
+  // on a fresh page load the router is not ready yet, and replaceState
+  // throws.
+  $effect(() => {
+    if (page.url.searchParams.get("new") === "withdrawal") {
+      newWithdrawalOpen = true;
+    }
+  });
+
+  function setNewWithdrawalOpen(open: boolean) {
+    newWithdrawalOpen = open;
+    if (open || !page.url.searchParams.has("new")) return;
+    const url = new URL(page.url);
+    url.searchParams.delete("new");
+    replaceState(url, page.state);
+  }
 
   /** The made-up rows filed up to today. */
   const withdrawals = sampleWithdrawals();
@@ -167,6 +190,15 @@
     return parts.join(" · ");
   }
 
+  /** The hover text of a balance, saying why its liters are or are not exact. */
+  function balanceHint(row: SampleWithdrawal) {
+    if (!row.poType) return undefined;
+    const type = PO_TYPE_LABELS[row.poType];
+    return row.poType === "price"
+      ? `${row.poNumber} is ${type}, so the liters are an estimate from the last known price.`
+      : `${row.poNumber} is ${type}, so its price does not change.`;
+  }
+
   const inUse = poInUse(withdrawals, SAMPLE_OPEN_PO_NUMBERS);
 
   /** "A", "A and B", "A, B, and C". */
@@ -239,10 +271,10 @@
 
     <!--
       A withdrawal is the common case; the two trips without a withdrawal
-      slip wait in the menu. Samples only: none of these opens a form yet.
+      slip wait in the menu. The two trips open no form yet.
     -->
     <ButtonGroup.Root>
-      <Button>
+      <Button onclick={() => (newWithdrawalOpen = true)}>
         <Plus />
         New withdrawal
       </Button>
@@ -449,17 +481,19 @@
                 {:else if cell.column.id === "balance"}
                   <Table.Cell class="text-right tabular-nums">
                     <!-- A trip does not count down any allocation. -->
-                    {#if row.balanceH === null}
+                    {#if row.balanceH === null || row.balanceC === null}
                       <span class="text-muted-foreground">—</span>
                     {:else}
-                      <div>{formatLiters(row.balanceH)}</div>
-                      {#if row.priceC !== null}
-                        <div class="text-xs text-muted-foreground">
-                          ≈ {formatPesos(
-                            amountInCentavos(row.balanceH, row.priceC),
+                      <div title={balanceHint(row)}>
+                        <div>
+                          {row.poType === "price" ? "≈ " : ""}{formatLiters(
+                            row.balanceH,
                           )}
                         </div>
-                      {/if}
+                        <div class="text-xs text-muted-foreground">
+                          {formatPesos(row.balanceC)}
+                        </div>
+                      </div>
                     {/if}
                   </Table.Cell>
                 {:else if cell.column.id === "assetAndTrip"}
@@ -521,3 +555,8 @@
     </ScrollArea>
   </div>
 </div>
+
+<NewWithdrawalDialog
+  bind:open={() => newWithdrawalOpen, setNewWithdrawalOpen}
+  {data}
+/>

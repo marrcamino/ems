@@ -1,4 +1,9 @@
-import { amountInCentavos, type Fuel } from "./purchase-orders/po-math";
+import {
+  amountInCentavos,
+  litersForPesos,
+  type Fuel,
+  type PoType,
+} from "./purchase-orders/po-math";
 import type { WithdrawalStatus } from "./withdrawal-status";
 
 /**
@@ -58,14 +63,17 @@ export type SampleWithdrawal = {
   /** Null until the slip is back, on a cancelled slip, and on a trip. */
   amountC: number | null;
   /**
-   * What is left of the office's allocation of this fuel after this slip.
-   * A slip not back yet takes off the litres requested; a cancelled slip
-   * takes off nothing. Null on a trip, because only a withdrawal counts down
-   * an allocation.
+   * The pesos left of the office's allocation of this fuel after this slip.
+   * A slip not back yet takes off the litres requested at its price; a
+   * cancelled slip takes off nothing. Null on a trip, because only a
+   * withdrawal counts down an allocation.
    */
+  balanceC: number | null;
+  /** What `balanceC` buys at `priceC`. Exact only on a liter-based PO. */
   balanceH: number | null;
   /** The PO a withdrawal is charged to; a trip has none (point 10.1). */
   poNumber: string | null;
+  poType: PoType | null;
   fuel: Fuel;
   asset: string;
   /** Only a vehicle with a driver has a trip ticket. */
@@ -121,14 +129,46 @@ const ALLOCATIONS: Record<string, Record<Fuel, number>> = {
 
 /**
  * The made-up POs and the days they opened. Each one gives every office its
- * allocation again, so the balances go back up on these days.
+ * allocation again, so the balances go back up on these days. The unit costs
+ * are in centavos per liter. A liter-based PO charges them on every slip; a
+ * price-based PO uses them only to turn the allocation into pesos.
  */
-const SAMPLE_POS = [
-  { number: "PO-2025-10-004", opened: "2025-10-01" },
-  { number: "PO-2026-01-001", opened: "2026-01-05" },
-  { number: "PO-2026-04-002", opened: "2026-04-06" },
-  { number: "PO-2026-07-003", opened: "2026-07-06" },
-  { number: "PO-2026-10-004", opened: "2026-10-05" },
+const SAMPLE_POS: {
+  number: string;
+  opened: string;
+  type: PoType;
+  unitCostC: Record<Fuel, number>;
+}[] = [
+  {
+    number: "PO-2025-10-004",
+    opened: "2025-10-01",
+    type: "liter",
+    unitCostC: { diesel: 6000, gasoline: 6500 },
+  },
+  {
+    number: "PO-2026-01-001",
+    opened: "2026-01-05",
+    type: "liter",
+    unitCostC: { diesel: 6100, gasoline: 6600 },
+  },
+  {
+    number: "PO-2026-04-002",
+    opened: "2026-04-06",
+    type: "liter",
+    unitCostC: { diesel: 6300, gasoline: 6800 },
+  },
+  {
+    number: "PO-2026-07-003",
+    opened: "2026-07-06",
+    type: "liter",
+    unitCostC: { diesel: 6200, gasoline: 6700 },
+  },
+  {
+    number: "PO-2026-10-004",
+    opened: "2026-10-05",
+    type: "price",
+    unitCostC: { diesel: 6300, gasoline: 6800 },
+  },
 ];
 
 /** Only the newest made-up PO is still open; the supplier was paid for the rest. */
@@ -172,6 +212,11 @@ const PRICES: Record<Fuel, Record<string, number>> = {
 /** The whole-peso pump price on the slip's date, in centavos per liter. */
 function pumpPrice(fuel: Fuel, fileDate: string) {
   return PRICES[fuel][fileDate.slice(0, 7)] * 100;
+}
+
+/** A liter-based PO keeps its own price; a price-based PO follows the pump. */
+function slipPrice(po: (typeof SAMPLE_POS)[number], fuel: Fuel, date: string) {
+  return po.type === "liter" ? po.unitCostC[fuel] : pumpPrice(fuel, date);
 }
 
 /** What an office usually takes fuel for, with the usual liters and remarks. */
@@ -423,8 +468,8 @@ const COUNTS_ON_1_DECEMBER_2025 = {
 
 /**
  * Every made-up row in date order, numbered, with its running balance: each
- * slip counts down its own office's allocation of its fuel on the open PO,
- * like GSU's logbook does per fuel.
+ * slip counts down, in pesos, its own office's allocation of its fuel on the
+ * open PO, like GSU's logbook does per fuel.
  */
 function build(): SampleWithdrawal[] {
   const random = randomFrom(7);
@@ -450,13 +495,18 @@ function build(): SampleWithdrawal[] {
     // A new PO gives every office its allocation again.
     while (draft.fileDate >= (SAMPLE_POS[poIndex + 1]?.opened ?? "9999")) {
       poIndex++;
+      const { unitCostC } = SAMPLE_POS[poIndex];
       left = Object.fromEntries(
         Object.entries(ALLOCATIONS).map(([office, a]) => [
           office,
-          { gasoline: a.gasoline * 100, diesel: a.diesel * 100 },
+          {
+            gasoline: a.gasoline * unitCostC.gasoline,
+            diesel: a.diesel * unitCostC.diesel,
+          },
         ]),
       );
     }
+    const po = SAMPLE_POS[poIndex];
 
     const month = draft.fileDate.slice(5, 7);
     const number = (n: number) => `${year}-${month}-${padded(n)}`;
@@ -475,18 +525,21 @@ function build(): SampleWithdrawal[] {
     if (draft.kind !== "trip") ris += 1 + Math.floor(random() * 5);
     if (driver) tripTicket++;
 
-    let priceC: number | null = isWithdrawal
-      ? pumpPrice(fuel, draft.fileDate)
-      : null;
-    if (isBack && priceC !== null) {
+    let priceC: number | null = null;
+    if (isWithdrawal) priceC = slipPrice(po, fuel, draft.fileDate);
+    if (isBack && priceC !== null && po.type === "price") {
       priced++;
       if (priced % 7 === 3) priceC += priced % 2 ? 50 : 75;
     }
 
+    let balanceC: number | null = null;
     let balanceH: number | null = null;
-    if (isWithdrawal) {
-      if (draft.status !== "cancelled") left[draft.office][fuel] -= litersH;
-      balanceH = left[draft.office][fuel];
+    if (isWithdrawal && priceC !== null) {
+      if (draft.status !== "cancelled") {
+        left[draft.office][fuel] -= amountInCentavos(litersH, priceC);
+      }
+      balanceC = left[draft.office][fuel];
+      balanceH = litersForPesos(balanceC, priceC);
     }
 
     return {
@@ -505,8 +558,10 @@ function build(): SampleWithdrawal[] {
       priceC,
       amountC:
         isBack && priceC !== null ? amountInCentavos(litersH, priceC) : null,
+      balanceC,
       balanceH,
-      poNumber: isWithdrawal ? SAMPLE_POS[poIndex].number : null,
+      poNumber: isWithdrawal ? po.number : null,
+      poType: isWithdrawal ? po.type : null,
       fuel,
       asset: draft.asset,
       tripTicketNumber: driver ? number(tripTicket) : null,
@@ -559,8 +614,30 @@ export function sampleWithdrawals(today = new Date()): SampleWithdrawal[] {
     if (row.kind === "withdrawal") {
       row.withdrawnH = null;
       row.amountC = null;
-      row.priceC = pumpPrice(row.fuel, row.fileDate);
+      if (row.poType === "price") row.priceC = pumpPrice(row.fuel, row.fileDate);
     }
   }
   return rows;
+}
+
+/**
+ * What the New withdrawal form shows for one office and fuel: the newest
+ * made-up row's PO and balance, or null when it has none.
+ * TODO(MPP-80): read the oldest PO that still has an allocation instead.
+ */
+export function sampleBalance(office: string, fuel: Fuel) {
+  const row = sampleWithdrawals().findLast(
+    (w) => w.office === office && w.fuel === fuel && w.balanceC !== null,
+  );
+  if (!row?.poType || row.poNumber === null) return null;
+  if (row.balanceC === null || row.balanceH === null || row.priceC === null) {
+    return null;
+  }
+  return {
+    poNumber: row.poNumber,
+    poType: row.poType,
+    balanceC: row.balanceC,
+    balanceH: row.balanceH,
+    priceC: row.priceC,
+  };
 }
