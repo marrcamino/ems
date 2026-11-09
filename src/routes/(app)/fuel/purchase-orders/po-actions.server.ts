@@ -18,6 +18,7 @@ import {
   MAX_HUNDREDTHS,
   toHundredths,
   type Fuel,
+  type PoType,
 } from "./po-math";
 import type { PurchaseOrderRow, UnitOption } from "./po-types";
 
@@ -52,6 +53,7 @@ export async function selectPurchaseOrders(): Promise<PurchaseOrderRow[]> {
       purchaseOrderPk: purchaseOrder.purchaseOrderPk,
       poNumber: purchaseOrder.poNumber,
       poDate: purchaseOrder.poDate,
+      poType: purchaseOrder.poType,
       supplierFk: purchaseOrder.supplierFk,
       supplierName: supplier.supplierName,
       note: purchaseOrder.note,
@@ -126,6 +128,7 @@ export async function selectPurchaseOrders(): Promise<PurchaseOrderRow[]> {
 type Payload = {
   poNumber?: unknown;
   poDate?: unknown;
+  poType?: unknown;
   supplierFk?: unknown;
   note?: unknown;
   items?: {
@@ -139,6 +142,7 @@ type Payload = {
 type Checked = {
   poNumber: string;
   poDate: string;
+  poType: PoType;
   supplierFk: number;
   note: string | null;
   items: {
@@ -151,7 +155,7 @@ type Checked = {
 
 /**
  * A refusal, with the field it belongs to when there is one, so the dialog
- * can show it there. Fields: `poNumber`, `poDate`, `supplierFk`, and
+ * can show it there. Fields: `poNumber`, `poDate`, `poType`, `supplierFk`, and
  * `<fuel>` for a problem with one fuel's row or its allocations.
  */
 type Refusal = { field?: string; error: string };
@@ -191,6 +195,11 @@ async function check(
   // Plain text comparison works, since both are yyyy-mm-dd.
   if (poDate > today(getLocalTimeZone()).toString()) {
     return { field: "poDate", error: "Enter a date on or before today." };
+  }
+
+  const poType = payload.poType as PoType;
+  if (poType !== "liter" && poType !== "price") {
+    return { field: "poType", error: "Choose whether the PO is liter-based or price-based." };
   }
 
   const supplierFk = Number(payload.supplierFk);
@@ -290,7 +299,7 @@ async function check(
     return { error: "A unit was deactivated a moment ago. Choose the units again." };
   }
 
-  return { poNumber, poDate, supplierFk, note: note || null, items };
+  return { poNumber, poDate, poType, supplierFk, note: note || null, items };
 }
 
 /** MySQL reports a broken constraint by number; 1062 is a duplicate value. */
@@ -358,6 +367,7 @@ export const purchaseOrderActions = {
         const [po] = await tx.insert(purchaseOrder).values({
           poNumber: checked.poNumber,
           poDate: checked.poDate,
+          poType: checked.poType,
           supplierFk: checked.supplierFk,
           note: checked.note,
           createdByFk: locals.user?.userPk ?? null,
@@ -392,7 +402,8 @@ export const purchaseOrderActions = {
    * TODO(MPP-60): once withdrawals exist (MPP-80), refuse an edit that leaves
    * a unit's allocation below what that unit has already used: lowering its
    * liters, removing it, or lowering the fuel's unit cost. Refuse any edit to
-   * a closed PO (MPP-106). Replacing the rows will then also need care, since
+   * a closed PO (MPP-106). Refuse a change of type once a withdrawal is
+   * charged to the PO (point 1.3 of "How POs and withdrawal slips work"). Replacing the rows will then also need care, since
    * slips will point at allocations. Nothing is used yet, so nothing is
    * checked today.
    */
@@ -439,6 +450,7 @@ export const purchaseOrderActions = {
           .set({
             poNumber: checked.poNumber,
             poDate: checked.poDate,
+            poType: checked.poType,
             supplierFk: checked.supplierFk,
             note: checked.note,
             updatedAt: new Date(),

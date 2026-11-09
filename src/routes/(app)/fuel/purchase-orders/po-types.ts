@@ -1,4 +1,4 @@
-import type { Fuel } from "./po-math";
+import type { Fuel, PoType } from "./po-math";
 
 /** A division, section, unit or office that can be given an allocation. */
 export type UnitOption = {
@@ -16,6 +16,7 @@ export type PurchaseOrderRow = {
   purchaseOrderPk: number;
   poNumber: string;
   poDate: string;
+  poType: PoType;
   supplierFk: number;
   supplierName: string;
   note: string | null;

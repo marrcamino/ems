@@ -266,7 +266,7 @@
         title={step.title}
         description={step.description}
         class={cn(
-          step.name === "details" ? "md:w-sm" : "md:w-xl",
+          step.name === "details" ? "md:w-lg" : "md:w-xl",
           "w-[calc(100vw-2rem)] max-h-[calc(100dvh-9rem)] md:max-w-[calc(100vw-14rem)] md:max-h-[min(44rem,calc(100dvh-2rem))]",
         )}
       >

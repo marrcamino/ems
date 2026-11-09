@@ -29,6 +29,10 @@ export const purchaseOrder = mysqlTable("purchase_order", {
   poNumber: varchar("po_number", { length: 50 }).notNull().unique(),
   // The date printed on the PO, not the day it was typed in.
   poDate: date("po_date", { mode: "string" }).notNull(),
+  // Liter-based (the price is the PO's unit cost) or price-based (each
+  // withdrawal is charged at that day's pump price). Changes only what the
+  // screens show, never how the PO is counted (MPP-132).
+  poType: mysqlEnum("po_type", ["liter", "price"]).notNull(),
   supplierFk: bigint("supplier_fk", { mode: "number", unsigned: true })
     .notNull()
     .references((): AnyMySqlColumn => supplier.supplierPk, {

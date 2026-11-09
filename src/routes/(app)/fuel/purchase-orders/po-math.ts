@@ -24,6 +24,18 @@ export const FUEL_LABELS: Record<Fuel, string> = {
 };
 
 /**
+ * Whether the PO's price is fixed or follows the pump. Every PO counts down
+ * pesos the same way; the type only changes what the screens show (point 1
+ * of "How POs and withdrawal slips work").
+ */
+export type PoType = "liter" | "price";
+
+export const PO_TYPE_LABELS: Record<PoType, string> = {
+  liter: "liter-based",
+  price: "price-based",
+};
+
+/**
  * A typed number as whole hundredths, or null when it is empty, negative,
  * not a number, or has more than 2 decimals.
  */
