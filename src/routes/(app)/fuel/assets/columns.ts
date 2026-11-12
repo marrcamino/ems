@@ -70,6 +70,12 @@ export const columns = helper.columns([
     enableSorting: false,
     enableGlobalFilter: false,
   }),
+  helper.accessor((row) => (row.hasTripTicket ? "Yes" : "No"), {
+    id: "tripTicket",
+    header: "Trip ticket",
+    enableSorting: false,
+    enableGlobalFilter: false,
+  }),
   helper.accessor("status", {
     id: "status",
     header: "Status",

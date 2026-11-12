@@ -7,6 +7,7 @@
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as RadioGroup from "$lib/components/ui/radio-group/index.js";
+  import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
   import { Switch } from "$lib/components/ui/switch/index.js";
   import HiddenInput from "@/components/ui/hidden-input.svelte";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
@@ -15,17 +16,20 @@
   import ChevronsUpDownIcon from "@lucide/svelte/icons/chevrons-up-down";
   import { tick } from "svelte";
   import { toast } from "svelte-sonner";
+  import { toastErrorOnce } from "$lib/utils/toast.js";
   import { FUEL_TYPE_CHOICES, type AssetRow } from "./asset-row.js";
-  import { meterTypePhrase } from "./types/meter-types.js";
 
   let {
     open = $bindable(false),
     assetToEdit = null,
+    assets,
     assetTypes,
     onSaved,
   }: {
     open: boolean;
     assetToEdit: AssetRow | null;
+    /** Every asset, so a new one can copy the Trip ticket setting. */
+    assets: AssetRow[];
     /** Every type, active or not; the picker narrows it down itself. */
     assetTypes: AssetType[];
     onSaved: (row: AssetRow, mode: "add" | "edit") => void;
@@ -38,6 +42,7 @@
   let plateNumber = $state("");
   let propertyNumber = $state("");
   let fuelType = $state<Asset["fuelType"]>("gasoline");
+  let hasTripTicket = $state(false);
   let active = $state(true);
   let submitting = $state(false);
   let isEditMode = $derived(mode === "edit");
@@ -47,6 +52,7 @@
 
   function pickType(value: string) {
     assetTypeFk = value;
+    if (!isEditMode) hasTripTicket = tripTicketOfLastUnder(value);
     typePickerOpen = false;
     // Hand focus back to the trigger so keyboard users stay in the form.
     tick().then(() => typeTriggerRef?.focus());
@@ -68,9 +74,18 @@
     assetTypes.find((t) => String(t.assetTypePk) === assetTypeFk) ?? null,
   );
 
-  // The plate rule follows the meter: a type that reads an odometer runs on
-  // the road and carries a plate. The server checks the same thing.
-  const plateRequired = $derived(chosenType?.meterType === "odometer");
+  // A new asset copies the last asset added under the same type, so GSU
+  // rarely has to touch the switch; off under a type with no assets yet
+  // (point 4 of "Trip ticket belongs to the asset" in fuel-assets.md).
+  function tripTicketOfLastUnder(typeFk: string) {
+    const last = assets
+      .filter((a) => String(a.assetTypeFk) === typeFk)
+      .reduce<AssetRow | null>(
+        (latest, a) => (!latest || a.assetPk > latest.assetPk ? a : latest),
+        null,
+      );
+    return last?.hasTripTicket ?? false;
+  }
 
   /**
    * When adding and only one type is active, it is the only answer, so it is
@@ -94,6 +109,8 @@
     plateNumber = assetToEdit?.plateNumber ?? "";
     propertyNumber = assetToEdit?.propertyNumber ?? "";
     fuelType = assetToEdit?.fuelType ?? "gasoline";
+    hasTripTicket =
+      assetToEdit?.hasTripTicket ?? tripTicketOfLastUnder(assetTypeFk);
     active = (assetToEdit?.status ?? "active") === "active";
   }
 
@@ -103,12 +120,16 @@
 </script>
 
 <Dialog.Root bind:open>
+  <!--
+    A column, so that on a short screen the fields shrink and scroll while
+    the title and the buttons stay in view. The dialog's own height cap
+    keeps it on screen.
+  -->
   <Dialog.Content
-    class="sm:max-w-105 sm:data-editing:max-w-115"
-    data-editing={dataAttr(isEditMode)}
+    class="flex flex-col sm:max-w-105  max-h-[min(593px,calc(100dvh-2rem))]"
   >
     <form
-      class="grid gap-5"
+      class="flex min-h-0 flex-col gap-4"
       method="POST"
       action={isEditMode ? "?/update" : "?/create"}
       autocomplete="off"
@@ -124,10 +145,11 @@
           }
 
           if (result.type === "failure") {
-            toast.error(
-              (result.data as { error?: string } | undefined)?.error ??
-                "Something went wrong.",
-            );
+            toastErrorOnce("asset-save", "Asset not saved", {
+              description:
+                (result.data as { error?: string } | undefined)?.error ??
+                "Try again.",
+            });
           }
 
           await update({ reset: false });
@@ -140,8 +162,8 @@
           {isEditMode ? "Edit asset" : "Add asset"}
         </Dialog.Title>
         <Dialog.Description>
-          A vehicle, boat, or machine that the office owns and supplies fuel
-          for.
+          A vehicle or piece of equipment that the office owns and fills with
+          fuel, such as a motorcycle or a generator.
         </Dialog.Description>
       </Dialog.Header>
 
@@ -149,139 +171,167 @@
         <HiddenInput name="assetPk" value={assetToEdit.assetPk} />
       {/if}
       <HiddenInput name="fuelType" value={fuelType} />
+      <HiddenInput name="hasTripTicket" value={String(hasTripTicket)} />
       <HiddenInput name="status" value={active ? "active" : "inactive"} />
 
-      <div class="grid gap-1">
-        <Label for="assetTypeFk">Asset type</Label>
-        <!--
+      <ScrollArea
+        class="-mx-4 flex min-h-0 flex-col"
+        viewPortClasses="h-auto px-4 scroll-fade-y"
+        type="auto"
+      >
+        <!-- `py-1` keeps the focus ring of the first and last field in view. -->
+        <div class="grid gap-5 py-1">
+          <div class="grid gap-1">
+            <Label for="assetTypeFk">Asset type</Label>
+            <!--
           A searchable list rather than a plain select, since the office's
           list of kinds keeps growing and typing a few letters is faster than
           scrolling.
         -->
-        <Popover.Root bind:open={typePickerOpen}>
-          <Popover.Trigger
-            bind:ref={typeTriggerRef}
-            id="assetTypeFk"
-            role="combobox"
-            aria-expanded={typePickerOpen}
-            data-no-value={chosenType ? undefined : ""}
-            class="gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm h-8 transition-colors select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50 flex w-full items-center justify-between whitespace-nowrap outline-none data-no-value:text-muted-foreground"
-          >
-            <span class="min-w-0 flex-1 truncate text-left">
-              {chosenType?.assetTypeName ?? "Choose a type"}
-            </span>
-            <ChevronsUpDownIcon
-              class="size-4 shrink-0 text-muted-foreground pointer-events-none"
-            />
-            <HiddenInput name="assetTypeFk" value={assetTypeFk} required />
-          </Popover.Trigger>
-          <Popover.Content class="w-(--bits-popover-anchor-width) min-w-48 p-0">
-            <Command.Root class="**:data-[slot=input-group]:rounded-sm!">
-              <Command.Input placeholder="Search asset types..." />
-              <Command.List>
-                <Command.Empty>No asset type matches.</Command.Empty>
-                <Command.Group class="mt-0.5">
-                  {#each pickableTypes as type (type.assetTypePk)}
-                    <!-- keywords lets the search match the name, not the id -->
-                    <Command.Item
-                      value={String(type.assetTypePk)}
-                      keywords={[type.assetTypeName]}
-                      data-checked={String(type.assetTypePk) === assetTypeFk}
-                      onSelect={() => pickType(String(type.assetTypePk))}
-                    >
-                      {type.assetTypeName}
-                      <!--
+            <Popover.Root bind:open={typePickerOpen}>
+              <Popover.Trigger
+                bind:ref={typeTriggerRef}
+                id="assetTypeFk"
+                role="combobox"
+                aria-expanded={typePickerOpen}
+                data-no-value={chosenType ? undefined : ""}
+                class="gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm h-8 transition-colors select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 dark:hover:bg-input/50 flex w-full items-center justify-between whitespace-nowrap outline-none data-no-value:text-muted-foreground"
+              >
+                <span class="min-w-0 flex-1 truncate text-left">
+                  {chosenType?.assetTypeName ?? "Choose a type"}
+                </span>
+                <ChevronsUpDownIcon
+                  class="size-4 shrink-0 text-muted-foreground pointer-events-none"
+                />
+                <HiddenInput name="assetTypeFk" value={assetTypeFk} required />
+              </Popover.Trigger>
+              <Popover.Content
+                class="w-(--bits-popover-anchor-width) min-w-48 p-0"
+              >
+                <Command.Root class="**:data-[slot=input-group]:rounded-sm!">
+                  <Command.Input placeholder="Search asset types..." />
+                  <Command.List>
+                    <Command.Empty>No asset type matches.</Command.Empty>
+                    <Command.Group class="mt-0.5">
+                      {#each pickableTypes as type (type.assetTypePk)}
+                        <!-- keywords lets the search match the name, not the id -->
+                        <Command.Item
+                          value={String(type.assetTypePk)}
+                          keywords={[type.assetTypeName]}
+                          data-checked={String(type.assetTypePk) ===
+                            assetTypeFk}
+                          onSelect={() => pickType(String(type.assetTypePk))}
+                        >
+                          {type.assetTypeName}
+                          <!--
                         Only ever the asset's current type, kept so editing
                         does not silently change it. Labelled so the admin
                         knows why it is here when others that are off are not.
                       -->
-                      {#if type.status === "inactive"}
-                        <span class="text-muted-foreground text-xs">
-                          (inactive)
-                        </span>
-                      {/if}
-                    </Command.Item>
-                  {/each}
-                </Command.Group>
-              </Command.List>
-            </Command.Root>
-          </Popover.Content>
-        </Popover.Root>
-      </div>
-
-      <div class="grid gap-2">
-        <Label for="assetName">Name</Label>
-        <Input
-          id="assetName"
-          name="assetName"
-          bind:value={assetName}
-          placeholder="Toyota Hilux, blue"
-          maxlength={100}
-          required
-        />
-      </div>
-
-      <div class="grid gap-2">
-        <Label for="plateNumber" class="gap-1">
-          Plate number
-          {#if !plateRequired}
-            <span class="text-muted-foreground font-normal">(if any)</span>
-          {/if}
-        </Label>
-        <Input
-          id="plateNumber"
-          name="plateNumber"
-          bind:value={plateNumber}
-          placeholder="SAB 1234"
-          maxlength={20}
-          required={plateRequired}
-        />
-      </div>
-
-      <div class="grid gap-2">
-        <Label for="propertyNumber">Property number</Label>
-        <Input
-          id="propertyNumber"
-          name="propertyNumber"
-          bind:value={propertyNumber}
-          placeholder="2019-06-0123"
-          maxlength={50}
-          required
-        />
-      </div>
-
-      <fieldset class="grid gap-2">
-        <legend class="mb-2 text-sm font-medium">Fuel Type</legend>
-        <RadioGroup.Root
-          value={fuelType}
-          onValueChange={(value) => (fuelType = value as Asset["fuelType"])}
-          class="flex gap-2"
-        >
-          {#each FUEL_TYPE_CHOICES as choice (choice.value)}
-            <Label
-              for="fuel-{choice.value}"
-              data-checked={dataAttr(fuelType === choice.value)}
-              class="group/field-label border-input hover:bg-accent/50 data-checked:border-primary font-normal data-checked:bg-accent/40 flex cursor-pointer items-end justify-between gap-3 rounded-lg border p-3 text-left transition-colors w-full "
-            >
-              {choice.label}
-              <RadioGroup.Item value={choice.value} id="fuel-{choice.value}" />
-            </Label>
-          {/each}
-        </RadioGroup.Root>
-      </fieldset>
-
-      {#if assetToEdit}
-        <div class="gap-4 px-2">
-          <Label for="active" class="text-sm font-semibold">Active</Label>
-          <div class="flex gap-1">
-            <span class="text-muted-foreground text-xs">
-              When active, this asset can be picked when recording fuel;
-              otherwise, it is hidden from the list.
-            </span>
-            <Switch id="active" bind:checked={active} class="self-center" />
+                          {#if type.status === "inactive"}
+                            <span class="text-muted-foreground text-xs">
+                              (inactive)
+                            </span>
+                          {/if}
+                        </Command.Item>
+                      {/each}
+                    </Command.Group>
+                  </Command.List>
+                </Command.Root>
+              </Popover.Content>
+            </Popover.Root>
           </div>
+
+          <div class="grid gap-2">
+            <Label for="assetName">Name</Label>
+            <Input
+              id="assetName"
+              name="assetName"
+              bind:value={assetName}
+              placeholder="Toyota Hilux, blue"
+              maxlength={100}
+              required
+            />
+          </div>
+
+          <div class="grid gap-2">
+            <Label for="plateNumber" class="gap-1">
+              Plate number
+              <span class="text-muted-foreground font-normal">(if any)</span>
+            </Label>
+            <Input
+              id="plateNumber"
+              name="plateNumber"
+              bind:value={plateNumber}
+              placeholder="SAB 1234"
+              maxlength={20}
+            />
+          </div>
+
+          <div class="grid gap-2">
+            <Label for="propertyNumber">Property number</Label>
+            <Input
+              id="propertyNumber"
+              name="propertyNumber"
+              bind:value={propertyNumber}
+              placeholder="2019-06-0123"
+              maxlength={50}
+              required
+            />
+          </div>
+
+          <fieldset class="grid gap-2">
+            <legend class="mb-2 text-sm font-medium">Fuel type</legend>
+            <RadioGroup.Root
+              value={fuelType}
+              onValueChange={(value) => (fuelType = value as Asset["fuelType"])}
+              class="flex gap-6"
+            >
+              {#each FUEL_TYPE_CHOICES as choice (choice.value)}
+                <div class="flex items-center gap-2">
+                  <RadioGroup.Item
+                    value={choice.value}
+                    id="fuel-{choice.value}"
+                  />
+                  <Label for="fuel-{choice.value}" class="font-normal">
+                    {choice.label}
+                  </Label>
+                </div>
+              {/each}
+            </RadioGroup.Root>
+          </fieldset>
+
+          <div class="gap-4">
+            <Label for="hasTripTicket" class="text-sm font-semibold">
+              Trip ticket
+            </Label>
+            <div class="flex gap-1">
+              <span class="text-muted-foreground text-xs">
+                When on, each withdrawal for this asset includes a driver's trip
+                ticket. For anything that travels, boats included.
+              </span>
+              <Switch
+                id="hasTripTicket"
+                bind:checked={hasTripTicket}
+                class="self-center"
+              />
+            </div>
+          </div>
+
+          {#if assetToEdit}
+            <div class="gap-4">
+              <Label for="active" class="text-sm font-semibold">Active</Label>
+              <div class="flex gap-1">
+                <span class="text-muted-foreground text-xs">
+                  When active, this asset can be picked when recording fuel;
+                  otherwise, it is hidden from the list.
+                </span>
+                <Switch id="active" bind:checked={active} class="self-center" />
+              </div>
+            </div>
+          {/if}
         </div>
-      {/if}
+      </ScrollArea>
 
       <Dialog.Footer>
         <Button

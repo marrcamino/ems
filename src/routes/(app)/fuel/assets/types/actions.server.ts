@@ -4,10 +4,12 @@ import { asset, assetType } from "$lib/server/db/schema";
 import type { AssetType } from "@/types";
 import { fail, type Actions } from "@sveltejs/kit";
 import { asc, eq } from "drizzle-orm";
-import { countUsage, inUseMessage, type TypeUsage } from "./types";
-
-const METER_TYPES = ["odometer", "hour_meter", "none"] as const;
-type MeterType = (typeof METER_TYPES)[number];
+import {
+  countUsage,
+  inUseMessage,
+  nameTakenMessage,
+  type TypeUsage,
+} from "./types";
 
 /**
  * How many assets each type is recorded on, with a few of their names for
@@ -26,22 +28,15 @@ export async function assetsUsingEachType(): Promise<Map<number, TypeUsage>> {
 
 function readForm(form: FormData) {
   const assetTypeName = String(form.get("assetTypeName") ?? "").trim();
-  const meterType = form.get("meterType") as MeterType;
-  return { assetTypeName, meterType };
+  return { assetTypeName };
 }
 
 /**
- * Both writes reject the same two things, so the check lives here rather
- * than being written twice and drifting apart. A blank name is what a
- * whitespace-only entry arrives as; an unrecognised meter is only reachable
- * from a hand-built request, since the form offers three choices.
+ * Shared by both writes. A blank name is what a whitespace-only entry
+ * arrives as.
  */
-function rejectionReason({
-  assetTypeName,
-  meterType,
-}: ReturnType<typeof readForm>) {
+function rejectionReason({ assetTypeName }: ReturnType<typeof readForm>) {
   if (!assetTypeName) return "Enter a name for the asset type.";
-  if (!METER_TYPES.includes(meterType)) return "Choose which meter it has.";
   return null;
 }
 
@@ -87,9 +82,7 @@ function nameClash(clash: AssetType) {
     });
   }
 
-  return fail(409, {
-    error: `There is already an asset type called ${clash.assetTypeName}.`,
-  });
+  return fail(409, { error: nameTakenMessage(clash.assetTypeName) });
 }
 
 /**
@@ -144,7 +137,6 @@ export const assetTypeActions = {
 
     const form = await request.formData();
     const assetTypePk = Number(form.get("assetTypePk"));
-    const status = form.get("status") === "inactive" ? "inactive" : "active";
     const values = readForm(form);
 
     const reason = rejectionReason(values);
@@ -156,7 +148,7 @@ export const assetTypeActions = {
     try {
       await db
         .update(assetType)
-        .set({ ...values, status, updatedAt: new Date() })
+        .set({ ...values, updatedAt: new Date() })
         .where(eq(assetType.assetTypePk, assetTypePk));
     } catch (err) {
       if (mysqlErrno(err) === 1062) {
@@ -173,11 +165,7 @@ export const assetTypeActions = {
     return { success: true, updatedRow: updatedRow satisfies AssetType };
   },
 
-  /**
-   * Switching a type off on its own. Separate from `update` because the
-   * confirmation that offers it has no name or meter to send — it acts on a
-   * row the admin never opened.
-   */
+  /** Switching a type on or off. `updateType` changes only the name. */
   setTypeStatus: async ({ request, locals }) => {
     if (!can(locals.permissions, "assets:manage")) {
       return fail(403, { error: "You do not have permission to do this." });

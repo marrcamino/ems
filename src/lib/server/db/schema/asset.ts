@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   datetime,
   mysqlEnum,
   mysqlTable,
@@ -16,8 +17,6 @@ export const asset = mysqlTable("asset", {
   assetPk: bigint("asset_pk", { mode: "number", unsigned: true })
     .primaryKey()
     .autoincrement(),
-  // The meter is not stored on the asset: it comes from the type, so every
-  // motorcycle reads an odometer without anyone picking it again.
   assetTypeFk: bigint("asset_type_fk", {
     mode: "number",
     unsigned: true,
@@ -30,9 +29,8 @@ export const asset = mysqlTable("asset", {
   // Lists that offer an asset to pick show the plate or property number
   // beside the name to tell them apart.
   assetName: varchar("asset_name", { length: 100 }).notNull(),
-  // Nullable because boats and generators carry no plate. Required when the
-  // type reads an odometer, which the server checks, since the rule depends
-  // on another table. Several NULLs do not clash with the unique index.
+  // Nullable because boats and generators carry no plate. Several NULLs do
+  // not clash with the unique index.
   plateNumber: varchar("plate_number", { length: 20 }).unique(),
   // What identifies the machine: every office-owned asset has one, and no
   // two share it.
@@ -42,6 +40,10 @@ export const asset = mysqlTable("asset", {
   // Each asset stays on one fuel. The logbook never shows the same machine
   // under both the gasoline and the diesel column.
   fuelType: mysqlEnum("fuel_type", ["gasoline", "diesel"]).notNull(),
+  // On the asset rather than its type, because a type cannot promise that
+  // all its machines travel ("Trip ticket belongs to the asset" in
+  // fuel-assets.md). Each withdrawal for it includes a DTT.
+  hasTripTicket: boolean("has_trip_ticket").notNull().default(false),
   // Switched off rather than deleted, because fuel records will point here.
   status: mysqlEnum("status", ["active", "inactive"])
     .notNull()
