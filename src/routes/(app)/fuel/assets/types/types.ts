@@ -36,6 +36,11 @@ export function countUsage(
   return usage;
 }
 
+/** Said by the asset types dialog and by the server, so the two cannot drift. */
+export function nameTakenMessage(assetTypeName: string) {
+  return `There is already an asset type called ${assetTypeName}.`;
+}
+
 /**
  * Why a type in use cannot be deleted. A count, not the asset names: the
  * admin only needs to know that it is in use to choose Deactivate, and a

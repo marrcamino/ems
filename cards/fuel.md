@@ -34,4 +34,5 @@ Assets, suppliers, purchase orders, and later the withdrawal slips. The only are
 - Liters and pesos are counted in whole hundredths (`po-math.ts`), so allocations add up exactly in liters. Their pesos are rounded one by one and can be a centavo off, until MPP-118 limits the PO form to whole liters (decided 22 October 2026).
 - Suppliers are active or **archived**; every other lookup table is active/inactive.
 - "Allocation" is the word, never "share" or "allotment" (decided 13 October 2026).
+- "Asset" in short labels, "vehicles and equipment" in sentences with room (decided 12 November 2026); the reasons, and what to tell GSU, are under "Naming" in `fuel-assets.md`.
 - The pages are shared by GSU and every office: `fuel:view` opens `/fuel`, while Assets and Purchase Orders have their own keys, `assets` and `purchase_orders`.

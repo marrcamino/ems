@@ -27,7 +27,6 @@
     ArrowUpDown,
     ChevronLeft,
     ChevronRight,
-    Search,
     CircleCheck,
     CircleOff,
     EllipsisVertical,
@@ -47,7 +46,7 @@
   import type { AssetRow } from "./asset-row.js";
   import { columns, features } from "./columns.js";
   import * as Tabs from "$lib/components/ui/tabs/index.js";
-  import { Input } from "$lib/components/ui/input/index.js";
+  import SearchInput from "@/components/search-input.svelte";
   import { createTable, FlexRender } from "@tanstack/svelte-table";
   import DeleteAssetDialog from "./delete-asset-dialog.svelte";
   import AssetTypesDialog from "./types/asset-types-dialog.svelte";
@@ -75,7 +74,7 @@
   /**
    * The asset types dialog is opened through the address, so a link or a
    * reload can open it too: `?asset-types` opens the dialog, and
-   * `?asset-types=add` also opens the add dialog on top once the list has opened.
+   * `?asset-types=add` also starts the add row once the dialog has opened.
    */
   const TYPES_PARAM = "asset-types";
 
@@ -100,11 +99,11 @@
     goto(url, { noScroll: true, keepFocus: true, replaceState: true });
   }
 
-  /** Renames and meter changes reach the asset rows without a reload. */
+  /** Renames reach the asset rows without a reload. */
   function onTypeSaved(row: AssetType) {
     assets = assets.map((a) =>
       a.assetTypeFk === row.assetTypePk
-        ? { ...a, assetTypeName: row.assetTypeName, meterType: row.meterType }
+        ? { ...a, assetTypeName: row.assetTypeName }
         : a,
     );
   }
@@ -365,17 +364,12 @@
     wider: search, tabs and the two buttons need about 900px on one line.
   -->
   <div class="flex w-full max-w-5xl flex-wrap items-start gap-x-4 gap-y-2 pt-1">
-    <div class="relative w-full sm:w-72">
-      <Search
-        class="pointer-events-none absolute inset-s-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-      />
-      <Input
-        disabled={assets.length <= 0}
-        placeholder="Search name, plate, or property no."
-        class="h-9 w-full ps-8"
-        bind:value={search}
-      />
-    </div>
+    <SearchInput
+      bind:value={search}
+      class="w-full sm:w-72"
+      placeholder="Search name, plate, or property no."
+      disabled={assets.length <= 0}
+    />
 
     {#snippet typeCount(count: any)}
       <span class="text-muted-foreground">{count}</span>
@@ -612,6 +606,7 @@
 <AddEditAssetDialog
   bind:open={dialogOpen}
   {assetToEdit}
+  {assets}
   {assetTypes}
   {onSaved}
 />
@@ -663,8 +658,8 @@
         </Empty.Media>
         <Empty.Title>No assets yet</Empty.Title>
         <Empty.Description>
-          Add each vehicle, boat, and machine the office owns, so fuel can be
-          recorded against it.
+          Add the vehicles and equipment the office owns, so fuel can be
+          recorded against them.
         </Empty.Description>
       </Empty.Header>
       {#if canManage}

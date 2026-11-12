@@ -63,6 +63,8 @@ export const DURATION = {
   item: 200,
   /** Anything leaving. Always quicker than the thing arriving. */
   exit: 140,
+  /** Something already on screen nudged to say "this again", such as a toast. */
+  bump: 200,
 } as const;
 
 /** Read at the moment a transition starts, so it always reflects the current setting. */

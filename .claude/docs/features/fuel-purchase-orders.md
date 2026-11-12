@@ -444,7 +444,7 @@ GSU's fuel logbook.
 
 | Form | Origin | Job | Always used? |
 | --- | --- | --- | --- |
-| Driver's Trip Ticket | COA circulars, content only | Justifies official travel; reconciles the tank | Only for vehicles with a driver |
+| Driver's Trip Ticket | COA circulars, content only | Justifies official travel; reconciles the tank | Only for an asset that travels with a driver, boats included |
 | Requisition and Issue Slip (RIS) | COA Appendix 63 | Records that the fuel left; the accounting record | Yes |
 | Withdrawal Slip (WS) | The office's own design | Gets the fuel from the supplier; names the asset | Yes |
 
@@ -486,10 +486,15 @@ justification, so it carries more weight.
 | Grass cutter, grounds upkeep | No | Yes | Gasoline → Grass Cutter |
 | Generator during a brownout | No | Yes | Diesel → Generator |
 | Chainsaw, field work | No | Yes | Gasoline → Others |
-| Boat | No | Yes | ? |
+| Boat, official travel | Yes | Yes | ? |
 
-A boat gets no trip ticket (told by the user, 21 October 2026). **Every
-withdrawal has a withdrawal slip and an RIS;** none uses the slip alone
+**A boat gets a trip ticket,** because boats are mostly used for travel (told
+by the owner, 12 November 2026, after seeing a DTT made for a motor bangka). An
+earlier line here said that a boat gets none (21 October 2026); the owner does
+not remember saying it, and it was wrong. A boat that is not used for travel
+gets no trip ticket. In EMS, each asset carries a Trip ticket switch that GSU
+sets ("Trip ticket belongs to the asset" in [fuel-assets.md](fuel-assets.md)).
+**Every withdrawal has a withdrawal slip and an RIS;** none uses the slip alone
 (confirmed by GSU, 21 October 2026, asked because the user remembered a
 slip-only case).
 
@@ -742,9 +747,10 @@ also the column name and the label on screen.
 5. **The add button, proposed, not confirmed (21 October 2026):** a button
    group whose main button is "New withdrawal", with a menu holding "Trip only
    (no fuel taken)". The withdrawal form adds the trip ticket part on its own
-   when the asset's type reads an odometer, and leaves it out for a generator,
-   grass cutter, chainsaw, or boat, so the asset decides it rather than a third
-   button.
+   when the asset's Trip ticket switch is on, and leaves it out for a
+   generator, grass cutter, or chainsaw, so the asset decides it rather than a
+   third button. Until 12 November 2026 the asset type's meter decided it
+   ("Trip ticket belongs to the asset" in [fuel-assets.md](fuel-assets.md)).
 6. **RIS numbers are reserved in EMS before they are written** (the owner's
    plan, told on 21 October 2026). Because the RIS numbering is shared with
    supplies that are not fuel ("What the observed forms showed", point 1), EMS

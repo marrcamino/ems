@@ -11,7 +11,7 @@ Sign-in, sessions, the one layout and sidebar, shared components, and the comman
 ## Home
 | Source | Path |
 |---|---|
-| Code | `src/hooks.server.ts`, `src/routes/(auth)/`, `src/routes/(app)/+layout.svelte`, `src/routes/(app)/+page.svelte` (dashboard), `src/lib/server/auth/`, `src/lib/components/navigation/`, `src/lib/components/dialog-views/`, `src/lib/components/search-input.svelte`, `sort-icon.svelte`, and `radio-tabs.svelte` (used first on `/fuel`, 28 to 31 October 2026; radio tabs have an optional count), `scripts/` |
+| Code | `src/hooks.server.ts`, `src/routes/(auth)/`, `src/routes/(app)/+layout.svelte`, `src/routes/(app)/+page.svelte` (dashboard), `src/lib/server/auth/`, `src/lib/components/navigation/`, `src/lib/components/dialog-views/`, `src/lib/components/search-input.svelte`, `sort-icon.svelte`, and `radio-tabs.svelte` (used first on `/fuel`, 28 to 31 October 2026; radio tabs have an optional count), `src/lib/utils/toast.ts` (`toastErrorOnce`: one error toast per id, which bumps when the same error comes again; used first on the Assets page, 12 November 2026), `scripts/` |
 | Tests | none (the old `e2e/test-page.spec.ts` was archived with the price tester, 24 October 2026) |
 | Decisions / notes | `.claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md` (one layout, one sidebar, everyone lands on `/`), `.claude/docs/features/employee-and-user-separation.md` (Topic 11, `create-admin`) |
 | Graph nodes | `hooks.server.ts`, `session.ts`, `redirect.ts`, `app-sidebar.svelte`, `dialog-views-content.svelte`, `cli.ts` |

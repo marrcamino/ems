@@ -66,8 +66,8 @@ export const PERMISSION_DEFS = {
   // that burns no fuel at all, so this registry is expected to outgrow fuel.
   // The page lives at /fuel/assets for now.
   assets: {
-    view: "Access the Assets page",
-    manage: "Add, edit, and deactivate assets and asset types",
+    view: "Access the Assets page, the office's vehicles and equipment",
+    manage: "Add, edit, and deactivate vehicles, equipment, and their types",
   },
 
   electricity: {
