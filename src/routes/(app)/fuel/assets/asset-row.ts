@@ -1,11 +1,7 @@
 import type { Asset, AssetType } from "@/types";
 
-/**
- * An asset as the page holds it: the row, plus the name and meter of its
- * type. The meter is carried because the plate rule and the "reads an
- * odometer" hint both depend on it, and the type is not stored on the asset.
- */
-export type AssetRow = Asset & Pick<AssetType, "assetTypeName" | "meterType">;
+/** An asset as the page holds it: the row, plus the name of its type. */
+export type AssetRow = Asset & Pick<AssetType, "assetTypeName">;
 
 export const FUEL_TYPE_CHOICES = [
   { value: "gasoline", label: "Gasoline" },

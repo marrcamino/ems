@@ -18,7 +18,7 @@ function mysqlErrno(err: unknown) {
   return (err as { errno?: number })?.errno;
 }
 
-/** Every asset with the name and meter of its type, ordered for the table. */
+/** Every asset with the name of its type, ordered for the table. */
 function selectRows() {
   return db
     .select({
@@ -28,11 +28,11 @@ function selectRows() {
       plateNumber: asset.plateNumber,
       propertyNumber: asset.propertyNumber,
       fuelType: asset.fuelType,
+      hasTripTicket: asset.hasTripTicket,
       status: asset.status,
       createdAt: asset.createdAt,
       updatedAt: asset.updatedAt,
       assetTypeName: assetType.assetTypeName,
-      meterType: assetType.meterType,
     })
     .from(asset)
     .innerJoin(assetType, eq(asset.assetTypeFk, assetType.assetTypePk));
@@ -58,16 +58,16 @@ function readForm(form: FormData) {
     plateNumber: plate || null,
     propertyNumber: String(form.get("propertyNumber") ?? "").trim(),
     fuelType: form.get("fuelType") as FuelType,
+    hasTripTicket: form.get("hasTripTicket") === "true",
   };
 }
 
 type FormValues = ReturnType<typeof readForm>;
 
 /**
- * Checks shared by both writes. The type is looked up here because the
- * plate rule depends on its meter, and because only an active type may
- * be picked — except the one an asset already has, so an asset whose type
- * was switched off can still be edited without being forced onto another.
+ * Checks shared by both writes. Only an active type may be picked, except
+ * the one an asset already has, so an asset whose type was switched off can
+ * still be edited without being forced onto another.
  */
 async function rejectionReason(values: FormValues, currentTypeFk?: number) {
   if (!values.assetTypeFk) return "Choose the asset type.";
@@ -84,9 +84,6 @@ async function rejectionReason(values: FormValues, currentTypeFk?: number) {
   if (!type) return "That asset type no longer exists.";
   if (type.status === "inactive" && type.assetTypePk !== currentTypeFk) {
     return `${type.assetTypeName} is inactive.`;
-  }
-  if (type.meterType === "odometer" && !values.plateNumber) {
-    return `Enter the plate number. A ${type.assetTypeName} runs on the road, so it has one.`;
   }
   return null;
 }

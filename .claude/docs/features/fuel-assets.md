@@ -24,6 +24,11 @@ is about the assets recorded under them.
   `/fuel/assets`, and the add, edit and delete dialogs. Delete is
   allowed because no fuel record points at an asset yet; once one does, the
   server refuses and says to switch the asset off instead.
+- Built (12 November 2026): each asset has a Trip ticket switch in place of
+  the asset type's meter, the plate number is optional for every asset, and
+  the list shows a Trip ticket column ("Trip ticket belongs to the asset").
+  Asset types are names only, added and renamed in their list (point 6 of
+  "Asset types").
 
 ## Evidence — the GSU fuel logbook
 
@@ -97,11 +102,12 @@ ask for.
 
 | field | required | notes |
 | --- | --- | --- |
-| Asset type | yes | Lists active types only. The meter shown under it comes from the type and is not picked again here. |
+| Asset type | yes | Lists active types only. The line under it that named the type's meter was removed on 12 November 2026, with the meter. |
 | Name | yes | What people pick from the list when recording fuel. |
-| Plate number | depends | Required when the asset type reads an odometer; optional for an hour meter or no meter, since a boat or generator has none. |
+| Plate number | no | Optional for every asset since 12 November 2026, because a motor bangka gets a trip ticket but carries no plate. Until then it was required when the asset type read an odometer. |
 | Property no. | yes | Still open for assets the office does not own, see below. |
 | Fuel | yes | Gasoline or diesel. Every asset on this page takes fuel; a machine with no fuel does not belong here. |
+| Trip ticket | yes | On or off, added on 12 November 2026; see "Trip ticket belongs to the asset". |
 | Active | — | Switched off rather than deleted, the same as asset types. Labelled "In use" until 24 September 2026, renamed to match the Active / Inactive used on users, roles and org units. |
 
 **Property number stays required.** On 24 September 2026 the user limited the
@@ -111,7 +117,8 @@ Small items, such as chainsaws and grass cutters, have property numbers too
 (told by the user, 22 October 2026, MPP-110). The field takes any text, so a
 number in another series still fits, and the rule stays.
 
-**How the plate rule was chosen (14 September 2026).** Two ways were
+**How the plate rule was chosen (14 September 2026; replaced on 12 November
+2026, when the plate became optional for every asset).** Two ways were
 considered: a separate "needs a plate number" setting on each asset type, or
 reading it from the meter the type already has. The user chose the meter: an
 asset whose type reads an odometer is a vehicle, and a vehicle needs a plate.
@@ -131,6 +138,9 @@ property number.
 an odometer type, checked by the server), `property_number` (required),
 `fuel_type` (`gasoline` / `diesel`), `status` (`active` / `inactive`),
 `created_at`, `updated_at`. The meter is not stored; it comes from the type.
+**Changed on 12 November 2026:** `has_trip_ticket` (on or off) was added after
+`fuel_type`, the type lost its meter, and `plate_number` is no longer required
+for any type ("Trip ticket belongs to the asset").
 
 **Decision (24 September 2026): which columns are unique.** Property number
 and plate number are unique; the name is not. Several machines share a name
@@ -139,12 +149,23 @@ the plate into it. Wherever an asset is picked from a list, such as the future
 fuel withdrawal slip screen, each line shows the plate beside the name, or the
 property number when there is no plate, so repeated names can still be told
 apart. The user accepted that this makes each line wider.
+**Changed on 10 November 2026 (decided by the user):** in the New withdrawal
+form, each asset is one line: name, then asset type, then plate if there is
+one ("Honda XR · Motorcycle · ABC 1234"). The property number is left out,
+because only GSU cares about it, except when two assets share a name and
+neither has a plate; then it goes at the end ("Generator · Generator set ·
+PN 2024-015"). It can always be searched. That full line is what the
+picker's button shows once an asset is picked; the open list shows the name
+and the plate ("Toyota Hilux, blue · PL34LN9"), with the asset type as a badge
+at the right.
 
 ## Topic 3 — The list on the assets page
 
 **Decision (24 September 2026, revised 29 September 2026).** Columns: name,
 type, plate, property no., fuel. The meter is not a column, since the type
-implies it.
+implies it. **Added on 12 November 2026 (decided by the owner):** a Trip
+ticket column, Yes or No, after Fuel, so GSU sees which assets get a trip
+ticket without opening each one.
 
 - Tabs Active / Inactive / All above the table, opening on Active and kept in
   the address (`?status=inactive`, `?status=all`). The Status column shows
@@ -181,10 +202,35 @@ implies it.
 ## Naming
 
 1. **The record is called an "Asset",** the page "Assets", with one "Add asset"
-   button where the type is the first field. Rejected: one button per type
-   (unusable past about five types), "Property" (reads as land at DENR), and
-   "Vehicles & Equipment" (breaks once air conditioners join).
-2. **For assets the office does not own, the term is "non-office-owned".** The
+   button where the type is the first field. One word names one record,
+   whether it is a vehicle or a piece of equipment, and the asset type says
+   which kind it is. Confirmed by the user on 12 November 2026. Rejected:
+   - one button per type, which is unusable past about five types;
+   - "Property", which is the exact government word for everything the office
+     owns, but reads as land at DENR, is broader than the page (it covers
+     buildings, furniture, and laptops), and would clash with the "Property
+     no." field;
+   - "Vehicle/Equipment", GSU's logbook column. It is not wrong, since motor
+     vehicles and boats are filed as transportation equipment and generators
+     as machinery and equipment, but it names the record with two words.
+2. **Where each wording goes (12 November 2026, decided by the user).** Short
+   labels say "asset": the sidebar, the breadcrumb, buttons, field names,
+   column headers, and error messages. Sentences with room say "vehicles and
+   equipment", lowercase and with "and": the line under the Add asset title,
+   the empty Assets page, the two `assets` permission lines in the role
+   editor, and the line under the Asset types title. (The meter question and
+   the Add asset type form were removed on 12 November 2026.)
+3. **What to tell GSU when they ask what an asset is:** "An asset in EMS is
+   one vehicle or piece of equipment that the office owns, has a property
+   number, and takes fuel. It's the same thing your logbook calls
+   Vehicle/Equipment. We use one word because the page holds both, and the
+   asset type, such as Motorcycle, Pick-up, or Generator, says which kind it
+   is." If GSU says a grass cutter is semi-expendable and not an asset: in
+   EMS, "asset" means a thing the office owns and keeps track of, not how
+   Accounting books it. (Semi-expendable property, below the COA
+   capitalization threshold, is from general knowledge; confirm the figure
+   with Accounting before quoting it.)
+4. **For assets the office does not own, the term is "non-office-owned".** The
    trip ticket's "RP vehicle" comes from the red government plates, so it only
    works for vehicles; for equipment, ownership shows in the property record
    instead. Still to ask GSU: the phrase they use, which would be preferred.
@@ -202,14 +248,58 @@ probably replaced, or two assets share one name; ask which one.
 The fuel is not stored on the asset type: a pick-up is diesel in this office's
 fleet, but not by definition.
 
+## Trip ticket belongs to the asset
+
+**Decision (12 November 2026, decided by the owner).** Each asset has a Trip
+ticket switch on the Add asset form, and the asset type no longer holds a
+meter. When the switch is on, every withdrawal for that asset includes a DTT:
+the New withdrawal form shows the travel information and the trip ticket's
+signatory, and EMS gives a DTT number on Save.
+
+1. **Why the meter went.** The type's meter (odometer, hour meter, or none)
+   only stood in for the trip ticket. An odometer added the DTT and made the
+   plate number required. An hour meter and no meter did exactly the same as
+   each other, which was nothing. No form asks for engine hours, and the CO2
+   figures count litres only, never a meter reading (point 7 of "The rules and
+   reports that apply" in [fuel-purchase-orders.md](fuel-purchase-orders.md)).
+   The question was also hard to answer, because it asked about the machine
+   instead of the paperwork: a big generator often has an hour meter, and a
+   small portable one has none.
+2. **A boat breaks the meter rule.** A motor bangka gets a DTT but has no
+   odometer ("Which forms apply" in fuel-purchase-orders.md).
+3. **Why on the asset, not on the type.** A type can only promise that all its
+   machines are used the same way, and whether a machine needs a DTT depends
+   on how that machine is used. A second type for the same kind, such as
+   "Boat, travels", would split that kind across two lines in the reports,
+   which are the reason asset types are kept. The fuel is on the asset for the
+   same reason ("Fuel type belongs to the asset" above).
+4. **When an asset is added,** the switch copies the setting of the last asset
+   added under the same type, so GSU rarely needs to touch it. Under a type
+   with no assets yet, it starts off. A wrong setting shows on the first
+   withdrawal (a generator asks for a driver, or a motorcycle has no trip
+   ticket part), and editing the asset fixes it.
+5. **The plate number is optional for every asset,** because a motor bangka
+   gets a DTT but carries no plate. Until 12 November 2026 it was required
+   when the type read an odometer (Topic 1).
+6. **The odometer reading stays in the DTT part, marked "(if any)",** which
+   already fits a boat.
+7. **Existing data (12 November 2026):** each asset whose type read an
+   odometer got the switch on, and the others got it off. The `meter_type`
+   column was then dropped from `asset_type`; its old values are kept in
+   `tmp/archive/2026-11-12-asset-type-meter.sql`. That development database
+   was the only one: no version has been deployed yet (told by the owner,
+   12 November 2026), so a later install gets the new columns directly.
+
 ## Asset types
 
 1. **A lookup table, not a list in the code** (`asset_type`), so GSU can add a
    kind the day it arrives. The name is `asset_type`, not `fuel_asset_type`,
    because GEMP's inventory also covers air conditioners and lighting.
-2. **The meter is set on the type** (`meter_type`: odometer, hour meter or none),
-   once per kind. Checks branch on the meter, not on the type: a pick-up and a
-   dump truck both read an odometer, a genset and a backhoe both count hours.
+2. **The type holds no meter since 12 November 2026.** Until then each type
+   carried a meter (`meter_type`: odometer, hour meter, or none), set once per
+   kind, and the checks branched on it. It was replaced by a switch on each
+   asset ("Trip ticket belongs to the asset" above). A type is now only a name,
+   kept so that the reports can group the assets by kind.
 3. **No "Others" type.** On paper, "Others" is an escape hatch for a kind the
    form does not print; with an editable list, GSU adds "Chainsaw" instead.
 4. **Deleting and duplicate names** work as drawn in
@@ -217,11 +307,15 @@ fleet, but not by definition.
    in use cannot be, and the dialog offers to switch it off instead. Saving the
    name of a switched-off type offers to switch that type back on; the name of a
    type in use is refused.
-5. **The hour meter is recorded, but no form asks for a reading yet.** No paper
-   form has a line for engine hours, and neither the MFCR nor GEMP asks for them.
-   Recording the meter on the type now means that adding an hour field later is
-   only a form change. GSU keeps no generator logbook (22 October 2026, MPP-111),
-   so the withdrawal form asks for no hour reading.
+5. **The hour meter was dropped (12 November 2026).** It had been kept so that
+   an engine-hours field could be added later as only a form change. But no
+   paper form has a line for engine hours, neither the MFCR nor GEMP asks for
+   them, and GSU keeps no generator logbook (22 October 2026, MPP-111). If GSU
+   ever starts one, the field is added then.
+6. **Added and renamed in the list itself (12 November 2026, asked by the
+   owner).** A type is only a name now, so the asset types dialog no longer
+   slides a form in over the list. Typing the name of an inactive type still
+   offers to reactivate it, which now switches it back on at once.
 
 ## Also undecided
 
