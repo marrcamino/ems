@@ -22,13 +22,15 @@ export type NavPage = {
   children?: NavPage[];
   /**
    * A small button on the right of the page's row, for the page's most
-   * common task. Shown to whoever can open the page.
+   * common task. Shown to whoever can open the page and holds its key.
    */
   action?: {
     name: string;
     url: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     icon: any;
+    /** The key that the task needs, besides the page's own. */
+    permission?: PermissionKey;
   };
 };
 
@@ -54,6 +56,7 @@ export const workPages = [
       name: "New withdrawal",
       url: "/fuel?new=withdrawal",
       icon: Plus,
+      permission: "fuel:record",
     },
     children: [
       {
@@ -73,10 +76,16 @@ export const workPages = [
 /** The pages for running the system, in the `(admin)` route group. */
 export const adminPages = [
   {
-    name: "Users",
-    url: "/users",
-    icon: UsersRound,
-    permission: "users:view",
+    name: "Org Structure",
+    url: "/org-structure",
+    icon: Building,
+    permission: "org_units:view",
+  },
+  {
+    name: "Roles",
+    url: "/roles",
+    icon: ShieldCheck,
+    permission: "roles:view",
   },
   {
     name: "Employees",
@@ -85,22 +94,16 @@ export const adminPages = [
     permission: "employees:view",
   },
   {
-    name: "Org Structure",
-    url: "/org-structure",
-    icon: Building,
-    permission: "org_units:view",
+    name: "Users",
+    url: "/users",
+    icon: UsersRound,
+    permission: "users:view",
   },
   {
     name: "Signatories",
     url: "/signatories",
     icon: FilePenLine,
     permission: "signatories:view",
-  },
-  {
-    name: "Roles",
-    url: "/roles",
-    icon: ShieldCheck,
-    permission: "roles:view",
   },
   {
     name: "Test",

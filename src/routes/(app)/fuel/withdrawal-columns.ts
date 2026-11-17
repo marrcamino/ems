@@ -9,7 +9,7 @@ import {
   tableFeatures,
 } from "@tanstack/table-core";
 import type { SortIconType } from "$lib/components/sort-icon.svelte";
-import type { SampleWithdrawal } from "./sample-withdrawals.js";
+import type { WithdrawalRow } from "./withdrawal-row.js";
 import { WITHDRAWAL_STATUSES } from "./withdrawal-status.js";
 
 export const features = tableFeatures({
@@ -22,7 +22,7 @@ export const features = tableFeatures({
   columnMeta: metaHelper<{ sortIcon?: SortIconType }>(),
 });
 
-const helper = createColumnHelper<typeof features, SampleWithdrawal>();
+const helper = createColumnHelper<typeof features, WithdrawalRow>();
 
 /**
  * Layout 1b of the Claude Design "Withdrawals Table": fewer columns, with the

@@ -5,7 +5,7 @@
   import { formatLiters, formatPesos } from "$lib/utils/format-number.js";
   import { quintInOut } from "svelte/easing";
   import { slide } from "svelte/transition";
-  import { formatDate } from "./format-date.js";
+  import { formatDate } from "$lib/utils/format-date.js";
   import { amountInCentavos, FUEL_LABELS, litersForPesos } from "./po-math.js";
   import type { PurchaseOrderRow } from "./po-types.js";
   import { SAMPLE_SLIPS_OUT } from "./sample-purchase-orders.js";
@@ -67,19 +67,6 @@
   const amountC = $derived(fuels.reduce((s, f) => s + f.totalC, 0));
   const remainingC = $derived(fuels.reduce((s, f) => s + f.leftC, 0));
 
-  const statusLine = $derived(
-    [
-      `${formatPesos(remainingC)} not used yet`,
-      SAMPLE_SLIPS_OUT.length === 1
-        ? "1 slip not back"
-        : SAMPLE_SLIPS_OUT.length > 1
-          ? `${SAMPLE_SLIPS_OUT.length} slips not back`
-          : null,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  );
-
   const shortDate = new Intl.DateTimeFormat("en-PH", {
     month: "short",
     day: "numeric",
@@ -120,7 +107,7 @@
         </div>
       {/if}
       <span class="text-muted-foreground text-xs tabular-nums"
-        >{statusLine}</span
+        >{formatPesos(remainingC)} not used yet</span
       >
     </div>
   </div>
@@ -139,9 +126,9 @@
             {formatPesos(f.leftC)}
           </span>
           <span class="text-muted-foreground text-sm">
-            remaining amount · {f.leftC === 0
-              ? "used up"
-              : `about ${formatLiters(f.aboutH)}`}
+            remaining amount{#if f.leftC === 0}
+              · used up{:else if po.poType === "price"}
+              &nbsp;· about {formatLiters(f.aboutH)}{/if}
           </span>
         </div>
         <div

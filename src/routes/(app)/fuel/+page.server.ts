@@ -10,12 +10,20 @@ import {
 } from "$lib/server/db/schema";
 import { error } from "@sveltejs/kit";
 import { and, asc, eq } from "drizzle-orm";
-import type { PageServerLoad } from "./$types";
+import type { Actions, PageServerLoad } from "./$types";
+import {
+  issuanceActions,
+  scopeOf,
+  selectPoBalances,
+  selectWithdrawalRows,
+} from "./issuance.server";
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!can(locals.permissions, "fuel:view")) {
     throw error(403, "You do not have permission to view this page.");
   }
+
+  const scope = scopeOf(locals);
 
   const settings = await getConfigValues([
     CONFIG_KEYS.gsuUnit,
@@ -32,7 +40,7 @@ export const load: PageServerLoad = async ({ locals }) => {
       propertyNumber: asset.propertyNumber,
       fuelType: asset.fuelType,
       assetTypeName: assetType.assetTypeName,
-      meterType: assetType.meterType,
+      hasTripTicket: asset.hasTripTicket,
     })
     .from(asset)
     .innerJoin(assetType, eq(asset.assetTypeFk, assetType.assetTypePk))
@@ -63,10 +71,18 @@ export const load: PageServerLoad = async ({ locals }) => {
     .where(eq(orgUnit.status, "active"))
     .orderBy(asc(orgUnit.orgUnitName));
 
+  const [withdrawals, poBalances] = await Promise.all([
+    selectWithdrawalRows(scope),
+    selectPoBalances(scope),
+  ]);
+
   // An approver who has left reads as empty, as on the Signatories page.
   const approver = settings[CONFIG_KEYS.fuelUsualApprover];
 
   return {
+    withdrawals,
+    poBalances,
+    allOffices: scope.allOffices,
     assets,
     employees,
     offices,
@@ -76,3 +92,5 @@ export const load: PageServerLoad = async ({ locals }) => {
       : null,
   };
 };
+
+export const actions: Actions = { ...issuanceActions };

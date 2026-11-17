@@ -65,7 +65,10 @@ that is not written here, ask the owner instead of assuming one.
    that this is possible but rare (told by the user, 29 October 2026). A year
    has several POs, and some POs have only 5 to 10 withdrawals. A PO made near
    the end of the year, such as in December, can still have fuel left in the
-   next year (told by the user, 29 October 2026).
+   next year (told by the user, 29 October 2026). Two open POs with the same
+   supplier happen only when that supplier agrees to it, because otherwise the
+   supplier may take a withdrawal off the old PO when it belongs to the new one,
+   especially on a litre-based PO (told by the user, 10 November 2026).
 8. **A withdrawal, step by step** (told by the user, 6–7 October 2026):
    1. The driver fills in the withdrawal slip with the litres they want.
    2. GSU approves the litres asked for, by signing the slip.
@@ -95,9 +98,12 @@ that is not written here, ask the owner instead of assuming one.
     than a "liquidation"; not confirmed.
 13. **A PO is litre-based or price-based.** On a litre-based PO the price is the
     PO's unit cost. On a price-based PO the supplier charges the day's pump price
-    (since 6 October 2026), so its litres left can only be estimated. About 80%
-    of POs are litre-based, which is the owner's rough figure (told by the owner,
-    7 November 2026). The price-based PO is new: no withdrawal has been made on
+    (since 6 October 2026), so its litres left can only be estimated. Every PO
+    before the PO of 10 October 2026 was litre-based. From that PO on, the owner
+    expects that POs will probably always be price-based, because a supplier
+    loses nothing on one; the supplier has not said so (told by the owner,
+    11 November 2026, replacing the rough figure of 7 November that about 80% of
+    POs are litre-based). The price-based PO is new: no withdrawal has been made on
     one yet (told by the owner, 5 November 2026), so GSU has no experience of a
     unit going past its allocation, or of a unit leaving part of it unused, and
     cannot yet say how such slips are written.
@@ -219,10 +225,13 @@ The shared pieces they use went to `main` first (see
 1. **The fuel page** `/fuel`, titled "Fuel", shows only made-up withdrawals
    from `sample-withdrawals.ts` (see `cards/fuel.md`). Until 24 October 2026
    there was a staff page and an admin page; MPP-121 made them one.
-2. **Recording a fuel issuance.** There is nothing in the database for the
-   transaction, the withdrawal slip, the Driver Trip Ticket, or the RIS. What
-   is decided so far, and what is still open, is in "Recording a fuel
-   issuance" below.
+2. **Recording a fuel issuance.** Saving a new withdrawal is built
+   (9 November 2026, MPP-80; how it works is in `cards/fuel.md`): the
+   `fuel_issuance` table, the `form_counter` table for the control, WS, RIS,
+   and DTT numbers, and the key `fuel:record`. A trip only, a reimbursed
+   trip, approving, completing, cancelling, editing, and printing are not
+   built. What is decided so far, and what is still open, is in "Recording a
+   fuel issuance" below.
 3. **Marking a slip as approved,** and the permission key that controls it.
 4. **The reports,** mainly the GHG Focal Person's report to the DENR regional
    office (MPP-82), which needs the litres of gasoline and diesel (point 7 of
@@ -257,7 +266,7 @@ that is still waiting for an answer names its issue.
       what the request comes to at the PO's price or, on a price-based PO, at
       the last known price.
    3. **The type is locked once a withdrawal is charged to the PO** (not built
-      yet, because withdrawals have no table yet). The PO form's required
+      yet; it belongs with the PO edit checks of MPP-60). The PO form's required
       "PO type" field was built on 9 November 2026; a new PO starts as
       liter-based (decided by the user, 9 November 2026).
    4. **A slip that is still Out takes off the requested amount** on both types,
@@ -289,6 +298,40 @@ that is still waiting for an answer names its issue.
    through with GSU staff (told by the user, 22 October 2026). The supplier has
    not been asked, but the user does not expect the supplier to object.
 
+   **Changed on 11 November 2026 (decided by the owner):** what the supplier
+   writes depends on the PO's type, so the printed slip differs by type. The
+   slip is not a COA form (point 1 of "Three forms, and they are not peers"),
+   and GSU has already changed its own slip: "Available" and "Remaining Balance" are gone, and it now has
+   "No. of liters", "Unit price", and "Total amount" (seen by the owner on a
+   finished slip).
+   - **Price-based slip:** the supplier writes the unit price (that day's pump
+     price) and the total amount, never the litres. EMS works out the actual
+     litres from the two, for that slip alone. Both slip types have a space
+     for the supplier's remarks (decided by the owner, 11 November 2026).
+   - **Litre-based slip:** the supplier writes no numbers, only a name and a
+     signature, with a space for remarks. EMS takes the requested litres as the
+     litres pumped, at the PO's unit cost. When the driver gets less than was
+     asked (point 9 of "How the office handles fuel today"), the owner expects
+     the driver to go back to the station later for the rest. The slip can also
+     be edited in EMS to the litres actually pumped, printed again, and approved
+     again by GSU, keeping its numbers. A rest as small as 0.02 L or 0.10 L is
+     simply left.
+
+   **A request above the balance is never saved,** on either PO type (decided
+   by the owner, 11 November 2026). On a litre-based PO the balance in litres
+   is exact, and the supplier writes no number that would catch the extra
+   later. On a price-based PO a request in pesos is compared with the pesos
+   left, which is exact too. A request in litres there is compared with the
+   estimated litres left, so an office that wants more litres than the estimate
+   shows asks in pesos instead. Built on 17 November 2026: the New withdrawal
+   form shows the refusal under the request and turns Save off, and the server
+   refuses it with the same words.
+
+   **The printed slip shows the PO number** (decided by the owner, 11 November
+   2026), so that a supplier with two open POs knows which PO the withdrawal is
+   taken off (point 7 of "How the office handles fuel today"). The sample
+   slip prints it as "Charge to: PO 2026-10-13".
+
    **On a litre-based PO, the price is always the PO's unit cost** (decided by
    the owner, 7 November 2026, MPP-132), so EMS fills it in and nobody types a
    unit price when the slip comes back.
@@ -314,8 +357,16 @@ that is still waiting for an answer names its issue.
    Never the requested liters or an estimated price, because the pump price
    changes from day to day.
 4. **Which PO.** One slip is charged to one PO: the oldest PO where that unit
-   still has an allocation of that fuel. Several POs can be open at once. The PO
-   on a slip is therefore worked out by the system, not picked by anyone.
+   still has an allocation of that fuel. Several POs can be open at once.
+   **Changed on 10 November 2026 (decided by the user):** the New withdrawal
+   form shows a PO picker, so nobody wonders where the PO comes from. It lists
+   only the POs where that office still has that fuel, oldest first, and the
+   oldest is filled in. A newer one can still be picked, but then a message
+   under the picker names the older PO and what is left on it, and Save is
+   turned off. The server refuses it too. Still open: whether this holds when
+   the older PO is with a different supplier, since the driver would then go
+   to two stations for one fueling (point 11 of "How the office handles fuel
+   today" assumes one supplier pumps both slips).
 5. **Leftovers (12 October).** A unit must use up what is left on the old PO, even
    ₱10. So one fueling can take two or more slips: one for the leftover on the old
    PO, the next for the rest on the new PO. The supplier pumps the total of both.
@@ -472,6 +523,12 @@ GSU's fuel logbook.
 4. **Division of labour:** the trip ticket says why (destination, purpose,
    dates) and reconciles the tank; the RIS records that the fuel left; the
    withdrawal slip physically gets the fuel and names the asset.
+5. **The RIS and the trip ticket each have their own remarks** (told by GSU,
+   16 November 2026). A withdrawal keeps two remarks, one printed on the RIS
+   and one on the DTT, never one shared for both. **The RIS stock number is
+   optional** (told by GSU, the same day): a withdrawal may leave it blank.
+   **The purpose is one, shared by the RIS and the trip ticket** (told by GSU,
+   the same day): it is typed once and shows on both forms.
 
 ### Which forms apply
 
@@ -599,7 +656,9 @@ the best evidence for the fields a withdrawal needs.
    itself** (told by the owner, 4 November 2026, MPP-128). It is filled in only
    on the rows from the days of a sudden price rise, when trouble abroad pushed
    up the price of imported fuel while the PO was still open, and it is empty
-   again a few rows later. GSU wrote it to keep track of the fuel left on the
+   again a few rows later. The rise was in January, and the PO after that one
+   has the column empty (seen by the owner in the logbook, told on 11 November
+   2026). GSU wrote it to keep track of the fuel left on the
    PO while the price moved. How each figure was worked out is not known: the
    GSU chief could only say "based on PO". EMS does not need the formula,
    because it records the day's price and the amount on every slip and counts

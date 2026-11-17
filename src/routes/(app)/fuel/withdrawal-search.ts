@@ -1,5 +1,5 @@
-import type { SampleWithdrawal } from "./sample-withdrawals.js";
-import { shortNumber } from "./short-numbers.js";
+import type { WithdrawalRow } from "./withdrawal-row.js";
+import { shortNumber } from "$lib/utils/form-numbers.js";
 
 /**
  * The search box of the Withdrawals list (decided by the user, 28 October
@@ -54,7 +54,7 @@ function numberMatches(full: string | null, text: string, width: number) {
   return full !== null && shortNumber(full, width).includes(text);
 }
 
-function matches(row: SampleWithdrawal, term: Term, width: number) {
+function matches(row: WithdrawalRow, term: Term, width: number) {
   if (term.form) {
     return numberMatches(row[FORM_NUMBERS[term.form]], term.text, width);
   }
@@ -73,7 +73,7 @@ function matches(row: SampleWithdrawal, term: Term, width: number) {
  * or `10-0093` that the list shows.
  */
 export function searchWithdrawals(
-  rows: SampleWithdrawal[],
+  rows: WithdrawalRow[],
   search: string,
   width: number,
 ) {

@@ -21,21 +21,16 @@
   } from "@lucide/svelte/icons";
   import { createTable, FlexRender } from "@tanstack/svelte-table";
   import { formatLiters, formatPesos } from "$lib/utils/format-number.js";
-  import { formatDate } from "./purchase-orders/format-date.js";
+  import { formatDate } from "$lib/utils/format-date.js";
   import {
     FUEL_LABELS,
     FUELS,
     PO_TYPE_LABELS,
     type Fuel,
   } from "./purchase-orders/po-math.js";
-  import {
-    SAMPLE_OFFICES,
-    SAMPLE_OPEN_PO_NUMBERS,
-    sampleWithdrawals,
-    type SampleWithdrawal,
-  } from "./sample-withdrawals.js";
+  import type { WithdrawalRow } from "./withdrawal-row.js";
   import { columns, features } from "./withdrawal-columns.js";
-  import { runningWidth, shortNumber } from "./short-numbers.js";
+  import { runningWidth, shortNumber } from "$lib/utils/form-numbers.js";
   import {
     STATUS_BADGE,
     STATUS_LABELS,
@@ -45,13 +40,17 @@
   import SearchInput from "@/components/search-input.svelte";
   import SortIcon from "@/components/sort-icon.svelte";
   import FilterCombobox from "./filter-combobox.svelte";
-  import { poInUse } from "./po-in-use.js";
   import RadioTabs, { type RadioTab } from "@/components/radio-tabs.svelte";
   import NewWithdrawalDialog from "./new-withdrawal-dialog.svelte";
   import { page } from "$app/state";
   import { replaceState } from "$app/navigation";
+  import { getGlobalContext } from "$routes/global-context.svelte";
+  import * as Empty from "$lib/components/ui/empty/index.js";
 
   let { data }: PageProps = $props();
+
+  const gblCtx = getGlobalContext();
+  const canRecord = $derived(gblCtx.can("fuel:record"));
 
   let newWithdrawalOpen = $state(false);
 
@@ -60,7 +59,7 @@
   // on a fresh page load the router is not ready yet, and replaceState
   // throws.
   $effect(() => {
-    if (page.url.searchParams.get("new") === "withdrawal") {
+    if (page.url.searchParams.get("new") === "withdrawal" && canRecord) {
       newWithdrawalOpen = true;
     }
   });
@@ -73,14 +72,13 @@
     replaceState(url, page.state);
   }
 
-  /** The made-up rows filed up to today. */
-  const withdrawals = sampleWithdrawals();
+  /** By file date, then by the order of entry, as the server sends them. */
+  const withdrawals = $derived(data.withdrawals);
 
-  // A fixed list, so an office with no withdrawals can still be picked.
-  const officeOptions = SAMPLE_OFFICES.map((office) => ({
-    value: office,
-    label: office,
-  }));
+  // Every active office, so one with no withdrawals can still be picked.
+  const officeOptions = $derived(
+    data.offices.map((office) => ({ value: office.abbr, label: office.abbr })),
+  );
 
   const fuelOptions = FUELS.map((fuel) => ({
     value: fuel,
@@ -164,7 +162,9 @@
   const table = createTable({
     features,
     columns,
-    data: withdrawals,
+    get data() {
+      return withdrawals;
+    },
     getRowId: (row) => String(row.id),
   });
 
@@ -181,7 +181,7 @@
   });
 
   /** The forms under the control number, as the line under it reads. */
-  function formsLine(row: SampleWithdrawal) {
+  function formsLine(row: WithdrawalRow) {
     if (row.kind === "trip") return "Trip only";
     const parts: string[] = [];
     if (row.wsNumber) parts.push(`WS ${shortNumber(row.wsNumber, width)}`);
@@ -191,7 +191,7 @@
   }
 
   /** The hover text of a balance, saying why its liters are or are not exact. */
-  function balanceHint(row: SampleWithdrawal) {
+  function balanceHint(row: WithdrawalRow) {
     if (!row.poType) return undefined;
     const type = PO_TYPE_LABELS[row.poType];
     return row.poType === "price"
@@ -199,10 +199,8 @@
       : `${row.poNumber} is ${type}, so its price does not change.`;
   }
 
-  const inUse = poInUse(withdrawals, SAMPLE_OPEN_PO_NUMBERS);
-
-  /** "A", "A and B", "A, B, and C". */
-  const listFormat = new Intl.ListFormat("en", { type: "conjunction" });
+  const countLabel = (n: number) =>
+    `${n} ${n === 1 ? "withdrawal" : "withdrawals"}`;
 
   const NUMBER_COLUMNS = new Set(["rowNumber", "withdrawn", "balance"]);
 
@@ -242,14 +240,17 @@
       placeholder="Search asset, driver, remarks, or number"
     />
 
-    <FilterCombobox
-      name="office"
-      plural="offices"
-      searchable
-      options={officeOptions}
-      bind:selected={selectedOffices}
-      class="w-48"
-    />
+    <!-- Someone who sees one office has nothing to filter by office. -->
+    {#if data.allOffices}
+      <FilterCombobox
+        name="office"
+        plural="offices"
+        searchable
+        options={officeOptions}
+        bind:selected={selectedOffices}
+        class="w-48"
+      />
+    {/if}
     <FilterCombobox
       name="fuel"
       plural="fuels"
@@ -265,33 +266,35 @@
 
     <span class="ml-auto text-sm text-muted-foreground tabular-nums">
       {withdrawalsShown.length === withdrawals.length
-        ? `${withdrawals.length} withdrawals`
-        : `${withdrawalsShown.length} of ${withdrawals.length} withdrawals`}
+        ? countLabel(withdrawals.length)
+        : `${withdrawalsShown.length} of ${countLabel(withdrawals.length)}`}
     </span>
 
     <!--
       A withdrawal is the common case; the two trips without a withdrawal
       slip wait in the menu. The two trips open no form yet.
     -->
-    <ButtonGroup.Root>
-      <Button onclick={() => (newWithdrawalOpen = true)}>
-        <Plus />
-        New withdrawal
-      </Button>
-      <ButtonGroup.Separator />
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger
-          class={buttonVariants({ size: "icon" })}
-          aria-label="More ways to add"
-        >
-          <ChevronDown />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content align="end" class="min-w-max">
-          <DropdownMenu.Item><Route />Trip only</DropdownMenu.Item>
-          <DropdownMenu.Item><HandCoins /> Reimbursed trip</DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-    </ButtonGroup.Root>
+    {#if canRecord}
+      <ButtonGroup.Root>
+        <Button onclick={() => (newWithdrawalOpen = true)}>
+          <Plus />
+          New withdrawal
+        </Button>
+        <ButtonGroup.Separator />
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            class={buttonVariants({ size: "icon" })}
+            aria-label="More ways to add"
+          >
+            <ChevronDown />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" class="min-w-max">
+            <DropdownMenu.Item><Route />Trip only</DropdownMenu.Item>
+            <DropdownMenu.Item><HandCoins /> Reimbursed trip</DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      </ButtonGroup.Root>
+    {/if}
   </div>
 
   <!--
@@ -354,7 +357,28 @@
           {/each}
         </Table.Header>
         <Table.Body>
-          {#if withdrawalsShown.length === 0}
+          {#if withdrawals.length === 0}
+            <Table.Row class="hover:bg-transparent">
+              <Table.Cell colspan={columns.length} class="py-6">
+                <Empty.Root>
+                  <Empty.Header>
+                    <Empty.Title>No withdrawals yet</Empty.Title>
+                    <Empty.Description>
+                      Withdrawals show here once they are saved.
+                    </Empty.Description>
+                  </Empty.Header>
+                  {#if canRecord}
+                    <Empty.Content>
+                      <Button onclick={() => (newWithdrawalOpen = true)}>
+                        <Plus />
+                        New withdrawal
+                      </Button>
+                    </Empty.Content>
+                  {/if}
+                </Empty.Root>
+              </Table.Cell>
+            </Table.Row>
+          {:else if withdrawalsShown.length === 0}
             <!--
               Rows exist but the search or the filters hide all of them. The
               button undoes the search first, since it is the quickest to
@@ -410,9 +434,6 @@
                 {:else if cell.column.id === "fileDate"}
                   <Table.Cell>
                     {formatDate(row.fileDate)}
-                    <div class="text-xs text-muted-foreground">
-                      <span class="text-red-600">&bull;</span> PO-2026-09-002
-                    </div>
                   </Table.Cell>
                 {:else if cell.column.id === "office"}
                   <Table.Cell>
@@ -475,6 +496,8 @@
                         )}/L
                       {:else if row.requestedH !== null}
                         Requested {formatLiters(row.requestedH)}
+                      {:else if row.requestedC !== null}
+                        Requested {formatPesos(row.requestedC)}
                       {/if}
                     </div>
                   </Table.Cell>
@@ -515,7 +538,7 @@
                   </Table.Cell>
                 {:else if cell.column.id === "actions"}
                   <Table.Cell>
-                    <!-- Samples only: none of these does anything yet. -->
+                    <!-- None of these does anything yet. -->
                     <ButtonGroup.Root>
                       <Button variant="secondary" size="sm" class="border-r-0">
                         <Pencil />
@@ -556,7 +579,9 @@
   </div>
 </div>
 
-<NewWithdrawalDialog
-  bind:open={() => newWithdrawalOpen, setNewWithdrawalOpen}
-  {data}
-/>
+{#if canRecord}
+  <NewWithdrawalDialog
+    bind:open={() => newWithdrawalOpen, setNewWithdrawalOpen}
+    {data}
+  />
+{/if}

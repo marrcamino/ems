@@ -485,11 +485,10 @@ export const purchaseOrderActions = {
    * Deletes a PO, with its fuel rows and allocations (the foreign keys
    * cascade).
    *
-   * TODO(MPP-60): check before deleting. A PO is part of the audit trail, so
-   * Delete is only for a PO typed by mistake. Refuse it once any withdrawal
-   * slip is charged to the PO, and once the PO is closed; say which in the
-   * message. Withdrawal slips and closing do not exist yet, so nothing is
-   * checked today.
+   * A PO is part of the audit trail, so Delete is only for a PO typed by
+   * mistake. The database refuses it once a withdrawal is charged to the PO.
+   * TODO(MPP-60): refuse it once the PO is closed too, and check before the
+   * dialog opens; closing does not exist yet.
    */
   deletePurchaseOrder: async ({ request, locals }) => {
     if (!can(locals.permissions, "purchase_orders:manage")) {
@@ -503,9 +502,22 @@ export const purchaseOrderActions = {
       return fail(400, { error: "The form could not be read. Try again." });
     }
 
-    const [deleted] = await db
-      .delete(purchaseOrder)
-      .where(eq(purchaseOrder.purchaseOrderPk, purchaseOrderPk));
+    // A withdrawal charged to the PO makes the database refuse (1451), since
+    // the PO is then part of the audit trail.
+    let deleted;
+    try {
+      [deleted] = await db
+        .delete(purchaseOrder)
+        .where(eq(purchaseOrder.purchaseOrderPk, purchaseOrderPk));
+    } catch (err) {
+      if (mysqlErrno(err) === 1451) {
+        return fail(409, {
+          error:
+            "Withdrawals are already charged to this PO, so it stays in the system.",
+        });
+      }
+      throw err;
+    }
     if (deleted.affectedRows === 0) {
       return fail(404, { error: "That PO no longer exists." });
     }

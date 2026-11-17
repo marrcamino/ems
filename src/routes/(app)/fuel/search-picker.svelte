@@ -13,11 +13,16 @@
      *   suffix="(ICTU)"  →  Information and Communicati… (ICTU)
      */
     suffix?: string;
+    /** A small tag at the right of the list line, such as an asset type. */
+    badge?: string;
+    /** More words the search matches, though they are not shown. */
+    keywords?: string[];
   };
 </script>
 
 <script lang="ts">
   import type { CommandRootApi } from "$lib/components/ui/command/command.svelte";
+  import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Command from "$lib/components/ui/command/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { ScrollArea } from "$lib/components/ui/scroll-area/index.js";
@@ -45,6 +50,7 @@
     searchPlaceholder = "Search...",
     empty = "Nothing matches.",
     required = false,
+    disabled = false,
     class: className,
     "aria-labelledby": ariaLabelledby,
   }: {
@@ -55,6 +61,8 @@
     searchPlaceholder?: string;
     empty?: string;
     required?: boolean;
+    /** Shows the picked item, but it cannot be changed. */
+    disabled?: boolean;
     class?: string;
     "aria-labelledby"?: string;
   } = $props();
@@ -96,12 +104,13 @@
   <Popover.Trigger
     bind:ref={triggerRef}
     {id}
+    {disabled}
     role="combobox"
     aria-expanded={open}
     aria-labelledby={ariaLabelledby}
     data-no-value={dataAttr(!picked)}
     class={cn(
-      "flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap outline-none transition-colors select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-no-value:text-muted-foreground dark:bg-input/30 dark:hover:bg-input/50",
+      "flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap outline-none transition-colors select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-no-value:text-muted-foreground dark:bg-input/30 dark:hover:bg-input/50 disabled:cursor-not-allowed disabled:opacity-50",
       className,
     )}
   >
@@ -149,11 +158,16 @@
               <!-- keywords lets the search match the words, not the id. -->
               <Command.Item
                 value={item.value}
-                keywords={[item.label, item.detail ?? ""]}
+                keywords={[
+                  item.label,
+                  item.detail ?? "",
+                  item.badge ?? "",
+                  ...(item.keywords ?? []),
+                ]}
                 data-checked={item.value === value}
                 onSelect={() => pick(item.value)}
               >
-                <span class="grid min-w-0">
+                <span class="grid min-w-0 flex-1">
                   <span class="truncate">{item.label}</span>
                   {#if item.detail}
                     <span class="truncate text-xs text-muted-foreground">
@@ -161,6 +175,11 @@
                     </span>
                   {/if}
                 </span>
+                {#if item.badge}
+                  <Badge variant="secondary" class="shrink-0"
+                    >{item.badge}</Badge
+                  >
+                {/if}
               </Command.Item>
             {/each}
           </Command.Group>

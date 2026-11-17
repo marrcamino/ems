@@ -4,6 +4,8 @@ export * from "./config";
 export * from "./employee-history-correction";
 export * from "./employee-history";
 export * from "./employee";
+export * from "./form-counter";
+export * from "./fuel-issuance";
 export * from "./org-unit";
 export * from "./permission";
 export * from "./purchase-order";

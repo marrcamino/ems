@@ -80,7 +80,7 @@
           {/snippet}
         </Sidebar.MenuButton>
 
-        {#if item.action && item.opens}
+        {#if item.action && item.opens && (!item.action.permission || gblCtx.can(item.action.permission))}
           {@const action = item.action}
           <Sidebar.MenuAction>
             {#snippet child({ props })}

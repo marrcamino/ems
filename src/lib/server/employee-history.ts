@@ -35,9 +35,14 @@
  * repairs, and the separate "add a change" action records a change.
  */
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { db } from "./db";
-import { employee, employeeHistory, employeeHistoryCorrection } from "./db/schema";
+import {
+  employee,
+  employeeHistory,
+  employeeHistoryCorrection,
+  fuelIssuance,
+} from "./db/schema";
 
 /** The handle drizzle hands to the body of `db.transaction(...)`. */
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -531,42 +536,83 @@ export async function reinstateEmployee(
 }
 
 /**
+ * Every column of a filed document that names a person. Each fuel
+ * transaction prints its withdrawal slip, RIS, and DTT from one row, so the
+ * row counts as one document however many of its lines a person is on. A
+ * new kind of document adds its columns here.
+ */
+const PEOPLE_COLUMNS = [
+  fuelIssuance.driverFk,
+  fuelIssuance.wsRequestedByFk,
+  fuelIssuance.wsApprovedByFk,
+  fuelIssuance.risRequestedByFk,
+  fuelIssuance.risApprovedByFk,
+  fuelIssuance.risIssuedByFk,
+  fuelIssuance.risReceivedByFk,
+  fuelIssuance.dttApprovedByFk,
+];
+
+/**
  * For each of these people, how many filed documents name their current
  * version — the wording the employee editor would write over.
  *
- * **This function exists to be replaced.** No document table has been built
- * yet, so nothing can be pointing at a version and the honest answer today is
- * zero for everybody. Whoever builds the first document that names a signatory
- * must come back here and count its rows, grouped by the person whose version
- * they hold. Nothing else needs to change: the screens already ask this
- * question and already word their warning around the answer.
- *
- * It takes the whole list rather than one person at a time so that replacing
- * it means writing one grouped query, rather than discovering that the
- * Employees page runs one query per row.
- *
- * The question is asked even though the answer is always zero, because paper
- * is typed into the system after it was signed. A slip filed next week can
- * carry last week's date, so the choice between repairing a version and
- * starting a new one matters long before any document exists.
+ * The question matters even before much is filed, because paper is typed
+ * into the system after it was signed. A slip filed next week can carry last
+ * week's date, so the choice between repairing a version and starting a new
+ * one matters from the first document on.
  */
 export async function countDocumentsUsingOpenVersions(
   employeePks: number[],
 ): Promise<Record<number, number>> {
-  return Object.fromEntries(employeePks.map((employeePk) => [employeePk, 0]));
+  const counts: Record<number, number> = Object.fromEntries(
+    employeePks.map((employeePk) => [employeePk, 0]),
+  );
+  if (employeePks.length === 0) return counts;
+
+  const open = await db
+    .select({
+      employeeHistoryPk: employeeHistory.employeeHistoryPk,
+      employeeFk: employeeHistory.employeeFk,
+    })
+    .from(employeeHistory)
+    .where(
+      and(
+        inArray(employeeHistory.employeeFk, employeePks),
+        isNull(employeeHistory.validUntil),
+      ),
+    );
+  const byVersion = await countDocumentsUsingVersions(
+    open.map((v) => v.employeeHistoryPk),
+  );
+  for (const version of open) {
+    counts[version.employeeFk] = byVersion[version.employeeHistoryPk] ?? 0;
+  }
+  return counts;
 }
 
 /**
  * The same count, asked about named versions rather than about people. The
  * history panel needs this one, because there it is a closed version that is
  * about to be written over and the person's current version is not involved.
- *
- * **Replace it at the same time as `countDocumentsUsingOpenVersions`.** Both
- * answer one question — how many filed documents hold this
- * `employee_history_pk` — and both return zero until a document table exists.
  */
 export async function countDocumentsUsingVersions(
   employeeHistoryPks: number[],
 ): Promise<Record<number, number>> {
-  return Object.fromEntries(employeeHistoryPks.map((pk) => [pk, 0]));
+  const counts: Record<number, number> = Object.fromEntries(
+    employeeHistoryPks.map((pk) => [pk, 0]),
+  );
+  if (employeeHistoryPks.length === 0) return counts;
+
+  const rows = await db
+    .select(
+      Object.fromEntries(PEOPLE_COLUMNS.map((column) => [column.name, column])),
+    )
+    .from(fuelIssuance)
+    .where(or(...PEOPLE_COLUMNS.map((c) => inArray(c, employeeHistoryPks))));
+  for (const row of rows) {
+    for (const pk of new Set(Object.values(row))) {
+      if (typeof pk === "number" && pk in counts) counts[pk]++;
+    }
+  }
+  return counts;
 }

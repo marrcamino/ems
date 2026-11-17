@@ -394,8 +394,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
   // How many filed documents already print each person's current name and
   // position. The editor warns with this number before writing over it.
-  // Always zero today — see countDocumentsUsingOpenVersions, which is written
-  // to be replaced when the first document exists.
+  // How many filed fuel forms name each person's current wording.
   const documentCounts = await countDocumentsUsingOpenVersions(
     employees.map((person) => person.employeePk),
   );

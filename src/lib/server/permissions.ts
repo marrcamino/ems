@@ -51,6 +51,10 @@ export const PERMISSION_DEFS = {
     // shows every office's. Held by the GSU role and the super-admin. Checked
     // once the office rule is built, with the first page that needs it.
     view_all_offices: "See the fuel records of every office",
+    record: "Record fuel withdrawals and trips",
+    // Everyone else's withdrawal is filed today; this key lets someone pick
+    // an earlier date, for paper that is entered late.
+    change_file_date: "Change the file date of a new withdrawal",
   },
 
   // The fuel purchase orders GSU records, each split into allocations for
@@ -133,7 +137,9 @@ type PermissionDefs = typeof PERMISSION_DEFS;
  * "fuel:view" | "users:manage" | ...
  */
 export type PermissionKey = {
-  [M in keyof PermissionDefs]: `${M & string}:${keyof PermissionDefs[M] & string}`;
+  [
+    M in keyof PermissionDefs
+  ]: `${M & string}:${keyof PermissionDefs[M] & string}`;
 }[keyof PermissionDefs];
 
 export type PermissionModule = keyof PermissionDefs;

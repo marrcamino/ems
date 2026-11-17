@@ -63,10 +63,11 @@ export const ROLE_TEMPLATES = [
   {
     roleName: "GSU",
     description:
-      "General Services Unit. Records fuel purchase orders and assets, and sees the fuel records of every office.",
+      "General Services Unit. Records fuel purchase orders, assets, and withdrawals, and sees the fuel records of every office.",
     permissions: [
       "fuel:view",
       "fuel:view_all_offices",
+      "fuel:record",
       "purchase_orders:view",
       "purchase_orders:manage",
       "assets:view",
@@ -76,8 +77,9 @@ export const ROLE_TEMPLATES = [
 
   {
     roleName: "Staff",
-    description: "Sees the fuel records of their own office.",
-    permissions: ["fuel:view"],
+    description:
+      "Records fuel withdrawals and sees the fuel records of their own office.",
+    permissions: ["fuel:view", "fuel:record"],
   },
 ] as const satisfies readonly RoleTemplate[];
 

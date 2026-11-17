@@ -12,7 +12,7 @@
   import { untrack } from "svelte";
   import AddPurchaseOrderDialog from "./add-purchase-order-dialog.svelte";
   import { formatPesos } from "$lib/utils/format-number.js";
-  import { formatDate } from "./format-date.js";
+  import { formatDate } from "$lib/utils/format-date.js";
   import AnimatedList from "$lib/components/transition/animated-list.svelte";
   import OpenPoCard from "./open-po-card.svelte";
   import type { PurchaseOrderRow } from "./po-types.js";
