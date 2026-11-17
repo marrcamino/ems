@@ -41,6 +41,7 @@
   import SortIcon from "@/components/sort-icon.svelte";
   import FilterCombobox from "./filter-combobox.svelte";
   import RadioTabs, { type RadioTab } from "@/components/radio-tabs.svelte";
+  import StartingNumbersNote from "@/components/starting-numbers-note.svelte";
   import NewWithdrawalDialog from "./new-withdrawal-dialog.svelte";
   import { page } from "$app/state";
   import { replaceState } from "$app/navigation";
@@ -59,7 +60,11 @@
   // on a fresh page load the router is not ready yet, and replaceState
   // throws.
   $effect(() => {
-    if (page.url.searchParams.get("new") === "withdrawal" && canRecord) {
+    if (
+      page.url.searchParams.get("new") === "withdrawal" &&
+      canRecord &&
+      data.cutoverDone
+    ) {
       newWithdrawalOpen = true;
     }
   });
@@ -229,6 +234,12 @@
 </Header>
 
 <div class="flex h-[calc(100svh-4rem)] min-w-0 flex-col items-center pt-0 px-2">
+  {#if !data.cutoverDone}
+    <StartingNumbersNote
+      canSet={gblCtx.can("fuel:set_starting_numbers")}
+      class="w-full px-1 pb-3"
+    />
+  {/if}
   <div class="w-full px-1">
     <RadioTabs legend="Status" tabs={statusTabs} bind:value={statusTab} />
   </div>
@@ -275,8 +286,12 @@
       slip wait in the menu. The two trips open no form yet.
     -->
     {#if canRecord}
+      <!-- Disabled with no reason beside it: the note above says why. -->
       <ButtonGroup.Root>
-        <Button onclick={() => (newWithdrawalOpen = true)}>
+        <Button
+          onclick={() => (newWithdrawalOpen = true)}
+          disabled={!data.cutoverDone}
+        >
           <Plus />
           New withdrawal
         </Button>
@@ -285,6 +300,7 @@
           <DropdownMenu.Trigger
             class={buttonVariants({ size: "icon" })}
             aria-label="More ways to add"
+            disabled={!data.cutoverDone}
           >
             <ChevronDown />
           </DropdownMenu.Trigger>
@@ -369,7 +385,10 @@
                   </Empty.Header>
                   {#if canRecord}
                     <Empty.Content>
-                      <Button onclick={() => (newWithdrawalOpen = true)}>
+                      <Button
+                        onclick={() => (newWithdrawalOpen = true)}
+                        disabled={!data.cutoverDone}
+                      >
                         <Plus />
                         New withdrawal
                       </Button>

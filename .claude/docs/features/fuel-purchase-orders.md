@@ -835,6 +835,58 @@ also the column name and the label on screen.
       because later numbers already come after it, and it is never reused,
       because the number holds the month: reusing `2026-03-024` for a May RIS
       would give that RIS a March number, placed before RIS made weeks earlier.
+      **The exception is the newest number of its year** (decided by the
+      owner, 17 November 2026): no later number comes after it yet, so a
+      reservation that is still the newest RIS number, reserved or not used,
+      can be deleted, and the count goes back by one, so the next reservation
+      gets the same number again and no gap is left. A fuel withdrawal's RIS
+      number is never deleted here. The check is made again on the server
+      while the count is locked, because a withdrawal or another reservation
+      may take a number in the meantime.
+      **The newest number, once marked not used, is given out again**
+      (decided by the owner, 17 November 2026, so that unused numbers do not
+      pile up). The next RIS of the same year takes its running number with
+      its own month: a not-used `2026-10-024` becomes `2026-11-024` on a
+      November RIS, because only the running number orders the year, so the
+      month problem above does not arise. A fuel withdrawal takes it by
+      itself; "Reserve next number" offers it first, already chosen, with
+      "Take a new number" beside it. The not-used reservation is deleted
+      then, with its reason, so the list never shows a number twice. A newer
+      number, or a new year, means a new number: a not-used `2026-12-031`
+      is never given out in January.
+   6. **The counts start from the last numbers used before EMS, set once at
+      go-live** (decided by the owner, 17 November 2026). When EMS goes live
+      partway through a year, the forms of that year are already numbered,
+      so GSU or the super-admin types, for each of the four counts (RIS, WS, DTT,
+      and control number), the first number that EMS gives out: the one after
+      the last number that was used before EMS, or 1 when none was used that
+      year. The dialog asks for the first number rather than the last one
+      used, because the owner typed 1 expecting the count to start at 001
+      (17 November 2026); the count row stores one below what was typed.
+      Until this is done, a save that needs a number is refused and says to
+      ask GSU (GSU holds the step too, decided by the owner, 17 November
+      2026, because the counts are GSU's); otherwise the first withdrawal would start the
+      count at 001 by itself and lock it. The step happens once: the check is
+      whether EMS has ever given out a number, not whether the year has
+      started, so every later January starts at 001 by itself, with no step.
+      Once set, the numbers are locked. No separate setting records the
+      step: setting the numbers writes the count rows themselves, so the
+      counts table already shows it, and a second record could disagree with
+      it (the owner suggested the config table; the counts table was chosen
+      instead, 17 November 2026). The past numbers are not entered into EMS:
+      each would need its details, EMS would give them its own numbers, and
+      the paper forms stay the record for the months before go-live. The
+      screens never say "logbook", because there is no logbook once EMS is
+      in use (told by the owner, 17 November 2026). Built on 17 November 2026 (MPP-136): the note
+      "Starting numbers not set" shows on the Fuel and RIS Numbers pages to
+      everyone until the step is done, with the button and the dialog for
+      the holder of `fuel:set_starting_numbers`, GSU and the super-admin; saving a withdrawal or
+      reserving an RIS number before it is refused.
+   7. **Built on 17 November 2026** as the RIS Numbers page, `/ris-numbers`
+      (`cards/ris-numbers.md`, MPP-135), which lists every RIS number, the
+      reserved ones beside the fuel withdrawals', so the sequence shows with
+      no gaps. Its keys are in the GSU template only; the Admin template never
+      gets them (decided by the owner, 17 November 2026).
 7. **A withdrawal counts down the allocation of the unit of the person who
    saves it** (decided by the owner, 22 October 2026). Staff of a division,
    section, or unit have no picker for it, so they can only use their own

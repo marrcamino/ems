@@ -8,6 +8,7 @@ import {
   employee,
   orgUnit,
 } from "$lib/server/db/schema";
+import { cutoverDone, startingNumbersActions } from "$lib/server/form-counter";
 import { error } from "@sveltejs/kit";
 import { and, asc, eq } from "drizzle-orm";
 import type { Actions, PageServerLoad } from "./$types";
@@ -71,9 +72,10 @@ export const load: PageServerLoad = async ({ locals }) => {
     .where(eq(orgUnit.status, "active"))
     .orderBy(asc(orgUnit.orgUnitName));
 
-  const [withdrawals, poBalances] = await Promise.all([
+  const [withdrawals, poBalances, numbersSet] = await Promise.all([
     selectWithdrawalRows(scope),
     selectPoBalances(scope),
+    cutoverDone(),
   ]);
 
   // An approver who has left reads as empty, as on the Signatories page.
@@ -82,6 +84,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   return {
     withdrawals,
     poBalances,
+    cutoverDone: numbersSet,
     allOffices: scope.allOffices,
     assets,
     employees,
@@ -93,4 +96,7 @@ export const load: PageServerLoad = async ({ locals }) => {
   };
 };
 
-export const actions: Actions = { ...issuanceActions };
+export const actions: Actions = {
+  ...issuanceActions,
+  ...startingNumbersActions,
+};

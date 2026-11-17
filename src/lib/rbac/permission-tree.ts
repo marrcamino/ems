@@ -50,6 +50,7 @@ const GROUP_LABELS: Record<string, string> = {
   fuel: "Fuel",
   purchase_orders: "Purchase orders",
   assets: "Assets",
+  ris_numbers: "RIS numbers",
   electricity: "Electricity",
   water: "Water",
   paper: "Paper",

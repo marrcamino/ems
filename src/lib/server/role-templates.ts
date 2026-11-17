@@ -63,15 +63,18 @@ export const ROLE_TEMPLATES = [
   {
     roleName: "GSU",
     description:
-      "General Services Unit. Records fuel purchase orders, assets, and withdrawals, and sees the fuel records of every office.",
+      "General Services Unit. Records fuel purchase orders, assets, and withdrawals, sees the fuel records of every office, and reserves RIS numbers.",
     permissions: [
       "fuel:view",
       "fuel:view_all_offices",
       "fuel:record",
+      "fuel:set_starting_numbers",
       "purchase_orders:view",
       "purchase_orders:manage",
       "assets:view",
       "assets:manage",
+      "ris_numbers:view",
+      "ris_numbers:manage",
     ],
   },
 

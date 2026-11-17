@@ -1,6 +1,7 @@
 import type { PermissionKey } from "$lib/server/permissions";
 import {
   Building,
+  FileDigit,
   FilePenLine,
   FlaskConical,
   Fuel,
@@ -70,6 +71,13 @@ export const workPages = [
         permission: "purchase_orders:view",
       },
     ],
+  },
+  // Not under Fuel: the RIS numbers cover every supply, not only fuel.
+  {
+    name: "RIS Numbers",
+    url: "/ris-numbers",
+    icon: FileDigit,
+    permission: "ris_numbers:view",
   },
 ] satisfies NavPage[];
 

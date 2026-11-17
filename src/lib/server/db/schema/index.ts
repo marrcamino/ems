@@ -9,6 +9,7 @@ export * from "./fuel-issuance";
 export * from "./org-unit";
 export * from "./permission";
 export * from "./purchase-order";
+export * from "./ris-reservation";
 export * from "./role-permission";
 export * from "./role";
 export * from "./session";

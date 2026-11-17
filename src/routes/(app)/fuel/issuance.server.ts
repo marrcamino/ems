@@ -14,7 +14,12 @@ import {
   purchaseOrderItem,
   supplier,
 } from "$lib/server/db/schema";
-import { nextNumber } from "$lib/server/form-counter";
+import {
+  CUTOVER_PENDING,
+  cutoverDone,
+  nextNumber,
+  nextRisNumber,
+} from "$lib/server/form-counter";
 import { fullName } from "$lib/utils";
 import { formNumber, type Form } from "$lib/utils/form-numbers";
 import { fail, type Actions } from "@sveltejs/kit";
@@ -733,7 +738,8 @@ async function save(checked: Checked, userPk: number | null) {
       status: "waiting",
       controlNumber,
       wsNumber: await number("ws"),
-      risNumber: await number("ris"),
+      risNumber: (await nextRisNumber(tx, checked.fileDate, { reuse: true }))
+        .risNumber,
       dttNumber: trip ? await number("dtt") : null,
       fileDate: checked.fileDate,
       orgUnitFk: checked.orgUnitPk,
@@ -779,6 +785,7 @@ export const issuanceActions = {
 
     const checked = await check(payload, locals);
     if ("error" in checked) return fail(400, checked);
+    if (!(await cutoverDone())) return fail(409, { error: CUTOVER_PENDING });
 
     // Two saves at the same moment can trip over each other while the
     // counters are first made for a year; the second simply tries again.

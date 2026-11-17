@@ -55,6 +55,11 @@ export const PERMISSION_DEFS = {
     // Everyone else's withdrawal is filed today; this key lets someone pick
     // an earlier date, for paper that is entered late.
     change_file_date: "Change the file date of a new withdrawal",
+    // The one-time step at go-live: the last number used before EMS on each
+    // of the four forms, typed before EMS gives out its first number (point
+    // 6.6 of "Recording a fuel issuance"). GSU and the super-admin hold it.
+    set_starting_numbers:
+      "Set the starting numbers of the forms once, at go-live",
   },
 
   // The fuel purchase orders GSU records, each split into allocations for
@@ -72,6 +77,15 @@ export const PERMISSION_DEFS = {
   assets: {
     view: "Access the Assets page, the office's vehicles and equipment",
     manage: "Add, edit, and deactivate vehicles, equipment, and their types",
+  },
+
+  // The RIS numbers that GSU reserves for supplies that are not fuel. Fuel
+  // withdrawals take theirs on the Fuel page, from the same count (point 6
+  // of "Recording a fuel issuance" in fuel-purchase-orders.md).
+  ris_numbers: {
+    view: "Access the RIS Numbers page",
+    manage:
+      "Reserve RIS numbers, mark a reserved number not used, and delete the newest one",
   },
 
   electricity: {
