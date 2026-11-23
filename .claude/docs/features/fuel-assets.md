@@ -66,7 +66,11 @@ already bought, as opposed to money paid back to somebody.
    are all prepared.
 2. **Privately owned.** Known: when a personal vehicle was used for official
    travel, the owner was reimbursed. No Withdrawal Slip was approved by GSU and
-   no office fuel was taken.
+   no office fuel was taken. **Corrected on 23 November 2026:** the owner's
+   unit chief says that a personal vehicle cannot be used for a trip that is
+   paid back later, so a reimbursed trip always uses an office vehicle ("A
+   reimbursed trip has a trip ticket and an RIS" in
+   [fuel-purchase-orders.md](fuel-purchase-orders.md)).
 3. **Borrowed.** A GSU staff member mentioned that a borrowed banca (boat)
    sometimes gets office fuel. Possibly the "PA Patrol Boat" in the logbook;
    not confirmed.

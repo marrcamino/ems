@@ -9,11 +9,12 @@
   import { Spinner } from "$lib/components/ui/spinner/index.js";
   import { getGlobalContext } from "$routes/global-context.svelte";
   import { ArrowLeft, ArrowRight } from "@lucide/svelte/icons";
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
   import { toast } from "svelte-sonner";
   import { MediaQuery } from "svelte/reactivity";
   import {
     STEP_FIELDS,
+    TRANSACTION_FIELDS,
     WithdrawalForm,
     type Step,
     type WithdrawalData,
@@ -32,20 +33,50 @@
    *
    * What is typed lives in `form` (new-withdrawal-form.svelte.ts), which the
    * three steps share; this file is the dialog around them.
+   *
+   * With `kind="reimbursed"` it is the Reimbursed trip form: the RIS and the
+   * trip ticket, with no withdrawal slip, since the driver pays for the fuel
+   * and the office pays it back. Its RIS step starts with the office, the
+   * file date, and the asset, and its trip ticket asks for the litres bought.
    */
   let {
     open = $bindable(false),
     data,
+    kind = "withdrawal",
   }: {
     open: boolean;
     data: WithdrawalData;
+    /** Set once; the form does not switch kinds while it is shown. */
+    kind?: "withdrawal" | "reimbursed";
   } = $props();
 
   const gblCtx = getGlobalContext();
+  const reimbursed = untrack(() => kind) === "reimbursed";
   const form = new WithdrawalForm(
     () => data,
     () => gblCtx.user,
+    reimbursed ? "reimbursed" : "withdrawal",
   );
+
+  const TEXT = reimbursed
+    ? {
+        title: "Reimbursed trip",
+        description:
+          "For a trip where the driver pays for the fuel and the office pays it back.",
+        action: "?/createReimbursedTrip",
+        save: "Save trip",
+        saved: "Trip saved",
+        notSaved: "Trip not saved",
+      }
+    : {
+        title: "New withdrawal",
+        description:
+          "One step for each printed form. EMS gives the control, WS, RIS, and DTT numbers when the withdrawal is saved.",
+        action: "?/createWithdrawal",
+        save: "Save withdrawal",
+        saved: "Withdrawal saved",
+        notSaved: "Withdrawal not saved",
+      };
 
   let submitting = $state(false);
 
@@ -60,33 +91,45 @@
     {
       name: "ris",
       label: "RIS",
-      hint: "Purpose and signatories",
+      hint: reimbursed ? "The asset and the signatories" : "Purpose and signatories",
       title: "Requisition and Issue Slip",
     },
     {
       name: "dtt",
       label: "Trip ticket",
-      hint: "Driver and travel",
+      hint: reimbursed ? "Driver, travel, and fuel bought" : "Driver and travel",
       title: "Driver's Trip Ticket",
     },
   ];
-  let view = $state<Step>("slip");
+  const firstStep: Step = reimbursed ? "ris" : "slip";
+  let view = $state<Step>(firstStep);
   // The trip ticket is the last step, so it can come and go with the asset:
-  // the steps before it keep their numbers.
+  // the steps before it keep their numbers. A reimbursed trip has no slip,
+  // and always a trip ticket, since only assets with one are offered.
   const steps = $derived(
-    form.hasTripTicket ? STEPS : STEPS.filter((s) => s.name !== "dtt"),
+    reimbursed
+      ? STEPS.filter((s) => s.name !== "slip")
+      : form.hasTripTicket
+        ? STEPS
+        : STEPS.filter((s) => s.name !== "dtt"),
   );
   const stepIndex = $derived(steps.findIndex((s) => s.name === view));
   const lastStep = $derived(steps.at(-1)?.name);
 
+  /** The fields on a step; the first step also holds the office and the asset. */
+  const fieldsOf = (step: Step) =>
+    step === firstStep
+      ? [...TRANSACTION_FIELDS, ...STEP_FIELDS[step]]
+      : STEP_FIELDS[step];
+
   const stepHasError = (step: Step) =>
-    STEP_FIELDS[step].some((field) => form.errors[field]);
+    fieldsOf(step).some((field) => form.errors[field]);
 
   // Seeded again once the dialog has finished closing, so the next open
   // starts clean instead of showing the last form (and its warning) for a
   // moment. Also when it opens, so the file date is today's.
   function reset() {
-    view = "slip";
+    view = firstStep;
     form.seed();
   }
 
@@ -136,8 +179,8 @@
   <!-- Escape on a later step goes back a step, rather than closing. -->
   <DialogViews.Content
     {view}
-    title="New withdrawal"
-    description="One step for each printed form. EMS gives the control, WS, RIS, and DTT numbers when the withdrawal is saved."
+    title={TEXT.title}
+    description={TEXT.description}
     onBack={back}
     onOpenAutoFocus={(event) => {
       // The first field, not the first button, which is in the stepper.
@@ -146,7 +189,7 @@
         .getElementById(data.allOffices ? "officePk" : "assetPk")
         ?.focus();
     }}
-    showCloseButton={view === "slip"}
+    showCloseButton={view === firstStep}
     data-nested={form.passengersOpen}
     style="--sidebar-height: {sidebarHeight}px"
   >
@@ -160,7 +203,7 @@
           class="pr-8 text-base leading-none font-medium md:pr-0"
           aria-hidden="true"
         >
-          New withdrawal
+          {TEXT.title}
         </p>
         <Stepper.Root
           bind:current={() => stepIndex, (index) => goToStep(index)}
@@ -207,7 +250,7 @@
           </ScrollArea>
 
           <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            {#if step.name === "slip"}
+            {#if step.name === firstStep}
               <Button
                 type="button"
                 variant="outline"
@@ -231,7 +274,7 @@
                 {#if submitting}
                   <Spinner />
                 {/if}
-                Save withdrawal
+                {TEXT.save}
               </Button>
             {:else}
               <Button
@@ -251,7 +294,7 @@
       bind:this={saveForm}
       hidden
       method="POST"
-      action="?/createWithdrawal"
+      action={TEXT.action}
       use:enhance={() => {
         form.errors = {};
         submitting = true;
@@ -260,7 +303,7 @@
           if (result.type === "success") {
             await update();
             open = false;
-            toast.success("Withdrawal saved", {
+            toast.success(TEXT.saved, {
               description: `Its control number is ${result.data?.controlNumber}.`,
             });
             return;
@@ -270,7 +313,7 @@
               { error?: string; field?: string } | undefined;
             const field = refusal?.field;
             const home = steps.find(
-              (s) => field && STEP_FIELDS[s.name].includes(field),
+              (s) => field && fieldsOf(s.name).includes(field),
             );
             if (field && home && refusal?.error) {
               // Back to the step the refused field is on.
@@ -282,12 +325,12 @@
                 ?.scrollIntoView({ block: "center" });
               return;
             }
-            toast.error("Withdrawal not saved", {
+            toast.error(TEXT.notSaved, {
               description: refusal?.error ?? "Try again.",
             });
             return;
           }
-          toast.error("Withdrawal not saved", {
+          toast.error(TEXT.notSaved, {
             description: "Try again. If it keeps happening, contact ICT.",
           });
         };

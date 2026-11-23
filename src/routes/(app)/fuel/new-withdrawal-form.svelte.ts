@@ -23,12 +23,20 @@ export type WithdrawalData = Pick<
 
 export type Step = "slip" | "ris" | "dtt";
 
+/**
+ * Which transaction the form records, and so which printed forms it has
+ * ("Which forms apply" in fuel-purchase-orders.md): a withdrawal has a slip,
+ * an RIS, and a trip ticket when its asset has one; a trip only has a trip
+ * ticket; a reimbursed trip has an RIS and a trip ticket.
+ */
+export type Kind = "withdrawal" | "trip" | "reimbursed";
+
+/** On whichever step comes first. */
+export const TRANSACTION_FIELDS = ["officePk", "fileDate", "assetPk"];
+
 /** Which step each field the server can refuse is on. */
 export const STEP_FIELDS: Record<Step, string[]> = {
   slip: [
-    "officePk",
-    "fileDate",
-    "assetPk",
     "purchaseOrderPk",
     "requested",
     "wsWithdrawnBy",
@@ -54,6 +62,7 @@ export const STEP_FIELDS: Record<Step, string[]> = {
     "travelHours",
     "departureTime",
     "tankBalanceBefore",
+    "purchasedLiters",
     "oilLubricant",
     "odometerStart",
     "dttRemarks",
@@ -66,8 +75,8 @@ export const LEGEND =
   "text-muted-foreground gap-2 min-h-4 text-left relative flex w-full items-center after:h-px after:min-w-0 after:flex-1 after:bg-border after:ml-1";
 
 /**
- * Everything the New withdrawal form holds, shared by its three steps, and
- * by the Trip only form, which is the trip ticket step on its own:
+ * Everything the New withdrawal form holds, shared by its three steps. The
+ * Trip only and Reimbursed trip forms use it too, with their own `kind`:
  * every field, the server's refusals, and what is worked out from them,
  * such as the PO and its balance. Passed to each step as `form`.
  *
@@ -79,10 +88,16 @@ export const LEGEND =
 export class WithdrawalForm {
   #data: () => WithdrawalData;
   #user: () => SessionUser;
+  readonly kind: Kind;
 
-  constructor(data: () => WithdrawalData, user: () => SessionUser) {
+  constructor(
+    data: () => WithdrawalData,
+    user: () => SessionUser,
+    kind: Kind = "withdrawal",
+  ) {
     this.#data = data;
     this.#user = user;
+    this.kind = kind;
   }
 
   get data() {
@@ -128,6 +143,8 @@ export class WithdrawalForm {
   dttRemarks = $state("");
   departureTime = $state("");
   tankBalanceBefore = $state<number | null>(null);
+  /** "Purchased during trip", asked only on a reimbursed trip. */
+  purchasedLiters = $state<number | null>(null);
   oilLubricant = $state("");
   odometerStart = $state<number | null>(null);
   dttApprovedBy = $state("");
@@ -185,10 +202,15 @@ export class WithdrawalForm {
     });
   });
 
-  /** A trip only is made only for an asset whose Trip ticket switch is on. */
+  /**
+   * A trip, with or without a reimbursement, is made only for an asset whose
+   * Trip ticket switch is on.
+   */
   tripAssetItems = $derived.by(() => {
     const withTicket = new Set(
-      this.data.assets.filter((a) => a.hasTripTicket).map((a) => String(a.assetPk)),
+      this.data.assets
+        .filter((a) => a.hasTripTicket)
+        .map((a) => String(a.assetPk)),
     );
     return this.assetItems.filter((item) => withTicket.has(item.value));
   });
@@ -320,6 +342,7 @@ export class WithdrawalForm {
     this.dttRemarks = "";
     this.departureTime = "";
     this.tankBalanceBefore = null;
+    this.purchasedLiters = null;
     this.oilLubricant = "";
     this.odometerStart = null;
     this.dttApprovedBy = approver;
@@ -362,6 +385,7 @@ export class WithdrawalForm {
       dttRemarks: this.dttRemarks,
       departureTime: this.departureTime,
       tankBalanceBefore: this.tankBalanceBefore,
+      purchasedLiters: this.purchasedLiters,
       oilLubricant: this.oilLubricant,
       odometerStart: this.odometerStart,
       dttApprovedBy: this.dttApprovedBy,

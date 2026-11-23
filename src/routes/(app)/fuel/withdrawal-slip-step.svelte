@@ -29,7 +29,7 @@
 <Field.Group class="gap-6">
   <Field.Set>
     <Field.Legend class="sr-only">The fuel and the PO</Field.Legend>
-    <TransactionFields {form} assetItems={form.assetItems} />
+    <TransactionFields {form} />
 
     {@const poInvalid = form.poError || errors.purchaseOrderPk}
     <Field.Field class="gap-0" data-invalid={poInvalid ? true : undefined}>

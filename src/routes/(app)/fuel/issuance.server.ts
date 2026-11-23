@@ -245,6 +245,7 @@ export async function selectWithdrawalRows(
       purchaseOrderPk: fuelIssuance.purchaseOrderFk,
       requestedLiters: fuelIssuance.requestedLiters,
       requestedAmount: fuelIssuance.requestedAmount,
+      purchasedLiters: fuelIssuance.purchasedLiters,
       risRemarks: fuelIssuance.risRemarks,
       dttRemarks: fuelIssuance.dttRemarks,
       driverName: fuelIssuance.driverName,
@@ -320,7 +321,9 @@ export async function selectWithdrawalRows(
       requestedH,
       requestedC,
       withdrawnH: null,
-      boughtH: null,
+      // A withdrawal's cell shows the supplier's litres instead.
+      boughtH:
+        row.kind === "reimbursed" ? toHundredths(row.purchasedLiters) : null,
       priceC,
       amountC: null,
       balanceC,
@@ -385,6 +388,7 @@ type Payload = Partial<
     travelHours: unknown;
     departureTime: unknown;
     tankBalanceBefore: unknown;
+    purchasedLiters: unknown;
     oilLubricant: unknown;
   }
 >;
@@ -395,7 +399,7 @@ type Payload = Partial<
  */
 type Refusal = { field?: string; error: string };
 
-/** The trip ticket part, on a withdrawal or on a trip only. */
+/** The trip ticket, the same paper on every kind of transaction. */
 type Trip = {
   purpose: string;
   remarks: string | null;
@@ -410,35 +414,37 @@ type Trip = {
   /** `HH:MM`, as the browser's time field gives it. */
   departureTime: string | null;
   tankBalanceBeforeH: number | null;
+  /** "Purchased during trip", asked only on a reimbursed trip. */
+  purchasedH: number | null;
   oilLubricant: string | null;
   approvedByPk: number;
 };
 
-/** The withdrawal slip and the RIS, which a trip only does not have. */
+/** The withdrawal slip, which only a withdrawal has. */
 type Slip = {
   purchaseOrderPk: number;
   requestedH: number | null;
   requestedC: number | null;
-  ris: {
-    fundCluster: string | null;
-    responsibilityCenterCode: string | null;
-    purpose: string | null;
-    stockNumber: string | null;
-    remarks: string | null;
-  };
   /** Picked from the employees, or typed for someone outside the office. */
   withdrawnBy: { pk: number | null; name: string | null };
-  people: {
-    wsRequestedBy: number;
-    wsApprovedBy: number;
-    risRequestedBy: number;
-    risApprovedBy: number;
-    risIssuedBy: number;
-    risReceivedBy: number | null;
-  };
+  requestedByPk: number;
+  approvedByPk: number;
 };
 
-/** What both forms start with: the office, the file date, and the asset. */
+/** The RIS, the same paper on a withdrawal and on a reimbursed trip. */
+type Ris = {
+  fundCluster: string | null;
+  responsibilityCenterCode: string | null;
+  purpose: string | null;
+  stockNumber: string | null;
+  remarks: string | null;
+  requestedByPk: number;
+  approvedByPk: number;
+  issuedByPk: number;
+  receivedByPk: number | null;
+};
+
+/** What every form starts with: the office, the file date, and the asset. */
 type Transaction = {
   fileDate: string;
   orgUnitPk: number;
@@ -449,13 +455,16 @@ type Transaction = {
 };
 
 /**
- * A withdrawal has a slip, and a trip ticket when its asset has one; a trip
- * only has a trip ticket and no slip.
+ * Which forms each kind has ("Which forms apply" in fuel-purchase-orders.md):
+ * a withdrawal has a slip, an RIS, and a trip ticket when its asset has one;
+ * a trip only has a trip ticket; a reimbursed trip has an RIS and a trip
+ * ticket.
  */
 type Checked = Omit<Transaction, "officeAbbr" | "hasTripTicket"> &
   (
-    | { kind: "withdrawal"; slip: Slip; trip: Trip | null }
-    | { kind: "trip"; slip: null; trip: Trip }
+    | { kind: "withdrawal"; slip: Slip; ris: Ris; trip: Trip | null }
+    | { kind: "trip"; slip: null; ris: null; trip: Trip }
+    | { kind: "reimbursed"; slip: null; ris: Ris; trip: Trip }
   );
 
 const isDate = (value: string) =>
@@ -581,8 +590,8 @@ async function checkTransaction(
 }
 
 /**
- * The withdrawal slip and the RIS: which PO the slip goes to, the request,
- * and the slip's and the RIS's people.
+ * The withdrawal slip: which PO it goes to, the request, and the slip's
+ * people.
  */
 async function checkSlip(
   payload: Payload,
@@ -653,22 +662,28 @@ async function checkSlip(
     };
   }
 
-  const people = {
-    wsRequestedBy: Number(payload.wsRequestedBy),
-    wsApprovedBy: Number(payload.wsApprovedBy),
-    risRequestedBy: Number(payload.risRequestedBy),
-    risApprovedBy: Number(payload.risApprovedBy),
-    risIssuedBy: Number(payload.risIssuedBy),
-    risReceivedBy: Number(payload.risReceivedBy) || null,
-  };
-  if (!people.wsRequestedBy) {
+  const requestedByPk = Number(payload.wsRequestedBy);
+  const approvedByPk = Number(payload.wsApprovedBy);
+  if (!requestedByPk) {
     return { field: "wsRequestedBy", error: "Choose who requests the slip." };
   }
-  if (!people.wsApprovedBy) {
+  if (!approvedByPk) {
     return { field: "wsApprovedBy", error: "Choose the GSU representative." };
   }
 
-  const risPurpose = text(payload.risPurpose);
+  return {
+    purchaseOrderPk: balance.purchaseOrderPk,
+    requestedH,
+    requestedC,
+    withdrawnBy,
+    requestedByPk,
+    approvedByPk,
+  };
+}
+
+/** The RIS, the same paper on a withdrawal and on a reimbursed trip. */
+function checkRis(payload: Payload): Ris | Refusal {
+  const purpose = text(payload.risPurpose);
   const tooLong = tooLongRefusal({
     risFundCluster: [text(payload.risFundCluster), 50, "fund cluster"],
     risResponsibilityCenterCode: [
@@ -678,38 +693,46 @@ async function checkSlip(
     ],
     risStockNumber: [text(payload.risStockNumber), 50, "stock number"],
     risRemarks: [text(payload.risRemarks), 200, "remarks"],
-    risPurpose: [risPurpose, 500, "purpose"],
+    risPurpose: [purpose, 500, "purpose"],
   });
   if (tooLong) return tooLong;
-  if (!people.risRequestedBy) {
+
+  const requestedByPk = Number(payload.risRequestedBy);
+  const approvedByPk = Number(payload.risApprovedBy);
+  const issuedByPk = Number(payload.risIssuedBy);
+  if (!requestedByPk) {
     return { field: "risRequestedBy", error: "Choose who requests the RIS." };
   }
-  if (!people.risApprovedBy) {
+  if (!approvedByPk) {
     return { field: "risApprovedBy", error: "Choose who approves the RIS." };
   }
-  if (!people.risIssuedBy) {
+  if (!issuedByPk) {
     return { field: "risIssuedBy", error: "Choose who issues the RIS." };
   }
 
   return {
-    purchaseOrderPk: balance.purchaseOrderPk,
-    requestedH,
-    requestedC,
-    ris: {
-      fundCluster: text(payload.risFundCluster) || null,
-      responsibilityCenterCode:
-        text(payload.risResponsibilityCenterCode) || null,
-      purpose: risPurpose || null,
-      stockNumber: text(payload.risStockNumber) || null,
-      remarks: text(payload.risRemarks) || null,
-    },
-    withdrawnBy,
-    people,
+    fundCluster: text(payload.risFundCluster) || null,
+    responsibilityCenterCode: text(payload.risResponsibilityCenterCode) || null,
+    purpose: purpose || null,
+    stockNumber: text(payload.risStockNumber) || null,
+    remarks: text(payload.risRemarks) || null,
+    requestedByPk,
+    approvedByPk,
+    issuedByPk,
+    receivedByPk: Number(payload.risReceivedBy) || null,
   };
 }
 
-/** The trip ticket, the same paper on a withdrawal and on a trip only. */
-function checkTrip(payload: Payload): Trip | Refusal {
+/**
+ * The trip ticket, the same paper on every kind of transaction. Only a
+ * reimbursed trip asks for the litres purchased during the trip, and
+ * requires them, whether it is entered before the trip or after it ("A
+ * reimbursed trip has a trip ticket and an RIS").
+ */
+function checkTrip(
+  payload: Payload,
+  { reimbursed }: { reimbursed: boolean },
+): Trip | Refusal {
   const destination = text(payload.destination);
   const travelFrom = text(payload.travelFrom);
   const travelTo = text(payload.travelTo);
@@ -785,6 +808,17 @@ function checkTrip(payload: Payload): Trip | Refusal {
       error: "Enter the balance in liters, up to 999.99.",
     };
   }
+  let purchasedH: number | null = null;
+  if (reimbursed) {
+    const purchased = optionalNumber(payload.purchasedLiters, 999.99);
+    if (!purchased) {
+      return {
+        field: "purchasedLiters",
+        error: "Enter the liters purchased during the trip, up to 999.99.",
+      };
+    }
+    purchasedH = Math.round(purchased * 100);
+  }
   const oilLubricant = text(payload.oilLubricant);
   if (oilLubricant.length > 100) {
     return {
@@ -820,16 +854,24 @@ function checkTrip(payload: Payload): Trip | Refusal {
     departureTime: departureTime || null,
     tankBalanceBeforeH:
       tankBalanceBefore === null ? null : Math.round(tankBalanceBefore * 100),
+    purchasedH,
     oilLubricant: oilLubricant || null,
     approvedByPk: Number(payload.dttApprovedBy),
   };
 }
 
+type Forms = Pick<Checked, "slip" | "ris" | "trip">;
+
 /** Everyone picked on the forms, each once. */
-function picked({ slip, trip }: Pick<Checked, "slip" | "trip">) {
+function picked({ slip, ris, trip }: Forms) {
   const pks = [
-    ...Object.values(slip?.people ?? {}),
     slip?.withdrawnBy.pk,
+    slip?.requestedByPk,
+    slip?.approvedByPk,
+    ris?.requestedByPk,
+    ris?.approvedByPk,
+    ris?.issuedByPk,
+    ris?.receivedByPk,
     trip?.driverPk,
     trip?.approvedByPk,
   ].filter((pk): pk is number => !!pk);
@@ -837,12 +879,10 @@ function picked({ slip, trip }: Pick<Checked, "slip" | "trip">) {
 }
 
 /**
- * Whether everyone picked still works here, and, on a slip, whether its two
- * GSU lines hold GSU staff (signatory.md).
+ * Whether everyone picked still works here, and whether the slip's
+ * "Approved by" and the RIS's "Issued by" hold GSU staff (signatory.md).
  */
-async function checkPeople(
-  forms: Pick<Checked, "slip" | "trip">,
-): Promise<Refusal | null> {
+async function checkPeople(forms: Forms): Promise<Refusal | null> {
   const pks = picked(forms);
   if (pks.length === 0) return null;
   const found = await db
@@ -863,19 +903,19 @@ async function checkPeople(
     };
   }
 
-  const { slip } = forms;
-  if (!slip) return null;
+  const { slip, ris } = forms;
+  if (!slip && !ris) return null;
   const gsuPk = await getConfigValue(CONFIG_KEYS.gsuUnit);
   const inGsu = (pk: number) =>
     gsuPk !== null &&
     found.some((e) => e.employeePk === pk && e.orgUnitFk === gsuPk);
-  if (!inGsu(slip.people.wsApprovedBy)) {
+  if (slip && !inGsu(slip.approvedByPk)) {
     return {
       field: "wsApprovedBy",
       error: "Choose someone from the General Services Unit.",
     };
   }
-  if (!inGsu(slip.people.risIssuedBy)) {
+  if (ris && !inGsu(ris.issuedByPk)) {
     return {
       field: "risIssuedBy",
       error: "Choose someone from the General Services Unit.",
@@ -892,6 +932,13 @@ const saved = ({ fileDate, orgUnitPk, assetPk, fuel }: Transaction) => ({
   fuel,
 });
 
+/** Refused when the asset's Trip ticket switch is off. */
+const NO_TRIP_TICKET: Refusal = {
+  field: "assetPk",
+  error:
+    "That asset has no trip ticket. Choose another, or turn on its Trip ticket switch on the Assets page.",
+};
+
 /** A withdrawal: the slip, the RIS, and the trip ticket when the asset has one. */
 async function checkWithdrawal(
   payload: Payload,
@@ -901,13 +948,17 @@ async function checkWithdrawal(
   if ("error" in transaction) return transaction;
   const slip = await checkSlip(payload, transaction);
   if ("error" in slip) return slip;
+  const ris = checkRis(payload);
+  if ("error" in ris) return ris;
   // The asset decides whether there is a trip ticket ("Which forms apply").
-  const trip = transaction.hasTripTicket ? checkTrip(payload) : null;
+  const trip = transaction.hasTripTicket
+    ? checkTrip(payload, { reimbursed: false })
+    : null;
   if (trip && "error" in trip) return trip;
-  const refusal = await checkPeople({ slip, trip });
+  const refusal = await checkPeople({ slip, ris, trip });
   if (refusal) return refusal;
 
-  return { ...saved(transaction), kind: "withdrawal", slip, trip };
+  return { ...saved(transaction), kind: "withdrawal", slip, ris, trip };
 }
 
 /** A trip only: a trip ticket, and no withdrawal slip, RIS, or PO. */
@@ -917,19 +968,34 @@ async function checkTripOnly(
 ): Promise<Checked | Refusal> {
   const transaction = await checkTransaction(payload, locals);
   if ("error" in transaction) return transaction;
-  if (!transaction.hasTripTicket) {
-    return {
-      field: "assetPk",
-      error:
-        "That asset has no trip ticket. Choose another, or turn on its Trip ticket switch on the Assets page.",
-    };
-  }
-  const trip = checkTrip(payload);
+  if (!transaction.hasTripTicket) return NO_TRIP_TICKET;
+  const trip = checkTrip(payload, { reimbursed: false });
   if ("error" in trip) return trip;
-  const refusal = await checkPeople({ slip: null, trip });
+  const refusal = await checkPeople({ slip: null, ris: null, trip });
   if (refusal) return refusal;
 
-  return { ...saved(transaction), kind: "trip", slip: null, trip };
+  return { ...saved(transaction), kind: "trip", slip: null, ris: null, trip };
+}
+
+/**
+ * A reimbursed trip: an RIS and a trip ticket, and no withdrawal slip or PO,
+ * since the driver pays for the fuel and the office pays it back.
+ */
+async function checkReimbursed(
+  payload: Payload,
+  locals: App.Locals,
+): Promise<Checked | Refusal> {
+  const transaction = await checkTransaction(payload, locals);
+  if ("error" in transaction) return transaction;
+  if (!transaction.hasTripTicket) return NO_TRIP_TICKET;
+  const ris = checkRis(payload);
+  if ("error" in ris) return ris;
+  const trip = checkTrip(payload, { reimbursed: true });
+  if ("error" in trip) return trip;
+  const refusal = await checkPeople({ slip: null, ris, trip });
+  if (refusal) return refusal;
+
+  return { ...saved(transaction), kind: "reimbursed", slip: null, ris, trip };
 }
 
 /**
@@ -970,13 +1036,13 @@ function mysqlErrno(err: unknown) {
 }
 
 /**
- * Saves a withdrawal or a trip only, with the numbers its forms need. A
- * withdrawal waits for GSU to sign its slip; a trip only has no slip to
- * sign, so it starts as Out (point 9.5 of "Recording a fuel issuance").
+ * Saves a withdrawal, a trip only, or a reimbursed trip, with the numbers
+ * its forms need. A withdrawal waits for GSU to sign its slip; a trip has no
+ * slip to sign, so it starts as Out (point 9.5 of "Recording a fuel
+ * issuance").
  */
 async function save(checked: Checked, userPk: number | null) {
-  const { slip, trip } = checked;
-  const people = slip?.people;
+  const { slip, ris, trip } = checked;
   const version = await versionsOn(picked(checked), checked.fileDate);
   const versionOf = (pk: number | null | undefined) =>
     pk ? (version.get(pk) ?? null) : null;
@@ -991,10 +1057,11 @@ async function save(checked: Checked, userPk: number | null) {
       .insert(fuelIssuance)
       .values({
         kind: checked.kind,
-        status: checked.kind === "trip" ? "out" : "waiting",
+        // Only a withdrawal has a slip for GSU to sign; a trip starts as Out.
+        status: checked.kind === "withdrawal" ? "waiting" : "out",
         controlNumber,
         wsNumber: slip ? await number("ws") : null,
-        risNumber: slip
+        risNumber: ris
           ? (await nextRisNumber(tx, checked.fileDate, { reuse: true }))
               .risNumber
           : null,
@@ -1008,11 +1075,11 @@ async function save(checked: Checked, userPk: number | null) {
           slip?.requestedH == null ? null : fromHundredths(slip.requestedH),
         requestedAmount:
           slip?.requestedC == null ? null : fromHundredths(slip.requestedC),
-        risPurpose: slip?.ris.purpose ?? null,
-        risStockNumber: slip?.ris.stockNumber ?? null,
-        risFundCluster: slip?.ris.fundCluster ?? null,
-        risResponsibilityCenterCode: slip?.ris.responsibilityCenterCode ?? null,
-        risRemarks: slip?.ris.remarks ?? null,
+        risPurpose: ris?.purpose ?? null,
+        risStockNumber: ris?.stockNumber ?? null,
+        risFundCluster: ris?.fundCluster ?? null,
+        risResponsibilityCenterCode: ris?.responsibilityCenterCode ?? null,
+        risRemarks: ris?.remarks ?? null,
         dttPurpose: trip?.purpose ?? null,
         dttRemarks: trip?.remarks ?? null,
         destination: trip?.destination ?? null,
@@ -1026,17 +1093,19 @@ async function save(checked: Checked, userPk: number | null) {
           trip?.tankBalanceBeforeH == null
             ? null
             : fromHundredths(trip.tankBalanceBeforeH),
+        purchasedLiters:
+          trip?.purchasedH == null ? null : fromHundredths(trip.purchasedH),
         oilLubricant: trip?.oilLubricant ?? null,
         driverFk: versionOf(trip?.driverPk),
         driverName: trip?.driverName ?? null,
         wsWithdrawnByFk: versionOf(slip?.withdrawnBy.pk),
         wsWithdrawnByName: slip?.withdrawnBy.name ?? null,
-        wsRequestedByFk: versionOf(people?.wsRequestedBy),
-        wsApprovedByFk: versionOf(people?.wsApprovedBy),
-        risRequestedByFk: versionOf(people?.risRequestedBy),
-        risApprovedByFk: versionOf(people?.risApprovedBy),
-        risIssuedByFk: versionOf(people?.risIssuedBy),
-        risReceivedByFk: versionOf(people?.risReceivedBy),
+        wsRequestedByFk: versionOf(slip?.requestedByPk),
+        wsApprovedByFk: versionOf(slip?.approvedByPk),
+        risRequestedByFk: versionOf(ris?.requestedByPk),
+        risApprovedByFk: versionOf(ris?.approvedByPk),
+        risIssuedByFk: versionOf(ris?.issuedByPk),
+        risReceivedByFk: versionOf(ris?.receivedByPk),
         dttApprovedByFk: versionOf(trip?.approvedByPk),
         createdByFk: userPk,
       })
@@ -1055,8 +1124,9 @@ async function save(checked: Checked, userPk: number | null) {
 }
 
 /**
- * The New withdrawal and Trip only forms both send their fields as JSON in
- * one form field, and both are saved the same way once checked.
+ * The New withdrawal, Trip only, and Reimbursed trip forms all send their
+ * fields as JSON in one form field, and all are saved the same way once
+ * checked.
  */
 async function record(
   request: Request,
@@ -1096,4 +1166,6 @@ export const issuanceActions = {
   createWithdrawal: ({ request, locals }) =>
     record(request, locals, checkWithdrawal),
   createTrip: ({ request, locals }) => record(request, locals, checkTripOnly),
+  createReimbursedTrip: ({ request, locals }) =>
+    record(request, locals, checkReimbursed),
 } satisfies Actions;

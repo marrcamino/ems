@@ -4,14 +4,26 @@
   import { Textarea } from "$lib/components/ui/textarea/index.js";
   import { LEGEND, type WithdrawalForm } from "./new-withdrawal-form.svelte.js";
   import SearchPicker from "./search-picker.svelte";
+  import TransactionFields from "./transaction-fields.svelte";
 
-  /** The second step of the New withdrawal form: the RIS. */
+  /**
+   * The RIS: the second step of the New withdrawal form, and the first of
+   * the Reimbursed trip form, which then starts with the office, the file
+   * date, and the asset.
+   */
   let { form }: { form: WithdrawalForm } = $props();
 
   const errors = $derived(form.errors);
 </script>
 
 <Field.Group class="gap-6">
+  {#if form.kind === "reimbursed"}
+    <Field.Set>
+      <Field.Legend class="sr-only">The office and the asset</Field.Legend>
+      <TransactionFields {form} />
+    </Field.Set>
+  {/if}
+
   <Field.Set>
     <Field.Legend class="sr-only">The RIS</Field.Legend>
     <!-- Rarely filled in, but the RIS has a box for each. -->

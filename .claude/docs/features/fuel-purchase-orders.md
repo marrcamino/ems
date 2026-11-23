@@ -561,6 +561,30 @@ GSU's fuel logbook.
    Complete step. "Issued by the Officer", the total in the tank, and the
    distance are worked out by EMS, never typed. What the "Oil / Fuel
    Lubricant" line holds is still asked of GSU (MPP-139).
+8. **The trip ticket's lines, as printed on the office's sheet** (a filled-in
+   DTT for a motorcycle, shared by the owner on 23 November 2026). The paper
+   gets no new lines; only "Speedometer" reads "Odometer" in EMS ("What the
+   observed forms showed"). From top to bottom:
+   - the date and the number;
+   - "To be filled-up by the Authorized Representative": the driver's name,
+     the vehicle ("RP Vehicle") with its plate number, the passengers, the
+     destination, the purpose, the dates of travel (from and to), and the
+     number of hours;
+   - "Approved", with the approver's name and position;
+   - three times: "Office/Garage - Departure Time", "Arrival Time From (Per
+     No.)", and "Office/Garage-Arrival Time". What the middle one means is
+     not known yet;
+   - "Fuel and Other Issued by the Office", in liters: a. balance in tank,
+     b. issued by the Officer, c. purchased during trip, d. total fuel in
+     tank, e. used during the trip, f. balance in tank after the trip issued;
+   - "Oil / Fuel Lubricant";
+   - the odometer ("Speedometer" on the paper), in km: the reading after the
+     trip, at the beginning of the trip, and the distance travelled;
+   - remarks;
+   - two certifications, each with a signature line: the driver's ("I hereby
+     certify in accordance of the statement of travel"), with the driver's
+     name printed, and a passenger's ("I hereby certify that I used the
+     vehicle in official travel").
 
 ### Which forms apply
 
@@ -599,8 +623,28 @@ lines).
 27 October 2026, when GSU realised that a reimbursed trip has an RIS too).
 When a staff member pays for the fuel of an official trip and is paid back by
 the office afterwards, there is no withdrawal slip, because no fuel is taken
-under a PO, so a reimbursed trip never counts down a PO or an allocation. This matches case 2,
-"Privately owned", in [fuel-assets.md](fuel-assets.md). Its DTT is still
+under a PO, so a reimbursed trip never counts down a PO or an allocation.
+**A reimbursed trip uses one of the office's own vehicles, never a personal
+one** (told by the owner's unit chief, 23 November 2026; the owner thinks a
+COA rule is behind it). So it is recorded against an asset on the Assets page,
+like a withdrawal, and the form offers only assets whose Trip ticket switch is
+on, because it is a trip (decided by the owner, the same day). This replaces
+the link that was made here to case 2, "Privately owned", in
+[fuel-assets.md](fuel-assets.md). **It can be entered before the trip, on
+the day of the trip, or after it** (decided by the owner, 23 November 2026,
+after first saying "before or on the day of the trip"; MPP-140 asks GSU which
+the office does). Entered before the trip, the driver may already know how
+much to buy, as when the PENR Officer says "buy 15 liters later"; a section
+may also choose a reimbursed trip because it is out of fuel and a new PO
+cannot be made yet. **The litres on the "purchased during trip" line are
+required when it is entered,** whenever that is: before the trip they are
+the litres the driver was told to buy, after it the litres bought. GSU
+corrects them at Complete against the paper DTT, and only that final number
+is counted (decided by the owner, 23 November 2026). They are kept in
+`fuel_issuance.purchased_liters`. **Its RIS and DTT are the same papers as a
+withdrawal's, with the same signatories,** the RIS's "Issued by" from GSU
+included; only the withdrawal slip comes and goes between the kinds (told
+by the owner, 23 November 2026). Its DTT is still
 entered in EMS and gets its number from EMS, like every DTT; GSU never writes a
 form number by hand (told by the owner, 26 October 2026). The fuel of a
 reimbursed trip is still fuel consumed, and fuel consumption for the CO2
@@ -845,7 +889,9 @@ also the column name and the label on screen.
    **Built:** the menu holds "Trip only" and "Reimbursed trip". Trip only
    opens its own form (23 November 2026), whose DTT is the same paper as a
    withdrawal's (confirmed by the owner, 23 November 2026); it offers only
-   assets whose Trip ticket switch is on. Details are in `cards/fuel.md`.
+   assets whose Trip ticket switch is on. Reimbursed trip opens the New
+   withdrawal form's RIS and Trip ticket steps, without the slip step
+   (23 November 2026). Details are in `cards/fuel.md`.
 6. **RIS numbers are reserved in EMS before they are written** (the owner's
    plan, told on 21 October 2026). Because the RIS numbering is shared with
    supplies that are not fuel ("What the observed forms showed", point 1), EMS

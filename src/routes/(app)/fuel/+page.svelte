@@ -56,6 +56,7 @@
 
   let newWithdrawalOpen = $state(false);
   let newTripOpen = $state(false);
+  let reimbursedTripOpen = $state(false);
 
   // The sidebar's + beside Fuel links to /fuel?new=withdrawal, which opens
   // the form. The ?new is dropped when the form closes, not when it opens:
@@ -285,7 +286,7 @@
 
     <!--
       A withdrawal is the common case; the two trips without a withdrawal
-      slip wait in the menu. Reimbursed trip opens no form yet.
+      slip wait in the menu.
     -->
     {#if canRecord}
       <!-- Disabled with no reason beside it: the note above says why. -->
@@ -310,7 +311,9 @@
             <DropdownMenu.Item onSelect={() => (newTripOpen = true)}>
               <Route />Trip only
             </DropdownMenu.Item>
-            <DropdownMenu.Item><HandCoins /> Reimbursed trip</DropdownMenu.Item>
+            <DropdownMenu.Item onSelect={() => (reimbursedTripOpen = true)}>
+              <HandCoins />Reimbursed trip
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
       </ButtonGroup.Root>
@@ -608,4 +611,9 @@
     {data}
   />
   <NewTripDialog bind:open={newTripOpen} {data} />
+  <NewWithdrawalDialog
+    kind="reimbursed"
+    bind:open={reimbursedTripOpen}
+    {data}
+  />
 {/if}

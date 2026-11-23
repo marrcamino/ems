@@ -35,6 +35,7 @@
   const form = new WithdrawalForm(
     () => data,
     () => gblCtx.user,
+    "trip",
   );
 
   let submitting = $state(false);
@@ -116,7 +117,7 @@
           viewPortClasses="h-auto px-4 pb-1 scroll-fade-y"
           type="auto"
         >
-          <TripTicketStep {form} tripOnly />
+          <TripTicketStep {form} />
         </ScrollArea>
 
         <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

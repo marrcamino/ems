@@ -52,9 +52,9 @@ export const PERMISSION_DEFS = {
     // once the office rule is built, with the first page that needs it.
     view_all_offices: "See the fuel records of every office",
     record: "Record fuel withdrawals and trips",
-    // Everyone else's withdrawal is filed today; this key lets someone pick
-    // an earlier date, for paper that is entered late.
-    change_file_date: "Change the file date of a new withdrawal",
+    // Everyone else's withdrawal or trip is filed today; this key lets
+    // someone pick an earlier date, for paper that is entered late.
+    change_file_date: "Change the file date of a new withdrawal or trip",
     // The one-time step at go-live: the last number used before EMS on each
     // of the four forms, typed before EMS gives out its first number (point
     // 6.6 of "Recording a fuel issuance"). GSU and the super-admin hold it.

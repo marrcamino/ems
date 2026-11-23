@@ -11,25 +11,21 @@
   import TransactionFields from "./transaction-fields.svelte";
 
   /**
-   * The last step of the New withdrawal form, for an asset with a trip
-   * ticket. On its own it is the whole Trip only form, which then starts
-   * with the office, the file date, and the asset.
+   * The trip ticket, the last step of the New withdrawal and Reimbursed trip
+   * forms. On its own it is the whole Trip only form, which then starts with
+   * the office, the file date, and the asset. A reimbursed trip also asks
+   * for the litres the driver buys.
    */
-  let { form, tripOnly = false }: { form: WithdrawalForm; tripOnly?: boolean } =
-    $props();
+  let { form }: { form: WithdrawalForm } = $props();
 
   const errors = $derived(form.errors);
 </script>
 
 <Field.Group class="gap-6">
-  {#if tripOnly}
+  {#if form.kind === "trip"}
     <Field.Set>
       <Field.Legend class="sr-only">The office and the asset</Field.Legend>
-      <TransactionFields
-        {form}
-        assetItems={form.tripAssetItems}
-        noAsset="No active asset with a trip ticket matches."
-      />
+      <TransactionFields {form} />
     </Field.Set>
   {/if}
 
@@ -187,6 +183,32 @@
       <Field.Error>{errors.odometerStart}</Field.Error>
     </Field.Field>
   </Field.Set>
+
+  {#if form.kind === "reimbursed"}
+    <!--
+      Required whenever the trip is entered: before the trip, the litres the
+      driver is told to buy. GSU corrects them at Complete.
+    -->
+    <Field.Set>
+      <Field.Legend class={LEGEND}>During the trip</Field.Legend>
+      <Field.Field data-invalid={errors.purchasedLiters ? true : undefined}>
+        <Field.Label for="purchasedLiters" required>
+          Purchased during trip
+        </Field.Label>
+        <InputGroup.Root>
+          <NumberInput
+            id="purchasedLiters"
+            grouped
+            bind:value={form.purchasedLiters}
+            wholeDigits={3}
+            required
+          />
+          <InputGroup.Addon align="inline-end">L</InputGroup.Addon>
+        </InputGroup.Root>
+        <Field.Error>{errors.purchasedLiters}</Field.Error>
+      </Field.Field>
+    </Field.Set>
+  {/if}
 
   <Field.Set>
     <Field.Legend class={LEGEND}>Signatories</Field.Legend>

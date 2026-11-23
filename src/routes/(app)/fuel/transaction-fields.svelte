@@ -4,26 +4,18 @@
   import { getGlobalContext } from "$routes/global-context.svelte";
   import { getLocalTimeZone, today } from "@internationalized/date";
   import type { WithdrawalForm } from "./new-withdrawal-form.svelte.js";
-  import SearchPicker, { type PickerItem } from "./search-picker.svelte";
+  import SearchPicker from "./search-picker.svelte";
 
   /**
    * The office, the file date, and the asset, which every transaction
-   * starts with: the New withdrawal form and the Trip only form.
+   * starts with, on the first step of its form. A trip, with or without a
+   * reimbursement, offers only the assets with a trip ticket.
    */
-  let {
-    form,
-    assetItems,
-    noAsset = "No active asset matches.",
-  }: {
-    form: WithdrawalForm;
-    /** The assets to offer; a trip only offers those with a trip ticket. */
-    assetItems: PickerItem[];
-    /** What the asset list says when nothing matches. */
-    noAsset?: string;
-  } = $props();
+  let { form }: { form: WithdrawalForm } = $props();
 
   const gblCtx = getGlobalContext();
   const errors = $derived(form.errors);
+  const isTrip = $derived(form.kind !== "withdrawal");
 </script>
 
 <div class="flex gap-2">
@@ -67,11 +59,13 @@
   <SearchPicker
     id="assetPk"
     aria-labelledby="assetPk-label"
-    items={assetItems}
+    items={isTrip ? form.tripAssetItems : form.assetItems}
     bind:value={form.assetPk}
     placeholder="Choose the asset"
     searchPlaceholder="Search name, plate, or type..."
-    empty={noAsset}
+    empty={isTrip
+      ? "No active asset with a trip ticket matches."
+      : "No active asset matches."}
     required
   />
   <Field.Error>{errors.assetPk}</Field.Error>

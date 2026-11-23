@@ -94,6 +94,10 @@ export const fuelIssuance = mysqlTable(
       precision: 8,
       scale: 2,
     }),
+    // The DTT's "c. Purchased during trip": fuel the driver paid for on the
+    // road. Required on a reimbursed trip, where it is what the office pays
+    // back and what the CO2 figures count; GSU corrects it at Complete.
+    purchasedLiters: decimal("purchased_liters", { precision: 8, scale: 2 }),
     // What goes here is still asked of GSU (MPP-139).
     oilLubricant: varchar("oil_lubricant", { length: 100 }),
     odometerStart: int("odometer_start", { unsigned: true }),
