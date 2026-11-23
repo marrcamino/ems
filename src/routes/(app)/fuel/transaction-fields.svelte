@@ -40,14 +40,17 @@
   </Field.Field>
 
   <Field.Field class="w-min" data-invalid={errors.fileDate ? true : undefined}>
-    <!-- DateInput is labelled by id: a label's `for` cannot reach it. -->
+    <!--
+      DateInput is labelled by id: a label's `for` cannot reach it. An edit
+      keeps the file date, since the numbers carry its year and month.
+    -->
     <Field.Label id="fileDate-label" required>File date</Field.Label>
     <DateInput
       id="fileDate"
       aria-labelledby="fileDate-label"
       bind:value={form.fileDate}
       maxValue={today(getLocalTimeZone())}
-      disabled={!gblCtx.can("fuel:change_file_date")}
+      disabled={!!form.editing || !gblCtx.can("fuel:change_file_date")}
       required
     />
     <Field.Error>{errors.fileDate}</Field.Error>

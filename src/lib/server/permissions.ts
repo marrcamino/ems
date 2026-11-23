@@ -52,6 +52,16 @@ export const PERMISSION_DEFS = {
     // once the office rule is built, with the first page that needs it.
     view_all_offices: "See the fuel records of every office",
     record: "Record fuel withdrawals and trips",
+    // Marks a slip approved once GSU has signed the paper (MPP-81), which
+    // moves it from Waiting for approval to Out.
+    approve: "Mark withdrawal slips approved",
+    // Types the supplier's numbers and the trip ticket's lines after the
+    // trip, and presses Complete. Only GSU completes (point 9.1 of "Recording
+    // a fuel issuance"). Holders also edit and cancel any office's
+    // transaction at any step; `fuel:record` alone edits and cancels only
+    // before GSU has acted on it.
+    complete:
+      "Complete withdrawals and trips, and edit or cancel them at any step",
     // Everyone else's withdrawal or trip is filed today; this key lets
     // someone pick an earlier date, for paper that is entered late.
     change_file_date: "Change the file date of a new withdrawal or trip",

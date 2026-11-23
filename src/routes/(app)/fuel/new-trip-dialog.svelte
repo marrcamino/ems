@@ -13,6 +13,7 @@
     WithdrawalForm,
     type WithdrawalData,
   } from "./new-withdrawal-form.svelte.js";
+  import type { TransactionDetails } from "./issuance.server";
   import TripTicketStep from "./trip-ticket-step.svelte";
 
   /**
@@ -22,13 +23,18 @@
    * step on its own, the same paper, with the office, the file date, and
    * the asset at the top. Saving gives the control and DTT numbers, and the
    * trip starts as Out, since there is no slip for GSU to sign.
+   *
+   * With `edit`, it opens filled in from a saved trip and saves the changes;
+   * the file date and the numbers stay as they are.
    */
   let {
     open = $bindable(false),
     data,
+    edit = null,
   }: {
     open: boolean;
     data: WithdrawalData;
+    edit?: TransactionDetails | null;
   } = $props();
 
   const gblCtx = getGlobalContext();
@@ -43,7 +49,9 @@
   // Seeded when it opens, so the file date is today's, and again once it has
   // finished closing, so the next open never shows the last trip for a moment.
   $effect(() => {
-    if (open) form.seed();
+    if (!open) return;
+    form.seed();
+    if (edit) form.load(edit);
   });
 </script>
 
@@ -66,14 +74,16 @@
   >
     <DialogViews.View
       name="trip"
-      title="Trip only"
-      description="For a trip with enough fuel already in the tank, so only a trip ticket is needed."
+      title={edit ? "Edit trip" : "Trip only"}
+      description={edit
+        ? "The control number, the DTT number, and the file date stay the same."
+        : "For a trip with enough fuel already in the tank, so only a trip ticket is needed."}
       class="w-[calc(100vw-2rem)] max-h-[calc(100dvh-2rem)] md:w-lg md:max-h-[min(44rem,calc(100dvh-2rem))]"
     >
       <form
         class="flex min-h-0 flex-col gap-4"
         method="POST"
-        action="?/createTrip"
+        action={edit ? "?/updateTransaction" : "?/createTrip"}
         autocomplete="off"
         use:enhance={() => {
           form.errors = {};
@@ -83,8 +93,10 @@
             if (result.type === "success") {
               await update();
               open = false;
-              toast.success("Trip saved", {
-                description: `Its control number is ${result.data?.controlNumber}.`,
+              toast.success(edit ? "Changes saved" : "Trip saved", {
+                description: edit
+                  ? `Control number ${result.data?.controlNumber}.`
+                  : `Its control number is ${result.data?.controlNumber}.`,
               });
               return;
             }
@@ -100,12 +112,12 @@
                   ?.scrollIntoView({ block: "center" });
                 return;
               }
-              toast.error("Trip not saved", {
+              toast.error(edit ? "Changes not saved" : "Trip not saved", {
                 description: refusal?.error ?? "Try again.",
               });
               return;
             }
-            toast.error("Trip not saved", {
+            toast.error(edit ? "Changes not saved" : "Trip not saved", {
               description: "Try again. If it keeps happening, contact ICT.",
             });
           };
@@ -133,7 +145,7 @@
             {#if submitting}
               <Spinner />
             {/if}
-            Save trip
+            {edit ? "Save changes" : "Save trip"}
           </Button>
         </div>
       </form>

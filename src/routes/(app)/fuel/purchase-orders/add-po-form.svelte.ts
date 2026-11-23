@@ -256,10 +256,11 @@ export class AddPurchaseOrderForm {
         found[fuel] =
           `Enter the liters of each ${label} allocation, with up to 2 decimals.`;
       } else if (left > 0) {
-        found[fuel] = `Allocate the last ${formatLiters(left)} of ${label}.`;
+        found[fuel] =
+          `Allocate the last ${formatLiters(left, { dropZeros: true })} of ${label}.`;
       } else if (left < 0) {
         found[fuel] =
-          `Take ${formatLiters(-left)} of ${label} off the allocations.`;
+          `Take ${formatLiters(-left, { dropZeros: true })} of ${label} off the allocations.`;
       }
     }
     return found;

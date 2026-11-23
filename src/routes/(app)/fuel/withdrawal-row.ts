@@ -54,6 +54,8 @@ export type WithdrawalRow = {
   balanceH: number | null;
   poNumber: string | null;
   poType: PoType | null;
+  /** Its PO is closed, which locks the withdrawal (MPP-61). */
+  poClosed: boolean;
   fuel: Fuel;
   asset: string;
   tripTicketNumber: string | null;
@@ -88,7 +90,7 @@ export type PoBalance = {
 export function oldestPoFirstMessage(oldest: PoBalance, officeAbbr: string) {
   const left =
     oldest.poType === "liter"
-      ? formatLiters(oldest.balanceH)
+      ? formatLiters(oldest.balanceH, { dropZeros: true })
       : formatPesos(oldest.balanceC);
   const fuelName = FUEL_LABELS[oldest.fuel].toLowerCase();
   return `Use PO ${oldest.poNumber} first. ${officeAbbr} still has ${left} of ${fuelName} on it.`;
@@ -101,8 +103,8 @@ export function oldestPoFirstMessage(oldest: PoBalance, officeAbbr: string) {
  */
 export const leftOn = (b: PoBalance) =>
   b.poType === "price"
-    ? `${formatPesos(b.balanceC)} (≈ ${formatLiters(b.balanceH)})`
-    : formatLiters(b.balanceH);
+    ? `${formatPesos(b.balanceC)} (≈ ${formatLiters(b.balanceH, { dropZeros: true })})`
+    : formatLiters(b.balanceH, { dropZeros: true });
 
 /**
  * Why a request above the balance is refused, or null when it fits (point 3
@@ -121,6 +123,6 @@ export function overBalanceMessage(
   }
   if ((request.requestedH ?? 0) <= b.balanceH) return null;
   return b.poType === "price"
-    ? `Enter ${formatLiters(b.balanceH)} or less, about what is left on PO ${b.poNumber} at the last known price. To ask for more, request it in pesos.`
-    : `Enter ${formatLiters(b.balanceH)} or less. That is what is left on PO ${b.poNumber}.`;
+    ? `Enter ${formatLiters(b.balanceH, { dropZeros: true })} or less, about what is left on PO ${b.poNumber} at the last known price. To ask for more, request it in pesos.`
+    : `Enter ${formatLiters(b.balanceH, { dropZeros: true })} or less. That is what is left on PO ${b.poNumber}.`;
 }

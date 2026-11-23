@@ -8,40 +8,43 @@
   import { formatDate } from "$lib/utils/format-date.js";
   import { amountInCentavos, FUEL_LABELS, litersForPesos } from "./po-math.js";
   import type { PurchaseOrderRow } from "./po-types.js";
-  import { SAMPLE_SLIPS_OUT } from "./sample-purchase-orders.js";
 
   /**
    * One open PO: its number and supplier, a box per fuel with what is left,
    * a note at the bottom, and its allocations behind "Show all allocations".
    *
-   * The PO, its fuels and its allocations come from the database. Withdrawal
-   * slips do not exist yet, so nothing is used: "used" is ₱0, and the slips
-   * not back are the made-up ones from the design (SAMPLE_SLIPS_OUT). Edit
-   * opens the PO's dialog, to change or delete it; Close PO does nothing yet.
+   * "Used" is what the withdrawals charged to it have taken, counted the same
+   * way as the New withdrawal form's balance: a slip that is not back counts
+   * at what was requested. The footer names the slips not back yet. Edit
+   * opens the PO's dialog, to change or delete it; Close PO opens the close
+   * check. A closed PO shows the same card with Reopen instead.
    */
   let {
     po,
     useFirst,
     canManage,
     onEdit,
+    onClose,
+    onReopen,
   }: {
     po: PurchaseOrderRow;
     /** The oldest open PO, while there is more than one: slips go here first. */
     useFirst: boolean;
     canManage: boolean;
     onEdit: () => void;
+    onClose: () => void;
+    onReopen: () => void;
   } = $props();
 
-  let showAllocations = $state(false);
+  let reopening = $state(false);
 
-  /** Nothing is used until withdrawal slips exist. */
-  const USED_C = 0;
+  let showAllocations = $state(false);
 
   /** One box per fuel on the PO, with its allocations' pesos worked out. */
   const fuels = $derived(
     po.items.map((item) => {
       const totalC = amountInCentavos(item.litersH, item.unitCostC);
-      const usedC = USED_C;
+      const usedC = item.allocations.reduce((s, a) => s + a.usedC, 0);
       const leftC = totalC - usedC;
       return {
         fuel: item.fuelType,
@@ -51,11 +54,10 @@
         aboutH: litersForPesos(leftC, item.unitCostC),
         allocations: item.allocations.map((a) => {
           const allocationC = amountInCentavos(a.litersH, item.unitCostC);
-          const left = allocationC - USED_C;
+          const left = allocationC - a.usedC;
           return {
             ...a,
             allocationC,
-            usedC: USED_C,
             leftC: left,
             aboutH: litersForPesos(left, item.unitCostC),
           };
@@ -63,6 +65,9 @@
       };
     }),
   );
+
+  /** The footer names this many slips, then says how many more there are. */
+  const SLIPS_NAMED = 3;
 
   const amountC = $derived(fuels.reduce((s, f) => s + f.totalC, 0));
   const remainingC = $derived(fuels.reduce((s, f) => s + f.leftC, 0));
@@ -85,7 +90,11 @@
         <h2 class="text-lg font-semibold whitespace-nowrap">
           PO {po.poNumber}
         </h2>
-        <Badge class="bg-primary/10 text-primary">Open</Badge>
+        {#if po.closedAt}
+          <Badge variant="secondary">Closed</Badge>
+        {:else}
+          <Badge class="bg-primary/10 text-primary">Open</Badge>
+        {/if}
         {#if useFirst}
           <Badge
             class="bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
@@ -102,13 +111,32 @@
     <div class="ml-auto grid justify-items-end gap-1">
       {#if canManage}
         <div class="flex gap-1.5">
-          <Button variant="ghost" size="sm" onclick={onEdit}>Edit</Button>
-          <Button variant="outline" size="sm">Close PO</Button>
+          {#if po.closedAt}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={reopening}
+              onclick={async () => {
+                reopening = true;
+                await onReopen();
+                reopening = false;
+              }}>Reopen</Button
+            >
+          {:else}
+            <Button variant="ghost" size="sm" onclick={onEdit}>Edit</Button>
+            <Button variant="outline" size="sm" onclick={onClose}
+              >Close PO</Button
+            >
+          {/if}
         </div>
       {/if}
-      <span class="text-muted-foreground text-xs tabular-nums"
-        >{formatPesos(remainingC)} not used yet</span
-      >
+      <span class="text-muted-foreground text-xs tabular-nums">
+        {#if po.closedAt}
+          Closed on {formatDate(po.closedAt.slice(0, 10))}
+        {:else}
+          {formatPesos(remainingC)} not used yet
+        {/if}
+      </span>
     </div>
   </div>
 
@@ -127,8 +155,8 @@
           </span>
           <span class="text-muted-foreground text-sm">
             remaining amount{#if f.leftC === 0}
-              · used up{:else if po.poType === "price"}
-              &nbsp;· about {formatLiters(f.aboutH)}{/if}
+              &nbsp;· used up{:else if po.poType === "price"}
+              &nbsp;· about {formatLiters(f.aboutH, { dropZeros: true })}{/if}
           </span>
         </div>
         <div
@@ -205,19 +233,23 @@
   <div
     class="bg-muted/40 flex flex-wrap items-center gap-2 rounded-b-xl border-t px-4 py-2.5 text-sm"
   >
-    <span class="size-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true"
-    ></span>
-    <!-- Made up until withdrawal slips exist. -->
-    <span>
-      {SAMPLE_SLIPS_OUT.length === 1
-        ? "1 slip"
-        : `${SAMPLE_SLIPS_OUT.length} slips`}
-      not back yet:
-      {#each SAMPLE_SLIPS_OUT as s, i (i)}
-        {i > 0 ? "; " : ""}{s.unit}, {FUEL_LABELS[s.fuel].toLowerCase()},
-        {formatLiters(s.litersH)} requested on {formatShortDate(s.requestedOn)}
-      {/each}
-    </span>
+    {#if po.slipsOut.length > 0}
+      {@const more = po.slipsOut.length - SLIPS_NAMED}
+      <span class="size-2 shrink-0 rounded-full bg-amber-500" aria-hidden="true"
+      ></span>
+      <span>
+        {po.slipsOut.length === 1 ? "1 slip" : `${po.slipsOut.length} slips`}
+        not back yet:
+        {#each po.slipsOut.slice(0, SLIPS_NAMED) as s, i (i)}
+          {i > 0 ? "; " : ""}{s.office}, {FUEL_LABELS[s.fuel].toLowerCase()},
+          {s.requestedC !== null
+            ? formatPesos(s.requestedC)
+            : formatLiters(s.requestedH ?? 0, { dropZeros: true })} requested on {formatShortDate(
+            s.fileDate,
+          )}
+        {/each}{#if more > 0}; and {more} more{/if}
+      </span>
+    {/if}
     <Button
       variant="link"
       size="sm"

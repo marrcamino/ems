@@ -126,7 +126,9 @@
     <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
       <h3 class="font-medium">{FUEL_LABELS[fuel]}</h3>
       <span class="text-muted-foreground text-xs tabular-nums">
-        {formatLiters(targetH)} × {formatPesos(form.unitCostC(fuel))}/L =
+        {formatLiters(targetH, { dropZeros: true })} × {formatPesos(
+          form.unitCostC(fuel),
+        )}/L =
         {formatPesos(form.amountC(fuel))}
       </span>
     </div>
@@ -154,21 +156,26 @@
       >
         {#if left === 0}
           <CircleCheck class="size-3.5 shrink-0" />
-          <span class="font-medium">All {formatLiters(targetH)} allocated</span>
+          <span class="font-medium"
+            >All {formatLiters(targetH, { dropZeros: true })} allocated</span
+          >
         {:else}
           {#if alert}
             <CircleAlert class="size-3.5 shrink-0" />
           {/if}
           <span class="font-medium">
             {left > 0
-              ? `${formatLiters(left)} left to allocate`
-              : `${formatLiters(-left)} over the PO`}
+              ? `${formatLiters(left, { dropZeros: true })} left to allocate`
+              : `${formatLiters(-left, { dropZeros: true })} over the PO`}
           </span>
           <span class={alert ? undefined : "text-muted-foreground"}>
             &bull;
           </span>
           <span class={alert ? undefined : "text-muted-foreground"}>
-            {formatLiters(allocatedH)} of {formatLiters(targetH)}
+            {formatLiters(allocatedH, { dropZeros: true })} of {formatLiters(
+              targetH,
+              { dropZeros: true },
+            )}
           </span>
         {/if}
       </p>

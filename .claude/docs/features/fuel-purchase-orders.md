@@ -229,8 +229,8 @@ The shared pieces they use went to `main` first (see
    (9 November 2026, MPP-80; how it works is in `cards/fuel.md`): the
    `fuel_issuance` table, the `form_counter` table for the control, WS, RIS,
    and DTT numbers, and the key `fuel:record`. A trip only, a reimbursed
-   trip, approving, completing, cancelling, editing, and printing are not
-   built. What is decided so far, and what is still open, is in "Recording a
+   trip, approving, completing, cancelling, and editing were built on
+   23 November 2026 (`cards/fuel.md`); printing is not built. What is decided so far, and what is still open, is in "Recording a
    fuel issuance" below.
 3. **Marking a slip as approved,** and the permission key that controls it.
 4. **The reports,** mainly the GHG Focal Person's report to the DENR regional

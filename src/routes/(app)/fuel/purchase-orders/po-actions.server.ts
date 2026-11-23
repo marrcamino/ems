@@ -20,7 +20,9 @@ import {
   type Fuel,
   type PoType,
 } from "./po-math";
+import { closeCheck } from "./po-close";
 import type { PurchaseOrderRow, UnitOption } from "./po-types";
+import { keyOf, selectPoUsage } from "../issuance.server";
 
 /**
  * The divisions, sections, units and offices that an allocation can go to: the
@@ -57,12 +59,14 @@ export async function selectPurchaseOrders(): Promise<PurchaseOrderRow[]> {
       supplierFk: purchaseOrder.supplierFk,
       supplierName: supplier.supplierName,
       note: purchaseOrder.note,
+      closedAt: purchaseOrder.closedAt,
     })
     .from(purchaseOrder)
     .innerJoin(supplier, eq(purchaseOrder.supplierFk, supplier.supplierPk))
     .orderBy(desc(purchaseOrder.poDate), desc(purchaseOrder.purchaseOrderPk));
 
   if (orders.length === 0) return [];
+  const usage = await selectPoUsage();
 
   const items = await db
     .select({
@@ -106,8 +110,9 @@ export async function selectPurchaseOrders(): Promise<PurchaseOrderRow[]> {
           )
           .orderBy(asc(purchaseOrderAllocation.purchaseOrderAllocationPk));
 
-  return orders.map((order) => ({
+  return orders.map(({ closedAt, ...order }) => ({
     ...order,
+    closedAt: closedAt?.toISOString() ?? null,
     items: items
       .filter((item) => item.purchaseOrderFk === order.purchaseOrderPk)
       .map(({ purchaseOrderItemPk, fuelType, liters, unitCost }) => ({
@@ -116,11 +121,21 @@ export async function selectPurchaseOrders(): Promise<PurchaseOrderRow[]> {
         unitCostC: toHundredths(unitCost) ?? 0,
         allocations: allocations
           .filter((a) => a.purchaseOrderItemFk === purchaseOrderItemPk)
-          .map(({ liters, ...unit }) => ({
+          .map(({ liters, purchaseOrderItemFk: _, ...unit }) => ({
             ...unit,
             litersH: toHundredths(liters) ?? 0,
+            usedC:
+              usage.used.get(
+                keyOf(order.purchaseOrderPk, unit.orgUnitPk, fuelType),
+              ) ?? 0,
           })),
       })),
+    slipsOut: usage.slipsOut
+      .filter((slip) => slip.purchaseOrderPk === order.purchaseOrderPk)
+      .map(({ purchaseOrderPk: _, incomplete: __, ...slip }) => slip),
+    slipsIncomplete: usage.slipsIncomplete
+      .filter((slip) => slip.purchaseOrderPk === order.purchaseOrderPk)
+      .map(({ purchaseOrderPk: _, incomplete: __, ...slip }) => slip),
   }));
 }
 
@@ -184,7 +199,10 @@ async function check(
   const poNumber = String(payload.poNumber ?? "").trim();
   if (!poNumber) return { field: "poNumber", error: "Enter the PO number." };
   if (poNumber.length > 50) {
-    return { field: "poNumber", error: "Shorten the PO number to 50 characters." };
+    return {
+      field: "poNumber",
+      error: "Shorten the PO number to 50 characters.",
+    };
   }
 
   const poDate = String(payload.poDate ?? "");
@@ -199,13 +217,19 @@ async function check(
 
   const poType = payload.poType as PoType;
   if (poType !== "liter" && poType !== "price") {
-    return { field: "poType", error: "Choose whether the PO is liter-based or price-based." };
+    return {
+      field: "poType",
+      error: "Choose whether the PO is liter-based or price-based.",
+    };
   }
 
   const supplierFk = Number(payload.supplierFk);
   const [chosen] = supplierFk
     ? await db
-        .select({ status: supplier.status, supplierName: supplier.supplierName })
+        .select({
+          status: supplier.status,
+          supplierName: supplier.supplierName,
+        })
         .from(supplier)
         .where(eq(supplier.supplierPk, supplierFk))
     : [];
@@ -231,25 +255,40 @@ async function check(
   const unitPks = new Set<number>();
   for (const raw of rawItems) {
     const fuelType = raw.fuelType as Fuel;
-    if (!FUELS.includes(fuelType) || items.some((i) => i.fuelType === fuelType)) {
+    if (
+      !FUELS.includes(fuelType) ||
+      items.some((i) => i.fuelType === fuelType)
+    ) {
       return { error: "Each fuel can appear on the PO only once." };
     }
     const label = FUEL_LABELS[fuelType];
     const litersH = toHundredths(raw.liters as string);
     const unitCostC = toHundredths(raw.unitCost as string);
     if (!litersH) {
-      return { field: fuelType, error: `Enter the ${label.toLowerCase()} liters.` };
+      return {
+        field: fuelType,
+        error: `Enter the ${label.toLowerCase()} liters.`,
+      };
     }
     if (!unitCostC) {
-      return { field: fuelType, error: `Enter the ${label.toLowerCase()} unit cost.` };
+      return {
+        field: fuelType,
+        error: `Enter the ${label.toLowerCase()} unit cost.`,
+      };
     }
     // The dialog stops the typing at 999.99; this catches a request that
     // did not come through it.
     if (litersH > MAX_HUNDREDTHS) {
-      return { field: fuelType, error: `Enter at most 999.99 liters of ${label.toLowerCase()}.` };
+      return {
+        field: fuelType,
+        error: `Enter at most 999.99 liters of ${label.toLowerCase()}.`,
+      };
     }
     if (unitCostC > MAX_HUNDREDTHS) {
-      return { field: fuelType, error: `Enter a ${label.toLowerCase()} unit cost of at most ₱999.99.` };
+      return {
+        field: fuelType,
+        error: `Enter a ${label.toLowerCase()} unit cost of at most ₱999.99.`,
+      };
     }
 
     const allocations: { orgUnitFk: number; litersH: number }[] = [];
@@ -257,26 +296,38 @@ async function check(
       const orgUnitFk = Number(allocation.orgUnitFk);
       const allocationH = toHundredths(allocation.liters as string);
       if (!orgUnitFk) {
-        return { field: fuelType, error: `Choose a unit for each ${label.toLowerCase()} allocation.` };
+        return {
+          field: fuelType,
+          error: `Choose a unit for each ${label.toLowerCase()} allocation.`,
+        };
       }
       if (!allocationH) {
-        return { field: fuelType, error: `Enter the liters of each ${label.toLowerCase()} allocation.` };
+        return {
+          field: fuelType,
+          error: `Enter the liters of each ${label.toLowerCase()} allocation.`,
+        };
       }
       if (allocations.some((a) => a.orgUnitFk === orgUnitFk)) {
-        return { field: fuelType, error: `Each unit can have only one ${label.toLowerCase()} allocation.` };
+        return {
+          field: fuelType,
+          error: `Each unit can have only one ${label.toLowerCase()} allocation.`,
+        };
       }
       allocations.push({ orgUnitFk, litersH: allocationH });
       if (!kept.unitPks.has(orgUnitFk)) unitPks.add(orgUnitFk);
     }
 
     if (allocations.length === 0) {
-      return { field: fuelType, error: `Allocate the ${label.toLowerCase()} to at least one unit.` };
+      return {
+        field: fuelType,
+        error: `Allocate the ${label.toLowerCase()} to at least one unit.`,
+      };
     }
     const allocatedH = allocations.reduce((sum, a) => sum + a.litersH, 0);
     if (allocatedH !== litersH) {
       return {
         field: fuelType,
-        error: `The ${label.toLowerCase()} allocations add up to ${formatLiters(allocatedH)}, but the PO has ${formatLiters(litersH)}.`,
+        error: `The ${label.toLowerCase()} allocations add up to ${formatLiters(allocatedH, { dropZeros: true })}, but the PO has ${formatLiters(litersH, { dropZeros: true })}.`,
       };
     }
 
@@ -296,7 +347,9 @@ async function check(
             ),
           );
   if (activeUnits.length !== unitPks.size) {
-    return { error: "A unit was deactivated a moment ago. Choose the units again." };
+    return {
+      error: "A unit was deactivated a moment ago. Choose the units again.",
+    };
   }
 
   return { poNumber, poDate, poType, supplierFk, note: note || null, items };
@@ -426,6 +479,9 @@ export const purchaseOrderActions = {
         )
       : undefined;
     if (!existing) return fail(404, { error: "That PO no longer exists." });
+    if (existing.closedAt) {
+      return fail(409, { error: "This PO is closed. Reopen it first." });
+    }
 
     const checked = await check(payload, {
       supplierFk: existing.supplierFk,
@@ -502,6 +558,14 @@ export const purchaseOrderActions = {
       return fail(400, { error: "The form could not be read. Try again." });
     }
 
+    const [po] = await db
+      .select({ closedAt: purchaseOrder.closedAt })
+      .from(purchaseOrder)
+      .where(eq(purchaseOrder.purchaseOrderPk, purchaseOrderPk));
+    if (po?.closedAt) {
+      return fail(409, { error: "This PO is closed. Reopen it first." });
+    }
+
     // A withdrawal charged to the PO makes the database refuse (1451), since
     // the PO is then part of the audit trail.
     let deleted;
@@ -523,5 +587,55 @@ export const purchaseOrderActions = {
     }
 
     return { success: true, deletedPk: purchaseOrderPk };
+  },
+
+  /**
+   * Closes a PO by hand once the supplier is paid (MPP-61). Refused while
+   * the check finds a problem: a slip not back yet, or money left.
+   */
+  closePurchaseOrder: async ({ request, locals }) => {
+    if (!can(locals.permissions, "purchase_orders:manage")) {
+      return fail(403, { error: "You do not have permission to do this." });
+    }
+    const purchaseOrderPk = Number(
+      (await request.formData()).get("purchaseOrderPk"),
+    );
+    const po = (await selectPurchaseOrders()).find(
+      (row) => row.purchaseOrderPk === purchaseOrderPk,
+    );
+    if (!po) return fail(404, { error: "That PO no longer exists." });
+    if (po.closedAt) return { success: true, closedAt: po.closedAt };
+
+    const { problems } = closeCheck(po);
+    if (problems.length > 0) {
+      return fail(409, {
+        error:
+          "Something changed since the check opened. Close it and press Close PO again.",
+      });
+    }
+    const closedAt = new Date();
+    await db
+      .update(purchaseOrder)
+      .set({ closedAt, updatedAt: closedAt })
+      .where(eq(purchaseOrder.purchaseOrderPk, purchaseOrderPk));
+    return { success: true, closedAt: closedAt.toISOString() };
+  },
+
+  /** Reopens a PO closed by mistake, which unlocks its withdrawals. */
+  reopenPurchaseOrder: async ({ request, locals }) => {
+    if (!can(locals.permissions, "purchase_orders:manage")) {
+      return fail(403, { error: "You do not have permission to do this." });
+    }
+    const purchaseOrderPk = Number(
+      (await request.formData()).get("purchaseOrderPk"),
+    );
+    if (!purchaseOrderPk) {
+      return fail(400, { error: "The form could not be read. Try again." });
+    }
+    await db
+      .update(purchaseOrder)
+      .set({ closedAt: null, updatedAt: new Date() })
+      .where(eq(purchaseOrder.purchaseOrderPk, purchaseOrderPk));
+    return { success: true };
   },
 } satisfies Actions;

@@ -101,6 +101,17 @@ export const fuelIssuance = mysqlTable(
     // What goes here is still asked of GSU (MPP-139).
     oilLubricant: varchar("oil_lubricant", { length: 100 }),
     odometerStart: int("odometer_start", { unsigned: true }),
+    // The trip ticket's lines after the trip, typed at Complete.
+    arrivalTime: time("arrival_time"),
+    litersUsed: decimal("liters_used", { precision: 8, scale: 2 }),
+    tankBalanceAfter: decimal("tank_balance_after", { precision: 8, scale: 2 }),
+    odometerEnd: int("odometer_end", { unsigned: true }),
+    // The supplier's numbers, set at Complete; empty until the slip is back.
+    // All three are kept, though one is worked out from the other two
+    // (point 3 of "How POs and withdrawal slips work").
+    withdrawnLiters: decimal("withdrawn_liters", { precision: 12, scale: 2 }),
+    unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
+    amount: decimal("amount", { precision: 12, scale: 2 }),
     // The people on the forms. Semantic FK names: each points at
     // `employee_history.employee_history_pk`, the version of the person's name
     // and title valid on the file date, so a later name change does not

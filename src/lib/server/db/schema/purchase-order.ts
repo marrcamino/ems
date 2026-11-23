@@ -41,6 +41,9 @@ export const purchaseOrder = mysqlTable("purchase_order", {
   // Where the shares came from, such as a memo number or "as agreed on
   // 7 Oct". The system needs only the numbers, not the paper behind them.
   note: varchar("note", { length: 255 }),
+  // When GSU closed it by hand, once the supplier was paid; empty while it is
+  // open (MPP-61). Reopen empties it again.
+  closedAt: datetime("closed_at"),
   // Semantic FK name: points at `user.user_pk`, the GSU user who typed the
   // PO in. No constraint, the same as `user.created_by_fk`.
   createdByFk: bigint("created_by_fk", { mode: "number", unsigned: true }),

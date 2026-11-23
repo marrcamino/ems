@@ -21,7 +21,6 @@ export function selectSuppliers(status: SupplierStatus) {
     .orderBy(asc(supplier.supplierName));
 }
 
-
 function readForm(form: FormData) {
   const philgeps = String(form.get("philgepsNumber") ?? "").trim();
   return {
@@ -86,7 +85,10 @@ async function tinClash(tin: string, exceptPk?: number) {
 }
 
 function namedOnPos(supplierName: string, total: number) {
-  const pos = total === 1 ? "1 purchase order names it" : `${total} purchase orders name it`;
+  const pos =
+    total === 1
+      ? "1 purchase order names it"
+      : `${total} purchase orders name it`;
   return `${supplierName} can't be deleted because ${pos}. Archive it instead.`;
 }
 
@@ -229,7 +231,8 @@ export const supplierActions = {
       .select({ total: count() })
       .from(purchaseOrder)
       .where(eq(purchaseOrder.supplierFk, supplierPk));
-    if (total > 0) return fail(409, { error: namedOnPos(row.supplierName, total) });
+    if (total > 0)
+      return fail(409, { error: namedOnPos(row.supplierName, total) });
 
     try {
       await db.delete(supplier).where(eq(supplier.supplierPk, supplierPk));

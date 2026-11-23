@@ -9,7 +9,9 @@
   import * as ButtonGroup from "$lib/components/ui/button-group/index.js";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import {
+    Ban,
     ChevronDown,
+    ClipboardCheck,
     Copy,
     EllipsisVertical,
     HandCoins,
@@ -18,7 +20,16 @@
     Printer,
     RotateCcwClock,
     Route,
+    Stamp,
   } from "@lucide/svelte/icons";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
+  import { Spinner } from "$lib/components/ui/spinner/index.js";
+  import { deserialize } from "$app/forms";
+  import { invalidateAll } from "$app/navigation";
+  import { toast } from "svelte-sonner";
+  import { transactionActions } from "./transaction-actions.js";
+  import type { TransactionDetails } from "./issuance.server";
+  import CompleteDialog from "./complete-dialog.svelte";
   import { createTable, FlexRender } from "@tanstack/svelte-table";
   import { formatLiters, formatPesos } from "$lib/utils/format-number.js";
   import { formatDate } from "$lib/utils/format-date.js";
@@ -45,7 +56,7 @@
   import NewWithdrawalDialog from "./new-withdrawal-dialog.svelte";
   import NewTripDialog from "./new-trip-dialog.svelte";
   import { page } from "$app/state";
-  import { replaceState } from "$app/navigation";
+  import { goto } from "$app/navigation";
   import { getGlobalContext } from "$routes/global-context.svelte";
   import * as Empty from "$lib/components/ui/empty/index.js";
 
@@ -53,21 +64,170 @@
 
   const gblCtx = getGlobalContext();
   const canRecord = $derived(gblCtx.can("fuel:record"));
+  // GSU edits any office's transactions at any step.
+  const canEdit = $derived(canRecord || gblCtx.can("fuel:complete"));
 
   let newWithdrawalOpen = $state(false);
   let newTripOpen = $state(false);
   let reimbursedTripOpen = $state(false);
 
+  /** The saved transaction the forms are editing; null for a new one. */
+  let editing = $state<TransactionDetails | null>(null);
+  let completing = $state<TransactionDetails | null>(null);
+  let completeOpen = $state(false);
+  let cancelling = $state<WithdrawalRow | null>(null);
+  let cancelOpen = $state(false);
+  let cancelSubmitting = $state(false);
+  /** Why an action cannot be used on a row, shown in a dialog. */
+  let unavailable = $state<{ title: string; reason: string } | null>(null);
+  let unavailableOpen = $state(false);
+  /** The row whose details are being fetched, to show a spinner on it. */
+  let loadingId = $state<number | null>(null);
+
+  function openNew(open: (value: boolean) => void) {
+    editing = null;
+    open(true);
+  }
+
+  /** A saved transaction, for the Edit and Complete forms. */
+  async function fetchDetails(id: number) {
+    loadingId = id;
+    try {
+      const response = await fetch(`/fuel/transactions/${id}`);
+      if (!response.ok) throw new Error(String(response.status));
+      return (await response.json()) as TransactionDetails;
+    } catch {
+      toast.error("The record could not be opened", {
+        description: "Reload the page, then try again.",
+      });
+      return null;
+    } finally {
+      loadingId = null;
+    }
+  }
+
+  async function startEdit(row: WithdrawalRow) {
+    const edit = transactionActions(row, gblCtx.can).edit;
+    if (edit.show && edit.reason) {
+      unavailable = { title: "This cannot be edited now", reason: edit.reason };
+      unavailableOpen = true;
+      return;
+    }
+    const details = await fetchDetails(row.id);
+    if (!details) return;
+    editing = details;
+    if (details.kind === "withdrawal") newWithdrawalOpen = true;
+    else if (details.kind === "trip") newTripOpen = true;
+    else reimbursedTripOpen = true;
+  }
+
+  async function startComplete(row: WithdrawalRow) {
+    const details = await fetchDetails(row.id);
+    if (!details) return;
+    completing = details;
+    completeOpen = true;
+  }
+
+  /** Sends Approve or Cancel for one row, then reloads the list. */
+  async function setStatus(
+    row: WithdrawalRow,
+    action: "approveTransaction" | "cancelTransaction",
+  ) {
+    const body = new FormData();
+    body.set("id", String(row.id));
+    const cn = `CN ${shortNumber(row.controlNumber, width)}`;
+    const failed =
+      action === "approveTransaction" ? "not approved" : "not cancelled";
+    try {
+      const response = await fetch(`?/${action}`, {
+        method: "POST",
+        body,
+        headers: { "x-sveltekit-action": "true" },
+      });
+      const result = deserialize(await response.text());
+      if (result.type === "success") {
+        await invalidateAll();
+        toast.success(
+          action === "approveTransaction"
+            ? `${cn} marked approved`
+            : `${cn} cancelled`,
+        );
+        return;
+      }
+      toast.error(`${cn} ${failed}`, {
+        description:
+          result.type === "failure"
+            ? ((result.data as { error?: string } | undefined)?.error ??
+              "Try again.")
+            : "Try again. If it keeps happening, contact ICT.",
+      });
+    } catch {
+      toast.error(`${cn} ${failed}`, {
+        description: "Try again. If it keeps happening, contact ICT.",
+      });
+    }
+  }
+
+  async function confirmCancel() {
+    if (!cancelling) return;
+    cancelSubmitting = true;
+    await setStatus(cancelling, "cancelTransaction");
+    cancelSubmitting = false;
+    cancelOpen = false;
+  }
+
+  /**
+   * The clipboard API works only on a secure page, and the office server is
+   * plain http on the LAN, so the older way is the fallback.
+   */
+  async function copyControlNumber(row: WithdrawalRow) {
+    const value = row.controlNumber;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.append(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    toast.success("Control number copied", { description: value });
+  }
+
+  /** The numbers a transaction holds, as the cancel dialog names them. */
+  function numbersOf(row: WithdrawalRow) {
+    return [
+      ["CN", row.controlNumber],
+      ["WS", row.wsNumber],
+      ["RIS", row.risNumber],
+      ["DTT", row.tripTicketNumber],
+    ]
+      .filter(([, n]) => n)
+      .map(([form, n]) => `${form} ${shortNumber(n as string, width)}`)
+      .join(", ");
+  }
+
+  const KIND_NOUN = {
+    withdrawal: "withdrawal",
+    trip: "trip",
+    reimbursed: "reimbursed trip",
+  } as const;
+
   // The sidebar's + beside Fuel links to /fuel?new=withdrawal, which opens
   // the form. The ?new is dropped when the form closes, not when it opens:
-  // on a fresh page load the router is not ready yet, and replaceState
-  // throws.
+  // on a fresh page load the router is not ready yet. It is dropped with
+  // goto, not replaceState: replaceState leaves page.url as it was, so the
+  // next reload of the list (after Approve, say) opened the form again.
   $effect(() => {
     if (
       page.url.searchParams.get("new") === "withdrawal" &&
       canRecord &&
       data.cutoverDone
     ) {
+      editing = null;
       newWithdrawalOpen = true;
     }
   });
@@ -77,7 +237,7 @@
     if (open || !page.url.searchParams.has("new")) return;
     const url = new URL(page.url);
     url.searchParams.delete("new");
-    replaceState(url, page.state);
+    goto(url, { replaceState: true, noScroll: true, keepFocus: true });
   }
 
   /** By file date, then by the order of entry, as the server sends them. */
@@ -243,7 +403,7 @@
       class="w-full px-1 pb-3"
     />
   {/if}
-  <div class="w-full px-1">
+  <div class="w-full px-1 overflow-hidden">
     <RadioTabs legend="Status" tabs={statusTabs} bind:value={statusTab} />
   </div>
 
@@ -292,7 +452,7 @@
       <!-- Disabled with no reason beside it: the note above says why. -->
       <ButtonGroup.Root>
         <Button
-          onclick={() => (newWithdrawalOpen = true)}
+          onclick={() => openNew((v) => (newWithdrawalOpen = v))}
           disabled={!data.cutoverDone}
         >
           <Plus />
@@ -308,10 +468,14 @@
             <ChevronDown />
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="min-w-max">
-            <DropdownMenu.Item onSelect={() => (newTripOpen = true)}>
+            <DropdownMenu.Item
+              onSelect={() => openNew((v) => (newTripOpen = v))}
+            >
               <Route />Trip only
             </DropdownMenu.Item>
-            <DropdownMenu.Item onSelect={() => (reimbursedTripOpen = true)}>
+            <DropdownMenu.Item
+              onSelect={() => openNew((v) => (reimbursedTripOpen = v))}
+            >
               <HandCoins />Reimbursed trip
             </DropdownMenu.Item>
           </DropdownMenu.Content>
@@ -393,7 +557,7 @@
                   {#if canRecord}
                     <Empty.Content>
                       <Button
-                        onclick={() => (newWithdrawalOpen = true)}
+                        onclick={() => openNew((v) => (newWithdrawalOpen = v))}
                         disabled={!data.cutoverDone}
                       >
                         <Plus />
@@ -563,14 +727,33 @@
                     {row.remarks}
                   </Table.Cell>
                 {:else if cell.column.id === "actions"}
+                  {@const actions = transactionActions(row, gblCtx.can)}
                   <Table.Cell>
-                    <!-- None of these does anything yet. -->
-                    <ButtonGroup.Root>
-                      <Button variant="secondary" size="sm" class="border-r-0">
-                        <Pencil />
-                        Edit
-                      </Button>
-                      <ButtonGroup.Separator />
+                    <!--
+                      Edit stays pressable when it is unavailable: the row has
+                      no room for the reason, so pressing it shows the reason.
+                      On a cancelled row it is plain disabled, since the
+                      Cancelled badge beside it says why.
+                    -->
+                    <ButtonGroup.Root class="ml-auto">
+                      {#if actions.edit.show}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          class="border-r-0"
+                          disabled={loadingId === row.id ||
+                            row.status === "cancelled"}
+                          onclick={() => startEdit(row)}
+                        >
+                          {#if loadingId === row.id}
+                            <Spinner />
+                          {:else}
+                            <Pencil />
+                          {/if}
+                          Edit
+                        </Button>
+                        <ButtonGroup.Separator />
+                      {/if}
                       <DropdownMenu.Root>
                         <DropdownMenu.Trigger
                           class={buttonVariants({
@@ -582,15 +765,50 @@
                           <EllipsisVertical />
                         </DropdownMenu.Trigger>
                         <DropdownMenu.Content align="end" class="min-w-max">
+                          {#if actions.approve.show}
+                            <DropdownMenu.Item
+                              onclick={() =>
+                                setStatus(row, "approveTransaction")}
+                            >
+                              <Stamp /> Mark approved
+                            </DropdownMenu.Item>
+                          {/if}
+                          {#if actions.complete.show}
+                            <DropdownMenu.Item
+                              unavailable={actions.complete.reason}
+                              onclick={() => startComplete(row)}
+                            >
+                              <ClipboardCheck /> Complete
+                            </DropdownMenu.Item>
+                          {/if}
+                          {#if actions.approve.show || actions.complete.show}
+                            <DropdownMenu.Separator />
+                          {/if}
+                          <!-- Print and View history do nothing yet. -->
                           <DropdownMenu.Item
                             ><Printer /> Print</DropdownMenu.Item
                           >
-                          <DropdownMenu.Item>
+                          <DropdownMenu.Item
+                            onclick={() => copyControlNumber(row)}
+                          >
                             <Copy /> Copy control number
                           </DropdownMenu.Item>
                           <DropdownMenu.Item>
                             <RotateCcwClock /> View history
                           </DropdownMenu.Item>
+                          {#if actions.cancel.show}
+                            <DropdownMenu.Separator />
+                            <DropdownMenu.Item
+                              variant="destructive"
+                              unavailable={actions.cancel.reason}
+                              onclick={() => {
+                                cancelling = row;
+                                cancelOpen = true;
+                              }}
+                            >
+                              <Ban /> Cancel {KIND_NOUN[row.kind]}
+                            </DropdownMenu.Item>
+                          {/if}
                         </DropdownMenu.Content>
                       </DropdownMenu.Root>
                     </ButtonGroup.Root>
@@ -605,15 +823,71 @@
   </div>
 </div>
 
-{#if canRecord}
+{#if canEdit}
   <NewWithdrawalDialog
     bind:open={() => newWithdrawalOpen, setNewWithdrawalOpen}
     {data}
+    edit={editing?.kind === "withdrawal" ? editing : null}
   />
-  <NewTripDialog bind:open={newTripOpen} {data} />
+  <NewTripDialog
+    bind:open={newTripOpen}
+    {data}
+    edit={editing?.kind === "trip" ? editing : null}
+  />
   <NewWithdrawalDialog
     kind="reimbursed"
     bind:open={reimbursedTripOpen}
     {data}
+    edit={editing?.kind === "reimbursed" ? editing : null}
   />
 {/if}
+
+<CompleteDialog bind:open={completeOpen} details={completing} />
+
+<AlertDialog.Root bind:open={cancelOpen}>
+  <AlertDialog.Content class="sm:max-w-115">
+    {#if cancelling}
+      <AlertDialog.Header>
+        <AlertDialog.Title>
+          Cancel CN {shortNumber(cancelling.controlNumber, width)}?
+        </AlertDialog.Title>
+        <AlertDialog.Description>
+          {#if cancelling.kind === "withdrawal"}
+            Its liters go back to {cancelling.poNumber
+              ? `PO ${cancelling.poNumber}`
+              : "the PO"}.
+          {/if}
+          Its numbers ({numbersOf(cancelling)}) stay with it and are never given
+          to another. Cancelling cannot be undone.
+        </AlertDialog.Description>
+      </AlertDialog.Header>
+      <AlertDialog.Footer>
+        <AlertDialog.Cancel disabled={cancelSubmitting}>
+          Keep it
+        </AlertDialog.Cancel>
+        <Button
+          variant="destructive"
+          disabled={cancelSubmitting}
+          onclick={confirmCancel}
+        >
+          {#if cancelSubmitting}
+            <Spinner />
+          {/if}
+          Cancel {KIND_NOUN[cancelling.kind]}
+        </Button>
+      </AlertDialog.Footer>
+    {/if}
+  </AlertDialog.Content>
+</AlertDialog.Root>
+
+<AlertDialog.Root bind:open={unavailableOpen}>
+  <AlertDialog.Content class="sm:max-w-100">
+    <AlertDialog.Header>
+      <AlertDialog.Title>{unavailable?.title}</AlertDialog.Title>
+      <AlertDialog.Description>{unavailable?.reason}</AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>OK</AlertDialog.Cancel>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

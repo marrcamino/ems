@@ -2,12 +2,18 @@ import type { SessionUser } from "$lib/types";
 import { fullName } from "$lib/utils";
 import {
   getLocalTimeZone,
+  parseDate,
   today,
   type DateValue,
 } from "@internationalized/date";
 import type { PageData } from "./$types";
+import type { TransactionDetails } from "./issuance.server";
 import type { PickerItem } from "./search-picker.svelte";
-import { oldestPoFirstMessage, overBalanceMessage } from "./withdrawal-row";
+import {
+  oldestPoFirstMessage,
+  overBalanceMessage,
+  type PoBalance,
+} from "./withdrawal-row";
 
 /** What the New withdrawal form needs from the page. */
 export type WithdrawalData = Pick<
@@ -152,6 +158,14 @@ export class WithdrawalForm {
   /** The server's refusals, by field, shown under the field. */
   errors = $state<Record<string, string>>({});
 
+  /** The saved transaction being edited; null on a new one. */
+  editing = $state<{ id: number; controlNumber: string } | null>(null);
+  /**
+   * While editing, the balances without the transaction's own request, so
+   * the request is checked against what it may really take.
+   */
+  #editBalances = $state<PoBalance[] | null>(null);
+
   // ── What the pickers offer ──
 
   everyone = $derived(this.data.employees.map(asItem));
@@ -234,7 +248,7 @@ export class WithdrawalForm {
   poOptions = $derived.by(() => {
     const { office, asset } = this;
     if (!office || !asset) return [];
-    return this.data.poBalances.filter(
+    return (this.#editBalances ?? this.data.poBalances).filter(
       (b) => b.orgUnitPk === office.orgUnitPk && b.fuel === asset.fuelType,
     );
   });
@@ -349,11 +363,63 @@ export class WithdrawalForm {
 
     this.#typedPurpose = { ris: false, dtt: false };
     this.errors = {};
+    this.editing = null;
+    this.#editBalances = null;
+  }
+
+  /** Filled in from a saved transaction, to edit it. */
+  load(details: TransactionDetails) {
+    const v = details.values;
+    const date = (value: string) => (value ? parseDate(value) : undefined);
+    this.editing = { id: details.id, controlNumber: details.controlNumber };
+    this.#editBalances = details.poBalances;
+
+    this.fileDate = date(v.fileDate);
+    this.officePk = v.officePk;
+    this.assetPk = v.assetPk;
+    this.requestBy = v.requestBy === "pesos" ? "pesos" : "liters";
+    this.litres = v.liters;
+    this.pesos = v.pesos;
+    this.wsWithdrawnBy = v.wsWithdrawnBy;
+    this.wsWithdrawnByName = v.wsWithdrawnByName;
+    this.wsRequestedBy = v.wsRequestedBy;
+    this.wsApprovedBy = v.wsApprovedBy;
+
+    this.risFundCluster = v.risFundCluster;
+    this.risResponsibilityCenterCode = v.risResponsibilityCenterCode;
+    this.risStockNumber = v.risStockNumber;
+    this.risRemarks = v.risRemarks;
+    this.risPurpose = v.risPurpose;
+    this.risRequestedBy = v.risRequestedBy;
+    this.risApprovedBy = v.risApprovedBy;
+    this.risIssuedBy = v.risIssuedBy;
+    this.risReceivedBy = v.risReceivedBy;
+
+    this.driverPk = v.driverPk;
+    this.driverName = v.driverName;
+    this.passengers = v.passengers;
+    this.destination = v.destination;
+    this.dttPurpose = v.dttPurpose;
+    this.travelFrom = date(v.travelFrom);
+    this.travelTo = date(v.travelTo);
+    this.travelHours = v.travelHours;
+    this.dttRemarks = v.dttRemarks;
+    this.departureTime = v.departureTime;
+    this.tankBalanceBefore = v.tankBalanceBefore;
+    this.purchasedLiters = v.purchasedLiters;
+    this.oilLubricant = v.oilLubricant;
+    this.odometerStart = v.odometerStart;
+    this.dttApprovedBy = v.dttApprovedBy;
+
+    // Both purposes were saved as they stand, so neither copies the other.
+    this.#typedPurpose = { ris: true, dtt: true };
+    this.errors = {};
   }
 
   /** What is sent, as JSON in one form field. */
   payload = $derived(
     JSON.stringify({
+      id: this.editing?.id ?? null,
       fileDate: this.fileDate?.toString() ?? "",
       officePk: this.officePk,
       assetPk: this.assetPk,

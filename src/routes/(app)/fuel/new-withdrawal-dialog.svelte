@@ -19,6 +19,7 @@
     type Step,
     type WithdrawalData,
   } from "./new-withdrawal-form.svelte.js";
+  import type { TransactionDetails } from "./issuance.server";
   import RisStep from "./ris-step.svelte";
   import TripTicketStep from "./trip-ticket-step.svelte";
   import WithdrawalSlipStep from "./withdrawal-slip-step.svelte";
@@ -38,16 +39,21 @@
    * trip ticket, with no withdrawal slip, since the driver pays for the fuel
    * and the office pays it back. Its RIS step starts with the office, the
    * file date, and the asset, and its trip ticket asks for the litres bought.
+   *
+   * With `edit`, it opens filled in from a saved transaction of its kind, and
+   * saves the changes; the file date and the numbers stay as they are.
    */
   let {
     open = $bindable(false),
     data,
     kind = "withdrawal",
+    edit = null,
   }: {
     open: boolean;
     data: WithdrawalData;
     /** Set once; the form does not switch kinds while it is shown. */
     kind?: "withdrawal" | "reimbursed";
+    edit?: TransactionDetails | null;
   } = $props();
 
   const gblCtx = getGlobalContext();
@@ -58,7 +64,7 @@
     reimbursed ? "reimbursed" : "withdrawal",
   );
 
-  const TEXT = reimbursed
+  const NEW_TEXT = reimbursed
     ? {
         title: "Reimbursed trip",
         description:
@@ -77,6 +83,19 @@
         saved: "Withdrawal saved",
         notSaved: "Withdrawal not saved",
       };
+  const TEXT = $derived(
+    edit
+      ? {
+          title: reimbursed ? "Edit reimbursed trip" : "Edit withdrawal",
+          description:
+            "The control number, the form numbers, and the file date stay the same.",
+          action: "?/updateTransaction",
+          save: "Save changes",
+          saved: "Changes saved",
+          notSaved: "Changes not saved",
+        }
+      : NEW_TEXT,
+  );
 
   let submitting = $state(false);
 
@@ -91,13 +110,17 @@
     {
       name: "ris",
       label: "RIS",
-      hint: reimbursed ? "The asset and the signatories" : "Purpose and signatories",
+      hint: reimbursed
+        ? "The asset and the signatories"
+        : "Purpose and signatories",
       title: "Requisition and Issue Slip",
     },
     {
       name: "dtt",
       label: "Trip ticket",
-      hint: reimbursed ? "Driver, travel, and fuel bought" : "Driver and travel",
+      hint: reimbursed
+        ? "Driver, travel, and fuel bought"
+        : "Driver and travel",
       title: "Driver's Trip Ticket",
     },
   ];
@@ -134,7 +157,9 @@
   }
 
   $effect(() => {
-    if (open) reset();
+    if (!open) return;
+    reset();
+    if (edit) form.load(edit);
   });
 
   /** Tailwind's `md`: at this width and up the stepper runs down the side. */
@@ -304,7 +329,9 @@
             await update();
             open = false;
             toast.success(TEXT.saved, {
-              description: `Its control number is ${result.data?.controlNumber}.`,
+              description: edit
+                ? `Control number ${result.data?.controlNumber}.`
+                : `Its control number is ${result.data?.controlNumber}.`,
             });
             return;
           }

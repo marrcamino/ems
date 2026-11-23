@@ -26,6 +26,11 @@ export const PESO_FORMAT: Intl.NumberFormatOptions = {
 const pesoFormat = new Intl.NumberFormat(LOCALE, PESO_FORMAT);
 
 const litersFormat = new Intl.NumberFormat(LOCALE, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+const litersShortFormat = new Intl.NumberFormat(LOCALE, {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
@@ -35,7 +40,14 @@ export function formatPesos(centavos: number) {
   return pesoFormat.format(centavos / 100);
 }
 
-/** 350000 → "3,500 L", 350050 → "3,500.5 L". */
-export function formatLiters(hundredths: number) {
-  return `${litersFormat.format(hundredths / 100)} L`;
+/**
+ * 350000 → "3,500.00 L", so liters in a column line up. With dropZeros, for
+ * liters inside a sentence: 350000 → "3,500 L", 350050 → "3,500.5 L".
+ */
+export function formatLiters(
+  hundredths: number,
+  { dropZeros = false }: { dropZeros?: boolean } = {},
+) {
+  const format = dropZeros ? litersShortFormat : litersFormat;
+  return `${format.format(hundredths / 100)} L`;
 }

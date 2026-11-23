@@ -68,6 +68,8 @@ export const ROLE_TEMPLATES = [
       "fuel:view",
       "fuel:view_all_offices",
       "fuel:record",
+      "fuel:approve",
+      "fuel:complete",
       "fuel:set_starting_numbers",
       "purchase_orders:view",
       "purchase_orders:manage",
