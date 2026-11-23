@@ -3,5 +3,8 @@
     "*.css": "tailwindcss"
   },
   "tailwindCSS.classFunctions": ["cn", "cva", "tv"],
-  "js/ts.experimental.useTsgo": false
+  "js/ts.experimental.useTsgo": false,
+  "[svelte]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
 }
