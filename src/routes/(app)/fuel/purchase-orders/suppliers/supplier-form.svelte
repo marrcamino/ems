@@ -153,8 +153,7 @@
 
       if (result.type === "failure") {
         const data = result.data as
-          | { error?: string; field?: string }
-          | undefined;
+          { error?: string; field?: string } | undefined;
         if (data?.field && data.error) {
           fieldErrors[data.field] = data.error;
         } else {
@@ -180,7 +179,7 @@
   <div class="-mx-4 min-h-0 overflow-y-auto px-4 pb-1">
     <Field.Group class="gap-4">
       <Field.Field data-invalid={fieldErrors.supplierName ? true : undefined}>
-        <Field.Label for="supplierName">Supplier name</Field.Label>
+        <Field.Label for="supplierName" required>Supplier name</Field.Label>
         <Input
           data-autofocus
           id="supplierName"
@@ -198,7 +197,7 @@
       <Field.Field
         data-invalid={fieldErrors.businessAddress ? true : undefined}
       >
-        <Field.Label for="businessAddress" class="gap-1">
+        <Field.Label for="businessAddress" class="gap-1" required>
           Business address
 
           {#if businessAddress.trim().length > 225}
@@ -224,7 +223,7 @@
       </Field.Field>
 
       <Field.Field data-invalid={fieldErrors.tin ? true : undefined}>
-        <Field.Label for="tin">TIN</Field.Label>
+        <Field.Label for="tin" required>TIN</Field.Label>
         <!--
           `value` rather than `bind:value`, because onTinInput rewrites what
           was typed and has to be the only thing that writes to `tin`.
@@ -253,7 +252,6 @@
       <Field.Field>
         <Field.Label for="philgepsNumber">
           PhilGEPS registration no.
-          <span class="text-muted-foreground font-normal">(optional)</span>
         </Field.Label>
         <Input
           id="philgepsNumber"

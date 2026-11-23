@@ -227,7 +227,7 @@
     <div
       class={["grid gap-x-2 gap-y-1", isPriceBased && "grid-cols-[1fr_9rem]"]}
     >
-      <Field.Label for="requested">
+      <Field.Label for="requested" required>
         {byPesos ? "Pesos requested" : "Liters requested"}
       </Field.Label>
       {#if isPriceBased}

@@ -182,7 +182,7 @@
         <!-- `py-1` keeps the focus ring of the first and last field in view. -->
         <div class="grid gap-5 py-1">
           <div class="grid gap-1">
-            <Label for="assetTypeFk">Asset type</Label>
+            <Label for="assetTypeFk" required>Asset type</Label>
             <!--
           A searchable list rather than a plain select, since the office's
           list of kinds keeps growing and typing a few letters is faster than
@@ -243,7 +243,7 @@
           </div>
 
           <div class="grid gap-2">
-            <Label for="assetName">Name</Label>
+            <Label for="assetName" required>Name</Label>
             <Input
               id="assetName"
               name="assetName"
@@ -255,10 +255,7 @@
           </div>
 
           <div class="grid gap-2">
-            <Label for="plateNumber" class="gap-1">
-              Plate number
-              <span class="text-muted-foreground font-normal">(if any)</span>
-            </Label>
+            <Label for="plateNumber" note="if any">Plate number</Label>
             <Input
               id="plateNumber"
               name="plateNumber"
@@ -269,7 +266,7 @@
           </div>
 
           <div class="grid gap-2">
-            <Label for="propertyNumber">Property number</Label>
+            <Label for="propertyNumber" required>Property number</Label>
             <Input
               id="propertyNumber"
               name="propertyNumber"

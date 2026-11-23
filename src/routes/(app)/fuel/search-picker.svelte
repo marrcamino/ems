@@ -29,7 +29,7 @@
   import HiddenInput from "@/components/ui/hidden-input.svelte";
   import { cn, dataAttr } from "@/utils/index.js";
   import ChevronsUpDownIcon from "@lucide/svelte/icons/chevrons-up-down";
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
 
   /**
    * A button that opens a searchable list and shows the picked item.
@@ -41,11 +41,20 @@
    * `value` is the picked item's `value`, or "" for none. With `required`, an
    * empty picker stops the form like a normal input, because a hidden input
    * carries the value.
+   *
+   * With `allowTyped`, a name that is not in the list can be used too, for
+   * someone outside the office. It goes in `typed`, and `value` is "":
+   *
+   * ```svelte
+   * <SearchPicker id="driverPk" items={people} allowTyped bind:value bind:typed />
+   * ```
    */
   let {
     id,
     items,
     value = $bindable(""),
+    typed = $bindable(""),
+    allowTyped = false,
     placeholder = "Choose",
     searchPlaceholder = "Search...",
     empty = "Nothing matches.",
@@ -57,6 +66,10 @@
     id: string;
     items: PickerItem[];
     value?: string;
+    /** A name typed in the search and used, when nobody in the list fits. */
+    typed?: string;
+    /** Offers what is typed in the search as a name of its own. */
+    allowTyped?: boolean;
     placeholder?: string;
     searchPlaceholder?: string;
     empty?: string;
@@ -73,6 +86,20 @@
   let commandApi = $state<CommandRootApi | null>(null);
 
   const picked = $derived(items.find((item) => item.value === value));
+
+  let search = $state("");
+  // Offered unless the search is empty or is exactly a name in the list.
+  const typedOffer = $derived.by(() => {
+    const name = search.trim().replace(/\s+/g, " ");
+    if (!allowTyped || !name) return "";
+    const same = (label: string) => label.toLowerCase() === name.toLowerCase();
+    return items.some((item) => same(item.label)) ? "" : name;
+  });
+
+  // A typed name opens in the search, ready to be corrected.
+  $effect(() => {
+    if (open) search = untrack(() => typed);
+  });
 
   /*
    * On opening, highlight the picked item and scroll the list to it. The
@@ -92,8 +119,9 @@
     return () => cancelAnimationFrame(frame);
   });
 
-  function pick(next: string) {
+  function pick(next: string, name = "") {
     value = next;
+    typed = name;
     open = false;
     // Back to the button, so keyboard users stay in the form.
     tick().then(() => triggerRef?.focus());
@@ -108,9 +136,9 @@
     role="combobox"
     aria-expanded={open}
     aria-labelledby={ariaLabelledby}
-    data-no-value={dataAttr(!picked)}
+    data-no-value={dataAttr(!picked && !typed)}
     class={cn(
-      "flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap outline-none transition-colors select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-no-value:text-muted-foreground dark:bg-input/30 dark:hover:bg-input/50 disabled:cursor-not-allowed disabled:opacity-50",
+      "flex h-8 w-full items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap outline-none transition-colors select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-no-value:text-muted-foreground dark:bg-input/30 dark:hover:bg-input/50 disabled:cursor-not-allowed disabled:opacity-50 relative",
       className,
     )}
   >
@@ -126,20 +154,20 @@
       </span>
     {:else}
       <span class="w-0 flex-1 truncate text-left">
-        {picked ? (picked.buttonLabel ?? picked.label) : placeholder}
+        {picked ? (picked.buttonLabel ?? picked.label) : typed || placeholder}
       </span>
     {/if}
     <ChevronsUpDownIcon
       class="pointer-events-none size-4 shrink-0 text-muted-foreground"
     />
-    <HiddenInput name={id} {value} {required} />
+    <HiddenInput name={id} value={value || typed} {required} />
   </Popover.Trigger>
   <Popover.Content class="w-(--bits-popover-anchor-width) min-w-64 p-0">
     <Command.Root
       bind:api={commandApi}
       class="**:data-[slot=input-group]:rounded-sm!"
     >
-      <Command.Input placeholder={searchPlaceholder} />
+      <Command.Input placeholder={searchPlaceholder} bind:value={search} />
       <!--
         The list hides its scrollbar, so a long list did not look scrollable.
         The scroll area scrolls it instead and shows a scrollbar. The
@@ -152,7 +180,9 @@
           class="group/list"
           viewPortClasses="max-h-72 scroll-py-1 group-has-data-[slot=scroll-area-scrollbar]/list:pr-2"
         >
-          <Command.Empty>{empty}</Command.Empty>
+          {#if !typedOffer}
+            <Command.Empty>{empty}</Command.Empty>
+          {/if}
           <Command.Group class="mt-0.5">
             {#each items as item (item.value)}
               <!-- keywords lets the search match the words, not the id. -->
@@ -183,6 +213,19 @@
               </Command.Item>
             {/each}
           </Command.Group>
+          {#if typedOffer}
+            <!-- Always shown, whatever the search matches. -->
+            <Command.Group forceMount>
+              <Command.Item
+                value="typed-name"
+                forceMount
+                data-checked={!!typed && typed === typedOffer}
+                onSelect={() => pick("", typedOffer)}
+              >
+                <span class="truncate">Use “{typedOffer}”</span>
+              </Command.Item>
+            </Command.Group>
+          {/if}
         </ScrollArea>
       </Command.List>
     </Command.Root>

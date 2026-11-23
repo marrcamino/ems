@@ -17,6 +17,12 @@ Read this before writing or changing code, together with the module's card.
    On-screen messages follow `.claude/skills/ui-messages/`.
 7. Code comments follow `.claude/skills/code-comments/`: lean by default, and
    a complete comment only when asked.
+8. Form labels mark a required field with a red asterisk (`required` on
+   `Label` or `Field.Label`, beside the input's own `required`) and never
+   write "(optional)": an unmarked field is optional. A choice that always
+   has one option picked, such as a radio group with a default, gets no
+   asterisk. `note` adds a grey side note in brackets, such as "if any" or
+   "Section Incharge" (decided by the owner, 17 November 2026).
 
 ## Database changes
 

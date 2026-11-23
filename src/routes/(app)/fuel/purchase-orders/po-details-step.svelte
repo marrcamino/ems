@@ -84,7 +84,7 @@
   <Field.Group class="gap-4">
     <div class="grid grid-cols-2 gap-2">
       <Field.Field data-invalid={errors.poNumber ? true : undefined}>
-        <Field.Label for="poNumber">PO number</Field.Label>
+        <Field.Label for="poNumber" required>PO number</Field.Label>
         <Input
           id="poNumber"
           bind:ref={poNumberInput}
@@ -100,7 +100,7 @@
 
       <Field.Field data-invalid={errors.poDate ? true : undefined}>
         <!-- DateInput is labelled by id: a label's `for` cannot reach it. -->
-        <Field.Label id="poDate-label">PO date</Field.Label>
+        <Field.Label id="poDate-label" required>PO date</Field.Label>
         <DateInput
           id="poDate"
           aria-labelledby="poDate-label"
@@ -119,7 +119,7 @@
     </div>
 
     <Field.Field data-invalid={errors.supplierFk ? true : undefined}>
-      <Field.Label for="supplierFk">Supplier</Field.Label>
+      <Field.Label for="supplierFk" required>Supplier</Field.Label>
       {#if suppliers.length > 0}
         <Select.Root
           type="single"

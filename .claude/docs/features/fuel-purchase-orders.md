@@ -527,8 +527,40 @@ GSU's fuel logbook.
    16 November 2026). A withdrawal keeps two remarks, one printed on the RIS
    and one on the DTT, never one shared for both. **The RIS stock number is
    optional** (told by GSU, the same day): a withdrawal may leave it blank.
-   **The purpose is one, shared by the RIS and the trip ticket** (told by GSU,
-   the same day): it is typed once and shows on both forms.
+   **The RIS also takes a fund cluster and a responsibility center code**,
+   both optional and rarely filled in, kept for when they are needed
+   (decided by the owner, 17 November 2026). **The RIS purpose is optional
+   too** (decided by the owner, the same day); the trip ticket's purpose is
+   still required. The New withdrawal form asks
+   for the RIS's fields in this order: fund cluster, responsibility center
+   code, stock number, remarks, then purpose.
+   **The purpose is usually the same on the RIS and the trip ticket** (told by
+   GSU, the same day), but each form keeps its own (decided by the owner, 17
+   November 2026). Typing one purpose copies it into the other while the
+   other is empty or still a copy; a purpose the person typed is never
+   overwritten, and emptying it makes it a copy again. Only the purpose is
+   copied: remarks and every other field stay separate.
+6. **Each form names its own people** (told by the owner, 17 November 2026).
+   - The withdrawal slip names the person sent to withdraw the fuel, who is
+     not always the trip ticket's driver: a boat cannot go to the gas station,
+     so someone else fetches its fuel.
+   - The trip ticket's driver may not be an employee of the office: one boat's
+     driver is a ranger from another municipality.
+   - The RIS "Requested by" can differ from the slip's "Requested by", so it
+     is chosen on each withdrawal, not fixed.
+   - The trip ticket lists its passengers by name, typed, never picked from
+     the employees.
+7. **What the trip ticket takes when the withdrawal is added** (decided by
+   the owner, 17 November 2026). Besides the driver, passengers,
+   destination, purpose, dates of travel, and remarks: the number of hours,
+   after the dates of travel (kept, though the owner sees no use for it); and
+   the lines known before the trip: departure time, balance in tank, the
+   "Oil / Fuel Lubricant" line, and the odometer reading at the start. The
+   lines after the trip (arrival time, purchased during the trip, used,
+   balance after, the odometer after, and the distance) come with the
+   Complete step. "Issued by the Officer", the total in the tank, and the
+   distance are worked out by EMS, never typed. What the "Oil / Fuel
+   Lubricant" line holds is still asked of GSU (MPP-139).
 
 ### Which forms apply
 

@@ -3,6 +3,7 @@
   import { cn } from "$lib/utils/index.js";
   import type { ComponentProps } from "svelte";
 
+  // `note` and `required` are passed on to Label, which shows them.
   let {
     ref = $bindable(null),
     class: className,

@@ -8,6 +8,7 @@ import {
   employee,
   employeeHistory,
   fuelIssuance,
+  fuelIssuancePassenger,
   orgUnit,
   purchaseOrder,
   purchaseOrderAllocation,
@@ -244,7 +245,9 @@ export async function selectWithdrawalRows(
       purchaseOrderPk: fuelIssuance.purchaseOrderFk,
       requestedLiters: fuelIssuance.requestedLiters,
       requestedAmount: fuelIssuance.requestedAmount,
-      remarks: fuelIssuance.remarks,
+      risRemarks: fuelIssuance.risRemarks,
+      dttRemarks: fuelIssuance.dttRemarks,
+      driverName: fuelIssuance.driverName,
       assetName: asset.assetName,
       plateNumber: asset.plateNumber,
       propertyNumber: asset.propertyNumber,
@@ -330,14 +333,14 @@ export async function selectWithdrawalRows(
       tripTicketNumber: row.dttNumber,
       driver:
         row.driverFirstName === null || row.driverLastName === null
-          ? null
+          ? row.driverName
           : fullName({
               firstName: row.driverFirstName,
               middleName: row.driverMiddleName,
               lastName: row.driverLastName,
               suffix: row.driverSuffix,
             }),
-      remarks: row.remarks ?? "",
+      remarks: [row.risRemarks, row.dttRemarks].filter(Boolean).join(" · "),
     };
   });
 }
@@ -352,14 +355,23 @@ type Payload = Partial<
     | "assetPk"
     | "purchaseOrderPk"
     | "requestBy"
-    | "purpose"
-    | "remarks"
+    | "risPurpose"
+    | "risStockNumber"
+    | "risFundCluster"
+    | "risResponsibilityCenterCode"
+    | "risRemarks"
+    | "dttPurpose"
+    | "dttRemarks"
     | "driverPk"
+    | "driverName"
     | "destination"
     | "travelFrom"
     | "travelTo"
+    | "wsWithdrawnBy"
+    | "wsWithdrawnByName"
     | "wsRequestedBy"
     | "wsApprovedBy"
+    | "risRequestedBy"
     | "risApprovedBy"
     | "risIssuedBy"
     | "risReceivedBy"
@@ -369,6 +381,11 @@ type Payload = Partial<
     liters: unknown;
     pesos: unknown;
     odometerStart: unknown;
+    passengers: unknown;
+    travelHours: unknown;
+    departureTime: unknown;
+    tankBalanceBefore: unknown;
+    oilLubricant: unknown;
   }
 >;
 
@@ -386,14 +403,30 @@ type Checked = {
   purchaseOrderPk: number;
   requestedH: number | null;
   requestedC: number | null;
-  purpose: string;
-  remarks: string | null;
+  ris: {
+    fundCluster: string | null;
+    responsibilityCenterCode: string | null;
+    purpose: string | null;
+    stockNumber: string | null;
+    remarks: string | null;
+  };
+  /** Picked from the employees, or typed for someone outside the office. */
+  withdrawnBy: { pk: number | null; name: string | null };
   trip: {
-    driverPk: number;
+    purpose: string;
+    remarks: string | null;
+    driverPk: number | null;
+    driverName: string | null;
     destination: string;
     travelFrom: string;
     travelTo: string;
     odometerStart: number | null;
+    passengers: string[];
+    travelHours: number | null;
+    /** `HH:MM`, as the browser's time field gives it. */
+    departureTime: string | null;
+    tankBalanceBeforeH: number | null;
+    oilLubricant: string | null;
     approvedByPk: number;
   } | null;
   people: {
@@ -410,6 +443,44 @@ const isDate = (value: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
 
 const text = (value: unknown) => String(value ?? "").trim();
+
+/**
+ * An optional number from 0 to `max` with at most 2 decimals: null when left
+ * empty, undefined when it is not such a number.
+ */
+function optionalNumber(value: unknown, max: number) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  const ok =
+    Number.isFinite(n) &&
+    n >= 0 &&
+    n <= max &&
+    // 1.1 * 100 is 110.00000000000001, so "2 decimals" allows for that.
+    Math.abs(Math.round(n * 100) - n * 100) < 1e-6;
+  return ok ? n : undefined;
+}
+
+/**
+ * A person who is picked from the employees or typed, for someone outside
+ * the office. A pick wins over a name; null when neither is given.
+ */
+function pickedOrTyped(pk: unknown, name: unknown) {
+  if (Number(pk)) return { pk: Number(pk), name: null };
+  const typed = text(name);
+  return typed ? { pk: null, name: typed } : null;
+}
+
+/** The first text over its length, as a refusal under its field. */
+function tooLongRefusal(
+  fields: Record<string, [value: string, max: number, what: string]>,
+): Refusal | null {
+  for (const [field, [value, max, what]] of Object.entries(fields)) {
+    if (value.length > max) {
+      return { field, error: `Shorten the ${what} to ${max} characters.` };
+    }
+  }
+  return null;
+}
 
 /**
  * Everything the dialog already checks, checked again, since a request can
@@ -528,19 +599,41 @@ async function check(
   const overBalance = overBalanceMessage(balance, { requestedH, requestedC });
   if (overBalance) return { field: "requested", error: overBalance };
 
-  const purpose = text(payload.purpose);
-  if (!purpose) return { field: "purpose", error: "Enter the purpose." };
-  if (purpose.length > 500) {
+  const risPurpose = text(payload.risPurpose);
+  const tooLong = tooLongRefusal({
+    risFundCluster: [text(payload.risFundCluster), 50, "fund cluster"],
+    risResponsibilityCenterCode: [
+      text(payload.risResponsibilityCenterCode),
+      50,
+      "responsibility center code",
+    ],
+    risStockNumber: [text(payload.risStockNumber), 50, "stock number"],
+    risRemarks: [text(payload.risRemarks), 200, "remarks"],
+    risPurpose: [risPurpose, 500, "purpose"],
+  });
+  if (tooLong) return tooLong;
+  const ris = {
+    fundCluster: text(payload.risFundCluster) || null,
+    responsibilityCenterCode: text(payload.risResponsibilityCenterCode) || null,
+    purpose: risPurpose || null,
+    stockNumber: text(payload.risStockNumber) || null,
+    remarks: text(payload.risRemarks) || null,
+  };
+
+  const withdrawnBy = pickedOrTyped(
+    payload.wsWithdrawnBy,
+    payload.wsWithdrawnByName,
+  );
+  if (!withdrawnBy) {
     return {
-      field: "purpose",
-      error: "Shorten the purpose to 500 characters.",
+      field: "wsWithdrawnBy",
+      error: "Choose or type who withdraws the fuel.",
     };
   }
-  const remarks = text(payload.remarks);
-  if (remarks.length > 200) {
+  if (withdrawnBy.name && withdrawnBy.name.length > 150) {
     return {
-      field: "remarks",
-      error: "Shorten the remarks to 200 characters.",
+      field: "wsWithdrawnBy",
+      error: "Shorten the name to 150 characters.",
     };
   }
 
@@ -550,8 +643,27 @@ async function check(
     const destination = text(payload.destination);
     const travelFrom = text(payload.travelFrom);
     const travelTo = text(payload.travelTo);
-    if (!Number(payload.driverPk))
-      return { field: "driverPk", error: "Choose the driver." };
+    const driver = pickedOrTyped(payload.driverPk, payload.driverName);
+    if (!driver)
+      return { field: "driverPk", error: "Choose or type the driver." };
+    if (driver.name && driver.name.length > 150) {
+      return {
+        field: "driverPk",
+        error: "Shorten the name to 150 characters.",
+      };
+    }
+    const dttPurpose = text(payload.dttPurpose);
+    if (!dttPurpose) {
+      return {
+        field: "dttPurpose",
+        error: "Enter the purpose of the trip ticket.",
+      };
+    }
+    const tooLongTrip = tooLongRefusal({
+      dttPurpose: [dttPurpose, 500, "purpose"],
+      dttRemarks: [text(payload.dttRemarks), 200, "remarks"],
+    });
+    if (tooLongTrip) return tooLongTrip;
     if (!destination)
       return { field: "destination", error: "Enter the destination." };
     if (destination.length > 200) {
@@ -586,6 +698,39 @@ async function check(
         error: "Enter the odometer reading in whole kilometers.",
       };
     }
+    const travelHours = optionalNumber(payload.travelHours, 9_999.99);
+    if (travelHours === undefined) {
+      return {
+        field: "travelHours",
+        error: "Enter the hours as a number up to 9,999.99.",
+      };
+    }
+    const departureTime = text(payload.departureTime);
+    if (departureTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(departureTime)) {
+      return { field: "departureTime", error: "Enter the departure time." };
+    }
+    const tankBalanceBefore = optionalNumber(payload.tankBalanceBefore, 999.99);
+    if (tankBalanceBefore === undefined) {
+      return {
+        field: "tankBalanceBefore",
+        error: "Enter the balance in liters, up to 999.99.",
+      };
+    }
+    const oilLubricant = text(payload.oilLubricant);
+    if (oilLubricant.length > 100) {
+      return {
+        field: "oilLubricant",
+        error: "Shorten the oil or fuel lubricant to 100 characters.",
+      };
+    }
+    const passengers = Array.isArray(payload.passengers)
+      ? payload.passengers.map(text).filter(Boolean)
+      : [];
+    if (passengers.length > 50 || passengers.some((n) => n.length > 150)) {
+      return {
+        error: "Enter up to 50 passengers, each name up to 150 characters.",
+      };
+    }
     if (!Number(payload.dttApprovedBy)) {
       return {
         field: "dttApprovedBy",
@@ -593,11 +738,20 @@ async function check(
       };
     }
     trip = {
-      driverPk: Number(payload.driverPk),
+      purpose: dttPurpose,
+      remarks: text(payload.dttRemarks) || null,
+      driverPk: driver.pk,
+      driverName: driver.name,
       destination,
       travelFrom,
       travelTo,
       odometerStart,
+      passengers,
+      travelHours,
+      departureTime: departureTime || null,
+      tankBalanceBeforeH:
+        tankBalanceBefore === null ? null : Math.round(tankBalanceBefore * 100),
+      oilLubricant: oilLubricant || null,
       approvedByPk: Number(payload.dttApprovedBy),
     };
   }
@@ -605,7 +759,7 @@ async function check(
   const people = {
     wsRequestedBy: Number(payload.wsRequestedBy),
     wsApprovedBy: Number(payload.wsApprovedBy),
-    risRequestedBy: me.employeePk,
+    risRequestedBy: Number(payload.risRequestedBy),
     risApprovedBy: Number(payload.risApprovedBy),
     risIssuedBy: Number(payload.risIssuedBy),
     risReceivedBy: Number(payload.risReceivedBy) || null,
@@ -616,6 +770,9 @@ async function check(
   if (!people.wsApprovedBy) {
     return { field: "wsApprovedBy", error: "Choose the GSU representative." };
   }
+  if (!people.risRequestedBy) {
+    return { field: "risRequestedBy", error: "Choose who requests the RIS." };
+  }
   if (!people.risApprovedBy) {
     return { field: "risApprovedBy", error: "Choose who approves the RIS." };
   }
@@ -625,6 +782,7 @@ async function check(
 
   const pks = [
     ...Object.values(people),
+    withdrawnBy.pk,
     trip?.driverPk,
     trip?.approvedByPk,
   ].filter((pk): pk is number => !!pk);
@@ -672,8 +830,8 @@ async function check(
     purchaseOrderPk: balance.purchaseOrderPk,
     requestedH,
     requestedC,
-    purpose,
-    remarks: remarks || null,
+    ris,
+    withdrawnBy,
     trip,
     people,
   };
@@ -720,6 +878,7 @@ async function save(checked: Checked, userPk: number | null) {
   const { people, trip } = checked;
   const pks = [
     ...Object.values(people),
+    checked.withdrawnBy.pk,
     trip?.driverPk,
     trip?.approvedByPk,
   ].filter((pk): pk is number => !!pk);
@@ -733,39 +892,71 @@ async function save(checked: Checked, userPk: number | null) {
       formNumber(checked.fileDate, await nextNumber(tx, form, year));
 
     const controlNumber = await number("control");
-    await tx.insert(fuelIssuance).values({
-      kind: "withdrawal",
-      status: "waiting",
-      controlNumber,
-      wsNumber: await number("ws"),
-      risNumber: (await nextRisNumber(tx, checked.fileDate, { reuse: true }))
-        .risNumber,
-      dttNumber: trip ? await number("dtt") : null,
-      fileDate: checked.fileDate,
-      orgUnitFk: checked.orgUnitPk,
-      assetFk: checked.assetPk,
-      fuelType: checked.fuel,
-      purchaseOrderFk: checked.purchaseOrderPk,
-      requestedLiters:
-        checked.requestedH === null ? null : fromHundredths(checked.requestedH),
-      requestedAmount:
-        checked.requestedC === null ? null : fromHundredths(checked.requestedC),
-      purpose: checked.purpose,
-      remarks: checked.remarks,
-      destination: trip?.destination ?? null,
-      travelFrom: trip?.travelFrom ?? null,
-      travelTo: trip?.travelTo ?? null,
-      odometerStart: trip?.odometerStart ?? null,
-      driverFk: versionOf(trip?.driverPk),
-      wsRequestedByFk: versionOf(people.wsRequestedBy),
-      wsApprovedByFk: versionOf(people.wsApprovedBy),
-      risRequestedByFk: versionOf(people.risRequestedBy),
-      risApprovedByFk: versionOf(people.risApprovedBy),
-      risIssuedByFk: versionOf(people.risIssuedBy),
-      risReceivedByFk: versionOf(people.risReceivedBy),
-      dttApprovedByFk: versionOf(trip?.approvedByPk),
-      createdByFk: userPk,
-    });
+    const [inserted] = await tx
+      .insert(fuelIssuance)
+      .values({
+        kind: "withdrawal",
+        status: "waiting",
+        controlNumber,
+        wsNumber: await number("ws"),
+        risNumber: (await nextRisNumber(tx, checked.fileDate, { reuse: true }))
+          .risNumber,
+        dttNumber: trip ? await number("dtt") : null,
+        fileDate: checked.fileDate,
+        orgUnitFk: checked.orgUnitPk,
+        assetFk: checked.assetPk,
+        fuelType: checked.fuel,
+        purchaseOrderFk: checked.purchaseOrderPk,
+        requestedLiters:
+          checked.requestedH === null
+            ? null
+            : fromHundredths(checked.requestedH),
+        requestedAmount:
+          checked.requestedC === null
+            ? null
+            : fromHundredths(checked.requestedC),
+        risPurpose: checked.ris.purpose,
+        risStockNumber: checked.ris.stockNumber,
+        risFundCluster: checked.ris.fundCluster,
+        risResponsibilityCenterCode: checked.ris.responsibilityCenterCode,
+        risRemarks: checked.ris.remarks,
+        dttPurpose: trip?.purpose ?? null,
+        dttRemarks: trip?.remarks ?? null,
+        destination: trip?.destination ?? null,
+        travelFrom: trip?.travelFrom ?? null,
+        travelTo: trip?.travelTo ?? null,
+        odometerStart: trip?.odometerStart ?? null,
+        travelHours:
+          trip?.travelHours == null ? null : trip.travelHours.toFixed(2),
+        departureTime: trip?.departureTime ?? null,
+        tankBalanceBefore:
+          trip?.tankBalanceBeforeH == null
+            ? null
+            : fromHundredths(trip.tankBalanceBeforeH),
+        oilLubricant: trip?.oilLubricant ?? null,
+        driverFk: versionOf(trip?.driverPk),
+        driverName: trip?.driverName ?? null,
+        wsWithdrawnByFk: versionOf(checked.withdrawnBy.pk),
+        wsWithdrawnByName: checked.withdrawnBy.name,
+        wsRequestedByFk: versionOf(people.wsRequestedBy),
+        wsApprovedByFk: versionOf(people.wsApprovedBy),
+        risRequestedByFk: versionOf(people.risRequestedBy),
+        risApprovedByFk: versionOf(people.risApprovedBy),
+        risIssuedByFk: versionOf(people.risIssuedBy),
+        risReceivedByFk: versionOf(people.risReceivedBy),
+        dttApprovedByFk: versionOf(trip?.approvedByPk),
+        createdByFk: userPk,
+      })
+      .$returningId();
+    if (trip && trip.passengers.length > 0) {
+      await tx.insert(fuelIssuancePassenger).values(
+        trip.passengers.map((name, i) => ({
+          fuelIssuanceFk: inserted.fuelIssuancePk,
+          name,
+          sortOrder: i + 1,
+        })),
+      );
+    }
     return controlNumber;
   });
 }

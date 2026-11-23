@@ -214,17 +214,19 @@
 
       if (result.type === "failure") {
         const data = result.data as
-          | { error?: string; field?: string }
-          | undefined;
+          { error?: string; field?: string } | undefined;
         if (data?.field && data.error) {
           form.errors[data.field] = data.error;
           if (DETAIL_FIELDS.includes(data.field)) onDetailsRefused();
           else showFirstProblem();
           return;
         }
-        toast.error(editing ? "Changes not saved" : "Purchase order not added", {
-          description: data?.error ?? "Try again.",
-        });
+        toast.error(
+          editing ? "Changes not saved" : "Purchase order not added",
+          {
+            description: data?.error ?? "Try again.",
+          },
+        );
         return;
       }
 
@@ -285,10 +287,7 @@
       {/each}
 
       <Field.Field class="border-t pt-4">
-        <Field.Label for="poNote">
-          Basis for the allocation
-          <span class="text-muted-foreground font-normal">(optional)</span>
-        </Field.Label>
+        <Field.Label for="poNote">Basis for the allocation</Field.Label>
         <Textarea
           id="poNote"
           bind:value={form.note}
