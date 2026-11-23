@@ -64,9 +64,8 @@ export function transactionActions(
   const closed =
     "Its PO is closed. Reopen the PO on the Purchase Orders page first.";
 
-  // A cancelled one keeps its Edit button, unavailable, so the row keeps its
-  // shape; its Cancelled badge already says why (decided by the owner,
-  // 23 November 2026).
+  // A cancelled one keeps its Edit button, which shows why it cannot be
+  // edited, as on a closed PO (decided by the owner, 23 November 2026).
   let edit = HIDDEN;
   if ((gsu || records) && status === "cancelled") {
     edit = unavailable("It was cancelled, so it cannot be changed.");

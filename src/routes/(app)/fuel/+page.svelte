@@ -81,7 +81,11 @@
   /** Why an action cannot be used on a row, shown in a dialog. */
   let unavailable = $state<{ title: string; reason: string } | null>(null);
   let unavailableOpen = $state(false);
-  /** The row whose details are being fetched, to show a spinner on it. */
+  /**
+   * The row whose details are being fetched. Its Edit button is disabled
+   * meanwhile, so a second press does not fetch them again; it is enabled
+   * again when the fetch ends, failed or not, so a failure can be retried.
+   */
   let loadingId = $state<number | null>(null);
 
   function openNew(open: (value: boolean) => void) {
@@ -98,7 +102,7 @@
       return (await response.json()) as TransactionDetails;
     } catch {
       toast.error("The record could not be opened", {
-        description: "Reload the page, then try again.",
+        description: "Try again. If it keeps happening, contact ICT.",
       });
       return null;
     } finally {
@@ -109,7 +113,7 @@
   async function startEdit(row: WithdrawalRow) {
     const edit = transactionActions(row, gblCtx.can).edit;
     if (edit.show && edit.reason) {
-      unavailable = { title: "This cannot be edited now", reason: edit.reason };
+      unavailable = { title: "This cannot be edited", reason: edit.reason };
       unavailableOpen = true;
       return;
     }
@@ -732,8 +736,6 @@
                     <!--
                       Edit stays pressable when it is unavailable: the row has
                       no room for the reason, so pressing it shows the reason.
-                      On a cancelled row it is plain disabled, since the
-                      Cancelled badge beside it says why.
                     -->
                     <ButtonGroup.Root class="ml-auto">
                       {#if actions.edit.show}
@@ -741,15 +743,10 @@
                           variant="secondary"
                           size="sm"
                           class="border-r-0"
-                          disabled={loadingId === row.id ||
-                            row.status === "cancelled"}
+                          disabled={loadingId === row.id}
                           onclick={() => startEdit(row)}
                         >
-                          {#if loadingId === row.id}
-                            <Spinner />
-                          {:else}
-                            <Pencil />
-                          {/if}
+                          <Pencil />
                           Edit
                         </Button>
                         <ButtonGroup.Separator />
