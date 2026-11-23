@@ -43,6 +43,7 @@
   import RadioTabs, { type RadioTab } from "@/components/radio-tabs.svelte";
   import StartingNumbersNote from "@/components/starting-numbers-note.svelte";
   import NewWithdrawalDialog from "./new-withdrawal-dialog.svelte";
+  import NewTripDialog from "./new-trip-dialog.svelte";
   import { page } from "$app/state";
   import { replaceState } from "$app/navigation";
   import { getGlobalContext } from "$routes/global-context.svelte";
@@ -54,6 +55,7 @@
   const canRecord = $derived(gblCtx.can("fuel:record"));
 
   let newWithdrawalOpen = $state(false);
+  let newTripOpen = $state(false);
 
   // The sidebar's + beside Fuel links to /fuel?new=withdrawal, which opens
   // the form. The ?new is dropped when the form closes, not when it opens:
@@ -283,7 +285,7 @@
 
     <!--
       A withdrawal is the common case; the two trips without a withdrawal
-      slip wait in the menu. The two trips open no form yet.
+      slip wait in the menu. Reimbursed trip opens no form yet.
     -->
     {#if canRecord}
       <!-- Disabled with no reason beside it: the note above says why. -->
@@ -305,7 +307,9 @@
             <ChevronDown />
           </DropdownMenu.Trigger>
           <DropdownMenu.Content align="end" class="min-w-max">
-            <DropdownMenu.Item><Route />Trip only</DropdownMenu.Item>
+            <DropdownMenu.Item onSelect={() => (newTripOpen = true)}>
+              <Route />Trip only
+            </DropdownMenu.Item>
             <DropdownMenu.Item><HandCoins /> Reimbursed trip</DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
@@ -603,4 +607,5 @@
     bind:open={() => newWithdrawalOpen, setNewWithdrawalOpen}
     {data}
   />
+  <NewTripDialog bind:open={newTripOpen} {data} />
 {/if}

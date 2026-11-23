@@ -395,11 +395,27 @@ type Payload = Partial<
  */
 type Refusal = { field?: string; error: string };
 
-type Checked = {
-  fileDate: string;
-  orgUnitPk: number;
-  assetPk: number;
-  fuel: Fuel;
+/** The trip ticket part, on a withdrawal or on a trip only. */
+type Trip = {
+  purpose: string;
+  remarks: string | null;
+  driverPk: number | null;
+  driverName: string | null;
+  destination: string;
+  travelFrom: string;
+  travelTo: string;
+  odometerStart: number | null;
+  passengers: string[];
+  travelHours: number | null;
+  /** `HH:MM`, as the browser's time field gives it. */
+  departureTime: string | null;
+  tankBalanceBeforeH: number | null;
+  oilLubricant: string | null;
+  approvedByPk: number;
+};
+
+/** The withdrawal slip and the RIS, which a trip only does not have. */
+type Slip = {
   purchaseOrderPk: number;
   requestedH: number | null;
   requestedC: number | null;
@@ -412,23 +428,6 @@ type Checked = {
   };
   /** Picked from the employees, or typed for someone outside the office. */
   withdrawnBy: { pk: number | null; name: string | null };
-  trip: {
-    purpose: string;
-    remarks: string | null;
-    driverPk: number | null;
-    driverName: string | null;
-    destination: string;
-    travelFrom: string;
-    travelTo: string;
-    odometerStart: number | null;
-    passengers: string[];
-    travelHours: number | null;
-    /** `HH:MM`, as the browser's time field gives it. */
-    departureTime: string | null;
-    tankBalanceBeforeH: number | null;
-    oilLubricant: string | null;
-    approvedByPk: number;
-  } | null;
   people: {
     wsRequestedBy: number;
     wsApprovedBy: number;
@@ -438,6 +437,26 @@ type Checked = {
     risReceivedBy: number | null;
   };
 };
+
+/** What both forms start with: the office, the file date, and the asset. */
+type Transaction = {
+  fileDate: string;
+  orgUnitPk: number;
+  officeAbbr: string;
+  assetPk: number;
+  fuel: Fuel;
+  hasTripTicket: boolean;
+};
+
+/**
+ * A withdrawal has a slip, and a trip ticket when its asset has one; a trip
+ * only has a trip ticket and no slip.
+ */
+type Checked = Omit<Transaction, "officeAbbr" | "hasTripTicket"> &
+  (
+    | { kind: "withdrawal"; slip: Slip; trip: Trip | null }
+    | { kind: "trip"; slip: null; trip: Trip }
+  );
 
 const isDate = (value: string) =>
   /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value));
@@ -483,18 +502,18 @@ function tooLongRefusal(
 }
 
 /**
- * Everything the dialog already checks, checked again, since a request can
- * be sent without the dialog. Plus what only the server knows: which PO the
- * slip goes to, and whether the asset and the people are still active.
+ * The file date, the office, and the asset, which every transaction has.
+ * Everything the dialogs already check is checked again on the server,
+ * since a request can be sent without them.
  */
-async function check(
+async function checkTransaction(
   payload: Payload,
   locals: App.Locals,
-): Promise<Checked | Refusal> {
+): Promise<Transaction | Refusal> {
   const me = locals.user?.employee;
   if (!me) return { error: "Sign in again, then try again." };
 
-  // Without the key the withdrawal is filed today, whatever was sent, so a
+  // Without the key the transaction is filed today, whatever was sent, so a
   // form left open past midnight still saves.
   const todayDate = today(getLocalTimeZone()).toString();
   const fileDate = can(locals.permissions, "fuel:change_file_date")
@@ -507,7 +526,8 @@ async function check(
   }
 
   // Only someone who sees every office picks one; anyone else's withdrawal
-  // counts down their own office (point 7 of "Recording a fuel issuance").
+  // counts down their own office (point 7 of "Recording a fuel issuance"),
+  // and their trip is their own office's too.
   const scope = scopeOf(locals);
   const orgUnitPk = scope.allOffices ? Number(payload.officePk) : me.orgUnitFk;
   if (!orgUnitPk) {
@@ -550,7 +570,24 @@ async function check(
     };
   }
 
-  const fuel = chosen.fuel;
+  return {
+    fileDate,
+    orgUnitPk,
+    officeAbbr: office.abbr,
+    assetPk,
+    fuel: chosen.fuel,
+    hasTripTicket: chosen.hasTripTicket,
+  };
+}
+
+/**
+ * The withdrawal slip and the RIS: which PO the slip goes to, the request,
+ * and the slip's and the RIS's people.
+ */
+async function checkSlip(
+  payload: Payload,
+  { orgUnitPk, officeAbbr, fuel }: Transaction,
+): Promise<Slip | Refusal> {
   const fuelName = FUEL_LABELS[fuel].toLowerCase();
   const open = (
     await selectPoBalances({ allOffices: true, officePk: null })
@@ -558,7 +595,7 @@ async function check(
   if (open.length === 0) {
     return {
       field: "requested",
-      error: `${office.abbr} has no ${fuelName} left on any PO. A PO with a ${fuelName} allocation for ${office.abbr} is needed first.`,
+      error: `${officeAbbr} has no ${fuelName} left on any PO. A PO with a ${fuelName} allocation for ${officeAbbr} is needed first.`,
     };
   }
   const balance = open.find(
@@ -567,13 +604,13 @@ async function check(
   if (!balance) {
     return {
       field: "purchaseOrderPk",
-      error: `Choose a PO where ${office.abbr} still has ${fuelName}.`,
+      error: `Choose a PO where ${officeAbbr} still has ${fuelName}.`,
     };
   }
   if (balance !== open[0]) {
     return {
       field: "purchaseOrderPk",
-      error: oldestPoFirstMessage(open[0], office.abbr),
+      error: oldestPoFirstMessage(open[0], officeAbbr),
     };
   }
 
@@ -599,27 +636,6 @@ async function check(
   const overBalance = overBalanceMessage(balance, { requestedH, requestedC });
   if (overBalance) return { field: "requested", error: overBalance };
 
-  const risPurpose = text(payload.risPurpose);
-  const tooLong = tooLongRefusal({
-    risFundCluster: [text(payload.risFundCluster), 50, "fund cluster"],
-    risResponsibilityCenterCode: [
-      text(payload.risResponsibilityCenterCode),
-      50,
-      "responsibility center code",
-    ],
-    risStockNumber: [text(payload.risStockNumber), 50, "stock number"],
-    risRemarks: [text(payload.risRemarks), 200, "remarks"],
-    risPurpose: [risPurpose, 500, "purpose"],
-  });
-  if (tooLong) return tooLong;
-  const ris = {
-    fundCluster: text(payload.risFundCluster) || null,
-    responsibilityCenterCode: text(payload.risResponsibilityCenterCode) || null,
-    purpose: risPurpose || null,
-    stockNumber: text(payload.risStockNumber) || null,
-    remarks: text(payload.risRemarks) || null,
-  };
-
   const withdrawnBy = pickedOrTyped(
     payload.wsWithdrawnBy,
     payload.wsWithdrawnByName,
@@ -637,125 +653,6 @@ async function check(
     };
   }
 
-  // The asset decides whether there is a trip ticket ("Which forms apply").
-  let trip: Checked["trip"] = null;
-  if (chosen.hasTripTicket) {
-    const destination = text(payload.destination);
-    const travelFrom = text(payload.travelFrom);
-    const travelTo = text(payload.travelTo);
-    const driver = pickedOrTyped(payload.driverPk, payload.driverName);
-    if (!driver)
-      return { field: "driverPk", error: "Choose or type the driver." };
-    if (driver.name && driver.name.length > 150) {
-      return {
-        field: "driverPk",
-        error: "Shorten the name to 150 characters.",
-      };
-    }
-    const dttPurpose = text(payload.dttPurpose);
-    if (!dttPurpose) {
-      return {
-        field: "dttPurpose",
-        error: "Enter the purpose of the trip ticket.",
-      };
-    }
-    const tooLongTrip = tooLongRefusal({
-      dttPurpose: [dttPurpose, 500, "purpose"],
-      dttRemarks: [text(payload.dttRemarks), 200, "remarks"],
-    });
-    if (tooLongTrip) return tooLongTrip;
-    if (!destination)
-      return { field: "destination", error: "Enter the destination." };
-    if (destination.length > 200) {
-      return {
-        field: "destination",
-        error: "Shorten the destination to 200 characters.",
-      };
-    }
-    if (!isDate(travelFrom))
-      return { field: "travelFrom", error: "Enter the first day of travel." };
-    if (!isDate(travelTo))
-      return { field: "travelTo", error: "Enter the last day of travel." };
-    if (travelTo < travelFrom) {
-      return {
-        field: "travelTo",
-        error: "Enter a day on or after the first day of travel.",
-      };
-    }
-    const odometer = payload.odometerStart;
-    const odometerStart =
-      odometer === null || odometer === undefined || odometer === ""
-        ? null
-        : Number(odometer);
-    if (
-      odometerStart !== null &&
-      (!Number.isInteger(odometerStart) ||
-        odometerStart < 0 ||
-        odometerStart > 9_999_999)
-    ) {
-      return {
-        field: "odometerStart",
-        error: "Enter the odometer reading in whole kilometers.",
-      };
-    }
-    const travelHours = optionalNumber(payload.travelHours, 9_999.99);
-    if (travelHours === undefined) {
-      return {
-        field: "travelHours",
-        error: "Enter the hours as a number up to 9,999.99.",
-      };
-    }
-    const departureTime = text(payload.departureTime);
-    if (departureTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(departureTime)) {
-      return { field: "departureTime", error: "Enter the departure time." };
-    }
-    const tankBalanceBefore = optionalNumber(payload.tankBalanceBefore, 999.99);
-    if (tankBalanceBefore === undefined) {
-      return {
-        field: "tankBalanceBefore",
-        error: "Enter the balance in liters, up to 999.99.",
-      };
-    }
-    const oilLubricant = text(payload.oilLubricant);
-    if (oilLubricant.length > 100) {
-      return {
-        field: "oilLubricant",
-        error: "Shorten the oil or fuel lubricant to 100 characters.",
-      };
-    }
-    const passengers = Array.isArray(payload.passengers)
-      ? payload.passengers.map(text).filter(Boolean)
-      : [];
-    if (passengers.length > 50 || passengers.some((n) => n.length > 150)) {
-      return {
-        error: "Enter up to 50 passengers, each name up to 150 characters.",
-      };
-    }
-    if (!Number(payload.dttApprovedBy)) {
-      return {
-        field: "dttApprovedBy",
-        error: "Choose who approves the trip ticket.",
-      };
-    }
-    trip = {
-      purpose: dttPurpose,
-      remarks: text(payload.dttRemarks) || null,
-      driverPk: driver.pk,
-      driverName: driver.name,
-      destination,
-      travelFrom,
-      travelTo,
-      odometerStart,
-      passengers,
-      travelHours,
-      departureTime: departureTime || null,
-      tankBalanceBeforeH:
-        tankBalanceBefore === null ? null : Math.round(tankBalanceBefore * 100),
-      oilLubricant: oilLubricant || null,
-      approvedByPk: Number(payload.dttApprovedBy),
-    };
-  }
-
   const people = {
     wsRequestedBy: Number(payload.wsRequestedBy),
     wsApprovedBy: Number(payload.wsApprovedBy),
@@ -770,6 +667,20 @@ async function check(
   if (!people.wsApprovedBy) {
     return { field: "wsApprovedBy", error: "Choose the GSU representative." };
   }
+
+  const risPurpose = text(payload.risPurpose);
+  const tooLong = tooLongRefusal({
+    risFundCluster: [text(payload.risFundCluster), 50, "fund cluster"],
+    risResponsibilityCenterCode: [
+      text(payload.risResponsibilityCenterCode),
+      50,
+      "responsibility center code",
+    ],
+    risStockNumber: [text(payload.risStockNumber), 50, "stock number"],
+    risRemarks: [text(payload.risRemarks), 200, "remarks"],
+    risPurpose: [risPurpose, 500, "purpose"],
+  });
+  if (tooLong) return tooLong;
   if (!people.risRequestedBy) {
     return { field: "risRequestedBy", error: "Choose who requests the RIS." };
   }
@@ -780,12 +691,160 @@ async function check(
     return { field: "risIssuedBy", error: "Choose who issues the RIS." };
   }
 
+  return {
+    purchaseOrderPk: balance.purchaseOrderPk,
+    requestedH,
+    requestedC,
+    ris: {
+      fundCluster: text(payload.risFundCluster) || null,
+      responsibilityCenterCode:
+        text(payload.risResponsibilityCenterCode) || null,
+      purpose: risPurpose || null,
+      stockNumber: text(payload.risStockNumber) || null,
+      remarks: text(payload.risRemarks) || null,
+    },
+    withdrawnBy,
+    people,
+  };
+}
+
+/** The trip ticket, the same paper on a withdrawal and on a trip only. */
+function checkTrip(payload: Payload): Trip | Refusal {
+  const destination = text(payload.destination);
+  const travelFrom = text(payload.travelFrom);
+  const travelTo = text(payload.travelTo);
+  const driver = pickedOrTyped(payload.driverPk, payload.driverName);
+  if (!driver) return { field: "driverPk", error: "Choose or type the driver." };
+  if (driver.name && driver.name.length > 150) {
+    return {
+      field: "driverPk",
+      error: "Shorten the name to 150 characters.",
+    };
+  }
+  const dttPurpose = text(payload.dttPurpose);
+  if (!dttPurpose) {
+    return {
+      field: "dttPurpose",
+      error: "Enter the purpose of the trip ticket.",
+    };
+  }
+  const tooLongTrip = tooLongRefusal({
+    dttPurpose: [dttPurpose, 500, "purpose"],
+    dttRemarks: [text(payload.dttRemarks), 200, "remarks"],
+  });
+  if (tooLongTrip) return tooLongTrip;
+  if (!destination)
+    return { field: "destination", error: "Enter the destination." };
+  if (destination.length > 200) {
+    return {
+      field: "destination",
+      error: "Shorten the destination to 200 characters.",
+    };
+  }
+  if (!isDate(travelFrom))
+    return { field: "travelFrom", error: "Enter the first day of travel." };
+  if (!isDate(travelTo))
+    return { field: "travelTo", error: "Enter the last day of travel." };
+  if (travelTo < travelFrom) {
+    return {
+      field: "travelTo",
+      error: "Enter a day on or after the first day of travel.",
+    };
+  }
+  const odometer = payload.odometerStart;
+  const odometerStart =
+    odometer === null || odometer === undefined || odometer === ""
+      ? null
+      : Number(odometer);
+  if (
+    odometerStart !== null &&
+    (!Number.isInteger(odometerStart) ||
+      odometerStart < 0 ||
+      odometerStart > 9_999_999)
+  ) {
+    return {
+      field: "odometerStart",
+      error: "Enter the odometer reading in whole kilometers.",
+    };
+  }
+  const travelHours = optionalNumber(payload.travelHours, 9_999.99);
+  if (travelHours === undefined) {
+    return {
+      field: "travelHours",
+      error: "Enter the hours as a number up to 9,999.99.",
+    };
+  }
+  const departureTime = text(payload.departureTime);
+  if (departureTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(departureTime)) {
+    return { field: "departureTime", error: "Enter the departure time." };
+  }
+  const tankBalanceBefore = optionalNumber(payload.tankBalanceBefore, 999.99);
+  if (tankBalanceBefore === undefined) {
+    return {
+      field: "tankBalanceBefore",
+      error: "Enter the balance in liters, up to 999.99.",
+    };
+  }
+  const oilLubricant = text(payload.oilLubricant);
+  if (oilLubricant.length > 100) {
+    return {
+      field: "oilLubricant",
+      error: "Shorten the oil or fuel lubricant to 100 characters.",
+    };
+  }
+  const passengers = Array.isArray(payload.passengers)
+    ? payload.passengers.map(text).filter(Boolean)
+    : [];
+  if (passengers.length > 50 || passengers.some((n) => n.length > 150)) {
+    return {
+      error: "Enter up to 50 passengers, each name up to 150 characters.",
+    };
+  }
+  if (!Number(payload.dttApprovedBy)) {
+    return {
+      field: "dttApprovedBy",
+      error: "Choose who approves the trip ticket.",
+    };
+  }
+  return {
+    purpose: dttPurpose,
+    remarks: text(payload.dttRemarks) || null,
+    driverPk: driver.pk,
+    driverName: driver.name,
+    destination,
+    travelFrom,
+    travelTo,
+    odometerStart,
+    passengers,
+    travelHours,
+    departureTime: departureTime || null,
+    tankBalanceBeforeH:
+      tankBalanceBefore === null ? null : Math.round(tankBalanceBefore * 100),
+    oilLubricant: oilLubricant || null,
+    approvedByPk: Number(payload.dttApprovedBy),
+  };
+}
+
+/** Everyone picked on the forms, each once. */
+function picked({ slip, trip }: Pick<Checked, "slip" | "trip">) {
   const pks = [
-    ...Object.values(people),
-    withdrawnBy.pk,
+    ...Object.values(slip?.people ?? {}),
+    slip?.withdrawnBy.pk,
     trip?.driverPk,
     trip?.approvedByPk,
   ].filter((pk): pk is number => !!pk);
+  return [...new Set(pks)];
+}
+
+/**
+ * Whether everyone picked still works here, and, on a slip, whether its two
+ * GSU lines hold GSU staff (signatory.md).
+ */
+async function checkPeople(
+  forms: Pick<Checked, "slip" | "trip">,
+): Promise<Refusal | null> {
+  const pks = picked(forms);
+  if (pks.length === 0) return null;
   const found = await db
     .select({
       employeePk: employee.employeePk,
@@ -804,37 +863,73 @@ async function check(
     };
   }
 
-  // The two GSU lines take GSU staff only (signatory.md).
+  const { slip } = forms;
+  if (!slip) return null;
   const gsuPk = await getConfigValue(CONFIG_KEYS.gsuUnit);
   const inGsu = (pk: number) =>
     gsuPk !== null &&
     found.some((e) => e.employeePk === pk && e.orgUnitFk === gsuPk);
-  if (!inGsu(people.wsApprovedBy)) {
+  if (!inGsu(slip.people.wsApprovedBy)) {
     return {
       field: "wsApprovedBy",
       error: "Choose someone from the General Services Unit.",
     };
   }
-  if (!inGsu(people.risIssuedBy)) {
+  if (!inGsu(slip.people.risIssuedBy)) {
     return {
       field: "risIssuedBy",
       error: "Choose someone from the General Services Unit.",
     };
   }
+  return null;
+}
 
-  return {
-    fileDate,
-    orgUnitPk,
-    assetPk,
-    fuel,
-    purchaseOrderPk: balance.purchaseOrderPk,
-    requestedH,
-    requestedC,
-    ris,
-    withdrawnBy,
-    trip,
-    people,
-  };
+/** What is saved of the office, the file date, and the asset. */
+const saved = ({ fileDate, orgUnitPk, assetPk, fuel }: Transaction) => ({
+  fileDate,
+  orgUnitPk,
+  assetPk,
+  fuel,
+});
+
+/** A withdrawal: the slip, the RIS, and the trip ticket when the asset has one. */
+async function checkWithdrawal(
+  payload: Payload,
+  locals: App.Locals,
+): Promise<Checked | Refusal> {
+  const transaction = await checkTransaction(payload, locals);
+  if ("error" in transaction) return transaction;
+  const slip = await checkSlip(payload, transaction);
+  if ("error" in slip) return slip;
+  // The asset decides whether there is a trip ticket ("Which forms apply").
+  const trip = transaction.hasTripTicket ? checkTrip(payload) : null;
+  if (trip && "error" in trip) return trip;
+  const refusal = await checkPeople({ slip, trip });
+  if (refusal) return refusal;
+
+  return { ...saved(transaction), kind: "withdrawal", slip, trip };
+}
+
+/** A trip only: a trip ticket, and no withdrawal slip, RIS, or PO. */
+async function checkTripOnly(
+  payload: Payload,
+  locals: App.Locals,
+): Promise<Checked | Refusal> {
+  const transaction = await checkTransaction(payload, locals);
+  if ("error" in transaction) return transaction;
+  if (!transaction.hasTripTicket) {
+    return {
+      field: "assetPk",
+      error:
+        "That asset has no trip ticket. Choose another, or turn on its Trip ticket switch on the Assets page.",
+    };
+  }
+  const trip = checkTrip(payload);
+  if ("error" in trip) return trip;
+  const refusal = await checkPeople({ slip: null, trip });
+  if (refusal) return refusal;
+
+  return { ...saved(transaction), kind: "trip", slip: null, trip };
 }
 
 /**
@@ -874,15 +969,15 @@ function mysqlErrno(err: unknown) {
   return (err as { errno?: number })?.errno;
 }
 
+/**
+ * Saves a withdrawal or a trip only, with the numbers its forms need. A
+ * withdrawal waits for GSU to sign its slip; a trip only has no slip to
+ * sign, so it starts as Out (point 9.5 of "Recording a fuel issuance").
+ */
 async function save(checked: Checked, userPk: number | null) {
-  const { people, trip } = checked;
-  const pks = [
-    ...Object.values(people),
-    checked.withdrawnBy.pk,
-    trip?.driverPk,
-    trip?.approvedByPk,
-  ].filter((pk): pk is number => !!pk);
-  const version = await versionsOn(pks, checked.fileDate);
+  const { slip, trip } = checked;
+  const people = slip?.people;
+  const version = await versionsOn(picked(checked), checked.fileDate);
   const versionOf = (pk: number | null | undefined) =>
     pk ? (version.get(pk) ?? null) : null;
 
@@ -895,31 +990,29 @@ async function save(checked: Checked, userPk: number | null) {
     const [inserted] = await tx
       .insert(fuelIssuance)
       .values({
-        kind: "withdrawal",
-        status: "waiting",
+        kind: checked.kind,
+        status: checked.kind === "trip" ? "out" : "waiting",
         controlNumber,
-        wsNumber: await number("ws"),
-        risNumber: (await nextRisNumber(tx, checked.fileDate, { reuse: true }))
-          .risNumber,
+        wsNumber: slip ? await number("ws") : null,
+        risNumber: slip
+          ? (await nextRisNumber(tx, checked.fileDate, { reuse: true }))
+              .risNumber
+          : null,
         dttNumber: trip ? await number("dtt") : null,
         fileDate: checked.fileDate,
         orgUnitFk: checked.orgUnitPk,
         assetFk: checked.assetPk,
         fuelType: checked.fuel,
-        purchaseOrderFk: checked.purchaseOrderPk,
+        purchaseOrderFk: slip?.purchaseOrderPk ?? null,
         requestedLiters:
-          checked.requestedH === null
-            ? null
-            : fromHundredths(checked.requestedH),
+          slip?.requestedH == null ? null : fromHundredths(slip.requestedH),
         requestedAmount:
-          checked.requestedC === null
-            ? null
-            : fromHundredths(checked.requestedC),
-        risPurpose: checked.ris.purpose,
-        risStockNumber: checked.ris.stockNumber,
-        risFundCluster: checked.ris.fundCluster,
-        risResponsibilityCenterCode: checked.ris.responsibilityCenterCode,
-        risRemarks: checked.ris.remarks,
+          slip?.requestedC == null ? null : fromHundredths(slip.requestedC),
+        risPurpose: slip?.ris.purpose ?? null,
+        risStockNumber: slip?.ris.stockNumber ?? null,
+        risFundCluster: slip?.ris.fundCluster ?? null,
+        risResponsibilityCenterCode: slip?.ris.responsibilityCenterCode ?? null,
+        risRemarks: slip?.ris.remarks ?? null,
         dttPurpose: trip?.purpose ?? null,
         dttRemarks: trip?.remarks ?? null,
         destination: trip?.destination ?? null,
@@ -936,14 +1029,14 @@ async function save(checked: Checked, userPk: number | null) {
         oilLubricant: trip?.oilLubricant ?? null,
         driverFk: versionOf(trip?.driverPk),
         driverName: trip?.driverName ?? null,
-        wsWithdrawnByFk: versionOf(checked.withdrawnBy.pk),
-        wsWithdrawnByName: checked.withdrawnBy.name,
-        wsRequestedByFk: versionOf(people.wsRequestedBy),
-        wsApprovedByFk: versionOf(people.wsApprovedBy),
-        risRequestedByFk: versionOf(people.risRequestedBy),
-        risApprovedByFk: versionOf(people.risApprovedBy),
-        risIssuedByFk: versionOf(people.risIssuedBy),
-        risReceivedByFk: versionOf(people.risReceivedBy),
+        wsWithdrawnByFk: versionOf(slip?.withdrawnBy.pk),
+        wsWithdrawnByName: slip?.withdrawnBy.name ?? null,
+        wsRequestedByFk: versionOf(people?.wsRequestedBy),
+        wsApprovedByFk: versionOf(people?.wsApprovedBy),
+        risRequestedByFk: versionOf(people?.risRequestedBy),
+        risApprovedByFk: versionOf(people?.risApprovedBy),
+        risIssuedByFk: versionOf(people?.risIssuedBy),
+        risReceivedByFk: versionOf(people?.risReceivedBy),
         dttApprovedByFk: versionOf(trip?.approvedByPk),
         createdByFk: userPk,
       })
@@ -961,34 +1054,46 @@ async function save(checked: Checked, userPk: number | null) {
   });
 }
 
-export const issuanceActions = {
-  createWithdrawal: async ({ request, locals }) => {
-    if (!can(locals.permissions, "fuel:record")) {
-      return fail(403, { error: "You do not have permission to do this." });
-    }
+/**
+ * The New withdrawal and Trip only forms both send their fields as JSON in
+ * one form field, and both are saved the same way once checked.
+ */
+async function record(
+  request: Request,
+  locals: App.Locals,
+  check: (payload: Payload, locals: App.Locals) => Promise<Checked | Refusal>,
+) {
+  if (!can(locals.permissions, "fuel:record")) {
+    return fail(403, { error: "You do not have permission to do this." });
+  }
 
-    let payload: Payload;
+  let payload: Payload;
+  try {
+    payload = JSON.parse(String((await request.formData()).get("payload")));
+  } catch {
+    return fail(400, { error: "The form could not be read. Try again." });
+  }
+
+  const checked = await check(payload, locals);
+  if ("error" in checked) return fail(400, checked);
+  if (!(await cutoverDone())) return fail(409, { error: CUTOVER_PENDING });
+
+  // Two saves at the same moment can trip over each other while the
+  // counters are first made for a year; the second simply tries again.
+  for (let attempt = 1; ; attempt++) {
     try {
-      payload = JSON.parse(String((await request.formData()).get("payload")));
-    } catch {
-      return fail(400, { error: "The form could not be read. Try again." });
+      const controlNumber = await save(checked, locals.user?.userPk ?? null);
+      return { success: true, controlNumber };
+    } catch (err) {
+      const errno = mysqlErrno(err);
+      if ((errno === 1213 || errno === 1062) && attempt < 3) continue;
+      throw err;
     }
+  }
+}
 
-    const checked = await check(payload, locals);
-    if ("error" in checked) return fail(400, checked);
-    if (!(await cutoverDone())) return fail(409, { error: CUTOVER_PENDING });
-
-    // Two saves at the same moment can trip over each other while the
-    // counters are first made for a year; the second simply tries again.
-    for (let attempt = 1; ; attempt++) {
-      try {
-        const controlNumber = await save(checked, locals.user?.userPk ?? null);
-        return { success: true, controlNumber };
-      } catch (err) {
-        const errno = mysqlErrno(err);
-        if ((errno === 1213 || errno === 1062) && attempt < 3) continue;
-        throw err;
-      }
-    }
-  },
+export const issuanceActions = {
+  createWithdrawal: ({ request, locals }) =>
+    record(request, locals, checkWithdrawal),
+  createTrip: ({ request, locals }) => record(request, locals, checkTripOnly),
 } satisfies Actions;

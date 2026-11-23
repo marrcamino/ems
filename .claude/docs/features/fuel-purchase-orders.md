@@ -842,6 +842,10 @@ also the column name and the label on screen.
    generator, grass cutter, or chainsaw, so the asset decides it rather than a
    third button. Until 12 November 2026 the asset type's meter decided it
    ("Trip ticket belongs to the asset" in [fuel-assets.md](fuel-assets.md)).
+   **Built:** the menu holds "Trip only" and "Reimbursed trip". Trip only
+   opens its own form (23 November 2026), whose DTT is the same paper as a
+   withdrawal's (confirmed by the owner, 23 November 2026); it offers only
+   assets whose Trip ticket switch is on. Details are in `cards/fuel.md`.
 6. **RIS numbers are reserved in EMS before they are written** (the owner's
    plan, told on 21 October 2026). Because the RIS numbering is shared with
    supplies that are not fuel ("What the observed forms showed", point 1), EMS

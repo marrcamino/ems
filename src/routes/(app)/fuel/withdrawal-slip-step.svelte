@@ -1,22 +1,19 @@
 <script lang="ts">
-  import DateInput from "$lib/components/date-input.svelte";
   import AnimateContent from "$lib/components/transition/animate-content.svelte";
   import * as Alert from "$lib/components/ui/alert/index.js";
   import * as Field from "$lib/components/ui/field/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
-  import { getGlobalContext } from "$routes/global-context.svelte";
-  import { getLocalTimeZone, today } from "@internationalized/date";
   import TriangleAlertIcon from "@lucide/svelte/icons/triangle-alert";
   import { LEGEND, type WithdrawalForm } from "./new-withdrawal-form.svelte.js";
   import { FUEL_LABELS } from "./purchase-orders/po-math.js";
   import RequestField from "./request-field.svelte";
   import SearchPicker from "./search-picker.svelte";
+  import TransactionFields from "./transaction-fields.svelte";
   import { leftOn } from "./withdrawal-row.js";
 
   /** The first step of the New withdrawal form: the fuel, the PO, and the slip's people. */
   let { form }: { form: WithdrawalForm } = $props();
 
-  const gblCtx = getGlobalContext();
   const errors = $derived(form.errors);
 
   const poPlaceholder = $derived.by(() => {
@@ -32,60 +29,7 @@
 <Field.Group class="gap-6">
   <Field.Set>
     <Field.Legend class="sr-only">The fuel and the PO</Field.Legend>
-    <div class="flex gap-2">
-      <Field.Field data-invalid={errors.officePk ? true : undefined}>
-        <Field.Label id="officePk-label" required>Office</Field.Label>
-        <!--
-          Only someone who sees every office picks whose allocation a
-          withdrawal counts down; everyone else sees their own office,
-          fixed (point 7 of "Recording a fuel issuance"). The server
-          decides it the same way.
-        -->
-        <SearchPicker
-          id="officePk"
-          aria-labelledby="officePk-label"
-          items={form.officeItems}
-          bind:value={form.officePk}
-          placeholder={form.data.allOffices ? "Choose the office" : "No office"}
-          searchPlaceholder="Search offices..."
-          disabled={!form.data.allOffices}
-          required
-        />
-        <Field.Error>{errors.officePk}</Field.Error>
-      </Field.Field>
-
-      <Field.Field
-        class="w-min"
-        data-invalid={errors.fileDate ? true : undefined}
-      >
-        <!-- DateInput is labelled by id: a label's `for` cannot reach it. -->
-        <Field.Label id="fileDate-label" required>File date</Field.Label>
-        <DateInput
-          id="fileDate"
-          aria-labelledby="fileDate-label"
-          bind:value={form.fileDate}
-          maxValue={today(getLocalTimeZone())}
-          disabled={!gblCtx.can("fuel:change_file_date")}
-          required
-        />
-        <Field.Error>{errors.fileDate}</Field.Error>
-      </Field.Field>
-    </div>
-
-    <Field.Field data-invalid={errors.assetPk ? true : undefined}>
-      <Field.Label id="assetPk-label" required>Asset</Field.Label>
-      <SearchPicker
-        id="assetPk"
-        aria-labelledby="assetPk-label"
-        items={form.assetItems}
-        bind:value={form.assetPk}
-        placeholder="Choose the asset"
-        searchPlaceholder="Search name, plate, or type..."
-        empty="No active asset matches."
-        required
-      />
-      <Field.Error>{errors.assetPk}</Field.Error>
-    </Field.Field>
+    <TransactionFields {form} assetItems={form.assetItems} />
 
     {@const poInvalid = form.poError || errors.purchaseOrderPk}
     <Field.Field class="gap-0" data-invalid={poInvalid ? true : undefined}>

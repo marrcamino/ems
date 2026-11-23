@@ -66,7 +66,8 @@ export const LEGEND =
   "text-muted-foreground gap-2 min-h-4 text-left relative flex w-full items-center after:h-px after:min-w-0 after:flex-1 after:bg-border after:ml-1";
 
 /**
- * Everything the New withdrawal form holds, shared by its three steps:
+ * Everything the New withdrawal form holds, shared by its three steps, and
+ * by the Trip only form, which is the trip ticket step on its own:
  * every field, the server's refusals, and what is worked out from them,
  * such as the PO and its balance. Passed to each step as `form`.
  *
@@ -182,6 +183,14 @@ export class WithdrawalForm {
         keywords: [a.propertyNumber],
       };
     });
+  });
+
+  /** A trip only is made only for an asset whose Trip ticket switch is on. */
+  tripAssetItems = $derived.by(() => {
+    const withTicket = new Set(
+      this.data.assets.filter((a) => a.hasTripTicket).map((a) => String(a.assetPk)),
+    );
+    return this.assetItems.filter((item) => withTicket.has(item.value));
   });
 
   // ── The asset, the PO, and the request ──

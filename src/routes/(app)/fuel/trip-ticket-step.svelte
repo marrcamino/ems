@@ -8,14 +8,31 @@
   import { LEGEND, type WithdrawalForm } from "./new-withdrawal-form.svelte.js";
   import PassengersField from "./passengers-field.svelte";
   import SearchPicker from "./search-picker.svelte";
+  import TransactionFields from "./transaction-fields.svelte";
 
-  /** The last step of the New withdrawal form, for an asset with a trip ticket. */
-  let { form }: { form: WithdrawalForm } = $props();
+  /**
+   * The last step of the New withdrawal form, for an asset with a trip
+   * ticket. On its own it is the whole Trip only form, which then starts
+   * with the office, the file date, and the asset.
+   */
+  let { form, tripOnly = false }: { form: WithdrawalForm; tripOnly?: boolean } =
+    $props();
 
   const errors = $derived(form.errors);
 </script>
 
 <Field.Group class="gap-6">
+  {#if tripOnly}
+    <Field.Set>
+      <Field.Legend class="sr-only">The office and the asset</Field.Legend>
+      <TransactionFields
+        {form}
+        assetItems={form.tripAssetItems}
+        noAsset="No active asset with a trip ticket matches."
+      />
+    </Field.Set>
+  {/if}
+
   <Field.Set>
     <Field.Legend class={LEGEND}>Travel information</Field.Legend>
     <Field.Field data-invalid={errors.driverPk ? true : undefined}>
