@@ -26,7 +26,7 @@ This comes from the owner's flowchart of 25 November 2026. The flowchart gives t
 **Who enters the data**
 
 1. **Fuel:** staff request fuel, and GSU checks and approves the requests. GSU also enters the vehicles and the fuel procured. Details: `.claude/docs/features/fuel-purchase-orders.md`.
-2. **Electricity:** GSU enters the office's electricity use each month.
+2. **Electricity:** a role of its own enters each building's electricity use each month; GSU has no access to it for now (owner, 25 November 2026, correcting the flowchart's GSU).
 3. **Air travel:** the Finance office enters the employees' air travel.
 4. **Paper:** each office enters its monthly paper use, and GSU enters the bond paper procured and reviews every office's figures together. Details: `.claude/docs/features/paper-consumption.md`.
 5. **Water:** GSU enters the monthly water use.

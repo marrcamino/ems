@@ -1,22 +1,28 @@
 import { can } from "$lib/rbac/access";
 import { db } from "$lib/server/db";
 import {
+  electricityBuilding,
   electricityConsumption,
   electricityMonthlyReport,
 } from "$lib/server/db/schema";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { error, fail } from "@sveltejs/kit";
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { firstDay, isMonth, monthLabel, monthOf } from "../paper/paper-month";
 import { userName } from "../paper/paper-report.server";
 import type { Actions, PageServerLoad } from "./$types";
 import { lastMonthOver, MONTH_NOT_OVER } from "./electricity-month";
-import type { ElectricityReport, ElectricityUse } from "./electricity-types";
+import { allBuildings } from "./electricity-buildings.server";
+import type {
+  BuildingOption,
+  ElectricityReport,
+  ElectricityUse,
+} from "./electricity-types";
 import { electricityYear } from "./electricity-year.server";
 
 /**
- * GSU records the office's electricity use and submits each month, for the whole
- * PENRO (cards/electricity.md).
+ * Whoever holds `electricity:manage` records each building's electricity use
+ * and submits each month, for the whole PENRO (cards/electricity.md).
  */
 
 /** The dialog's limit: 7 digits. */
@@ -57,10 +63,16 @@ function deny(locals: App.Locals) {
 }
 
 type ReadUse =
-  { error: string } | { values: { kwh: number; note: string | null } };
+  | { error: string }
+  | { values: { buildingPk: number; kwh: number; note: string | null } };
 
 /** The add and edit form, checked. */
 function readUse(form: FormData): ReadUse {
+  const buildingPk = Number(form.get("buildingPk"));
+  if (!Number.isInteger(buildingPk) || buildingPk < 1) {
+    return { error: "Choose the building." };
+  }
+
   const raw = String(form.get("kwh") ?? "").trim();
   const kwh = Number(raw);
   if (raw === "" || !Number.isInteger(kwh) || kwh < 0 || kwh > MAX_KWH) {
@@ -74,7 +86,7 @@ function readUse(form: FormData): ReadUse {
     return { error: `Shorten the note to ${MAX_NOTE} characters.` };
   }
 
-  return { values: { kwh, note: note || null } };
+  return { values: { buildingPk, kwh, note: note || null } };
 }
 
 /** The month of the form, refused unless it is over. */
@@ -87,10 +99,54 @@ function readMonth(form: FormData): { month: string } | { error: string } {
 
 async function selectUse(usePk: number) {
   const [row] = await db
-    .select({ usePk: electricityConsumption.electricityConsumptionPk })
+    .select({
+      usePk: electricityConsumption.electricityConsumptionPk,
+      reportPk: electricityConsumption.electricityMonthlyReportFk,
+      buildingPk: electricityConsumption.electricityBuildingFk,
+    })
     .from(electricityConsumption)
     .where(eq(electricityConsumption.electricityConsumptionPk, usePk));
   return row ?? null;
+}
+
+/**
+ * Why a building cannot take a new entry in the month, or null when it can:
+ * it must be on the list and active, and have no entry in the month yet.
+ */
+async function buildingRefusal(
+  buildingPk: number,
+  reportPk: number,
+  month: string,
+) {
+  const [building] = await db
+    .select()
+    .from(electricityBuilding)
+    .where(eq(electricityBuilding.electricityBuildingPk, buildingPk));
+  if (!building) return "That building is no longer on the list.";
+  if (building.status === "inactive") {
+    return `${building.name} is inactive. Make it active on the Buildings page.`;
+  }
+  const [taken] = await db
+    .select({ usePk: electricityConsumption.electricityConsumptionPk })
+    .from(electricityConsumption)
+    .where(
+      and(
+        eq(electricityConsumption.electricityMonthlyReportFk, reportPk),
+        eq(electricityConsumption.electricityBuildingFk, buildingPk),
+      ),
+    );
+  if (taken) return alreadyEntered(building.name, month);
+  return null;
+}
+
+function alreadyEntered(building: string, month: string) {
+  return `${building} already has an entry for ${monthLabel(month)}. Edit that entry instead.`;
+}
+
+/** True for MySQL's duplicate-key error, from two saves at once. */
+function isDuplicate(e: unknown) {
+  const err = e as { code?: string; cause?: { code?: string } };
+  return (err.cause?.code ?? err.code) === "ER_DUP_ENTRY";
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -117,6 +173,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     ? await db
         .select({
           usePk: electricityConsumption.electricityConsumptionPk,
+          buildingPk: electricityBuilding.electricityBuildingPk,
+          building: electricityBuilding.name,
           kwh: electricityConsumption.kwh,
           note: electricityConsumption.note,
           // The column's default stores the server's local time, which
@@ -125,20 +183,38 @@ export const load: PageServerLoad = async ({ locals, url }) => {
           enteredOn: sql<string>`date_format(${electricityConsumption.createdAt}, '%Y-%m-%d')`,
         })
         .from(electricityConsumption)
+        .innerJoin(
+          electricityBuilding,
+          eq(
+            electricityBuilding.electricityBuildingPk,
+            electricityConsumption.electricityBuildingFk,
+          ),
+        )
         .where(
           eq(
             electricityConsumption.electricityMonthlyReportFk,
             reportRow.electricityMonthlyReportPk,
           ),
         )
-        .orderBy(asc(electricityConsumption.electricityConsumptionPk))
+        .orderBy(asc(electricityBuilding.electricityBuildingPk))
     : [];
+
+  // The active buildings, and any inactive one with an entry this month, so
+  // editing that entry keeps its building.
+  const buildings: BuildingOption[] = (await allBuildings())
+    .filter(
+      (b) =>
+        b.status === "active" ||
+        uses.some((u) => u.buildingPk === b.buildingPk),
+    )
+    .map(({ buildingPk, name, status }) => ({ buildingPk, name, status }));
 
   return {
     month,
     lastMonth,
     report,
     uses,
+    buildings,
     year: await electricityYear(month.slice(0, 4), lastMonth),
   };
 };
@@ -155,11 +231,29 @@ export const actions: Actions = {
     if ("error" in read) return fail(400, { error: read.error });
 
     const report = await reportFor(asked.month);
-    await db.insert(electricityConsumption).values({
-      electricityMonthlyReportFk: report.electricityMonthlyReportPk,
-      ...read.values,
-      createdByFk: locals.user!.userPk,
-    });
+    const refusal = await buildingRefusal(
+      read.values.buildingPk,
+      report.electricityMonthlyReportPk,
+      asked.month,
+    );
+    if (refusal) return fail(409, { error: refusal });
+
+    try {
+      await db.insert(electricityConsumption).values({
+        electricityMonthlyReportFk: report.electricityMonthlyReportPk,
+        electricityBuildingFk: read.values.buildingPk,
+        kwh: read.values.kwh,
+        note: read.values.note,
+        createdByFk: locals.user!.userPk,
+      });
+    } catch (e) {
+      if (isDuplicate(e)) {
+        return fail(409, {
+          error: "That building already has an entry for this month. Edit that entry instead.",
+        });
+      }
+      throw e;
+    }
     return { success: true };
   },
 
@@ -176,10 +270,36 @@ export const actions: Actions = {
     const read = readUse(form);
     if ("error" in read) return fail(400, { error: read.error });
 
-    await db
-      .update(electricityConsumption)
-      .set({ ...read.values, updatedAt: new Date() })
-      .where(eq(electricityConsumption.electricityConsumptionPk, use.usePk));
+    // A different building must be able to take a new entry this month.
+    if (read.values.buildingPk !== use.buildingPk) {
+      const asked = readMonth(form);
+      if ("error" in asked) return fail(400, { error: asked.error });
+      const refusal = await buildingRefusal(
+        read.values.buildingPk,
+        use.reportPk,
+        asked.month,
+      );
+      if (refusal) return fail(409, { error: refusal });
+    }
+
+    try {
+      await db
+        .update(electricityConsumption)
+        .set({
+          electricityBuildingFk: read.values.buildingPk,
+          kwh: read.values.kwh,
+          note: read.values.note,
+          updatedAt: new Date(),
+        })
+        .where(eq(electricityConsumption.electricityConsumptionPk, use.usePk));
+    } catch (e) {
+      if (isDuplicate(e)) {
+        return fail(409, {
+          error: "That building already has an entry for this month. Edit that entry instead.",
+        });
+      }
+      throw e;
+    }
     return { success: true };
   },
 

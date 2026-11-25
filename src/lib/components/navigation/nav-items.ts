@@ -145,6 +145,11 @@ export const workPages = [
         url: "/electricity/summary",
         permission: "electricity:view",
       },
+      {
+        name: "Buildings",
+        url: "/electricity/buildings",
+        permission: "electricity:view",
+      },
     ],
   },
   {

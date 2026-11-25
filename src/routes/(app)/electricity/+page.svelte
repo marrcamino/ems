@@ -43,6 +43,18 @@
   const canManage = $derived(gblCtx.can("electricity:manage"));
   const status = $derived<ElectricityStatus>(report?.status ?? "open");
   const total = $derived(uses.reduce((sum, u) => sum + u.kwh, 0));
+  const entered = $derived(uses.map((u) => u.buildingPk));
+  /** The active buildings with no entry this month yet. */
+  const missing = $derived(
+    data.buildings.filter(
+      (b) => b.status === "active" && !entered.includes(b.buildingPk),
+    ),
+  );
+  /** "Nursery", "Nursery and Watch Tower", "Nursery, Watch Tower, and Info Center". */
+  const listNames = (names: string[]) =>
+    names.length <= 2
+      ? names.join(" and ")
+      : `${names.slice(0, -1).join(", ")}, and ${names.at(-1)}`;
 
   function go(nextMonth: string) {
     const url = new URL(page.url);
@@ -222,7 +234,7 @@
               {status === "submitted"
                 ? "The month was submitted with no electricity use recorded."
                 : canManage
-                  ? "Add the kWh of electricity that the office used this month."
+                  ? "Add the kWh that each building used this month."
                   : "Nothing is recorded for this month yet."}
             </Empty.Description>
           </Empty.Header>
@@ -239,7 +251,7 @@
         <Table.Root containerClass="rounded-lg border">
           <Table.Header class="bg-muted/80">
             <Table.Row>
-              <Table.Head>Entry</Table.Head>
+              <Table.Head>Building</Table.Head>
               <Table.Head class="text-right">kWh</Table.Head>
               {#if canManage}
                 <Table.Head class="w-0"></Table.Head>
@@ -250,11 +262,11 @@
             {#each uses as use (use.usePk)}
               <Table.Row>
                 <Table.Cell class="whitespace-normal">
-                  {#if use.note}
-                    <div>{use.note}</div>
-                  {/if}
+                  <div class="font-medium">{use.building}</div>
                   <div class="text-xs text-muted-foreground">
-                    Entered {formatDate(use.enteredOn)}
+                    {[use.note, `Entered ${formatDate(use.enteredOn)}`]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </div>
                 </Table.Cell>
                 <Table.Cell class="text-right tabular-nums">
@@ -318,8 +330,8 @@
         </Card.Header>
         <Card.Content class="grid gap-1 text-sm tabular-nums">
           <div class="flex justify-between">
-            <span>Entries</span>
-            <span>{uses.length}</span>
+            <span>Buildings entered</span>
+            <span>{uses.length} of {data.buildings.length}</span>
           </div>
           <div class="mt-1 flex justify-between border-t pt-1.5 font-medium">
             <span>kWh</span>
@@ -369,7 +381,13 @@
   </div>
 </div>
 
-<ElectricityUseDialog bind:open={useOpen} use={useToEdit} {month} />
+<ElectricityUseDialog
+  bind:open={useOpen}
+  use={useToEdit}
+  {month}
+  buildings={data.buildings}
+  {entered}
+/>
 
 <AlertDialog.Root bind:open={removeOpen}>
   <AlertDialog.Content class="sm:max-w-100">
@@ -377,9 +395,7 @@
       <AlertDialog.Title>Remove this entry?</AlertDialog.Title>
       <AlertDialog.Description>
         {#if useToRemove}
-          {useToRemove.note
-            ? `${useToRemove.note}, with ${kwhText(useToRemove.kwh)},`
-            : `The entry of ${kwhText(useToRemove.kwh)}`} comes off the
+          The {kwhText(useToRemove.kwh)} of {useToRemove.building} comes off the
           {monthName(month)} total.
         {/if}
       </AlertDialog.Description>
@@ -403,6 +419,10 @@
       <AlertDialog.Description>
         {#if uses.length > 0}
           The office used {kwhText(total)} of electricity this month.
+          {#if missing.length > 0}
+            {listNames(missing.map((b) => b.name))}
+            {missing.length === 1 ? "has" : "have"} no entry.
+          {/if}
         {:else}
           No electricity use is recorded for this month, so it is submitted as
           none recorded.
