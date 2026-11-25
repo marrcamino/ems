@@ -1,3 +1,4 @@
+export * from "./air-travel";
 export * from "./asset";
 export * from "./asset-type";
 export * from "./config";

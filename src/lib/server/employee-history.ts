@@ -41,6 +41,7 @@ import {
   employee,
   employeeHistory,
   employeeHistoryCorrection,
+  airTravelFlight,
   fuelIssuance,
   paperConsumption,
   paperMonthlyReport,
@@ -652,6 +653,15 @@ export async function countDocumentsUsingVersions(
   ]);
   for (const key of paperForms) {
     const pk = Number(key.split(":")[0]);
+    if (pk in counts) counts[pk]++;
+  }
+
+  // Each flight that names the person is one document.
+  const flights = await db
+    .select({ pk: airTravelFlight.travellerFk })
+    .from(airTravelFlight)
+    .where(inArray(airTravelFlight.travellerFk, employeeHistoryPks));
+  for (const { pk } of flights) {
     if (pk in counts) counts[pk]++;
   }
   return counts;

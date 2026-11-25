@@ -121,7 +121,7 @@ export const PERMISSION_DEFS = {
   },
   air_travel: {
     view: "Access the Air Travel page",
-    manage: "Add, edit, and delete air travel records",
+    manage: "Record the staff's flights on official business, and submit each month",
   },
   // One ESWM record for the whole PENRO, entered by the ESWM Focal Person,
   // so neither key is limited to the person's own office.

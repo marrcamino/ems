@@ -9,6 +9,7 @@ import {
   Fuel,
   House,
   IdCard,
+  Plane,
   Plus,
   Recycle,
   ShieldCheck,
@@ -143,6 +144,24 @@ export const workPages = [
         name: "Summary",
         url: "/electricity/summary",
         permission: "electricity:view",
+      },
+    ],
+  },
+  {
+    name: "Air Travel",
+    url: "/air-travel",
+    icon: Plane,
+    permission: "air_travel:view",
+    children: [
+      {
+        name: "Summary",
+        url: "/air-travel/summary",
+        permission: "air_travel:view",
+      },
+      {
+        name: "Routes",
+        url: "/air-travel/routes",
+        permission: "air_travel:view",
       },
     ],
   },
