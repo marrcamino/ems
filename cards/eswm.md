@@ -1,7 +1,7 @@
 ---
 type: module
 status: active
-next: committed on `feature/eswm` on 25 November 2026 with the year summary (`/eswm/summary`), tried in the browser, test data removed; not merged into `main` yet
+next: built, with the year summary, and merged into `main` on 25 November 2026 (cd7a782); waits for the office's answer in MPP-148 on weighing its own waste
 updated: 2026-11-25
 ---
 # ESWM
@@ -14,11 +14,12 @@ The ESWM Focal Person records the garbage collected at each cleanup drive, for t
 | Code | `src/routes/(app)/eswm/` (`+page.server.ts`, `+page.svelte`, `cleanup-drive-dialog.svelte`, `eswm-types.ts`, `eswm-format.ts`), the year summary in `eswm/summary/`, schema `src/lib/server/db/schema/eswm.ts`; month helpers shared from `paper/paper-month.ts` |
 | Tests | none |
 | Decisions / notes | `.claude/docs/features/eswm.md` (rules, what is left out, research sources) |
-| Graph nodes | none yet |
+| Graph nodes | `eswm-types.ts` (`CleanupDrive`, `SummaryMonth`), `eswm/+page.server.ts` (`readDrive`, `load`) |
 | Related cards | `cards/paper.md` (the page copies its layout), `cards/other-modules.md` |
 
 ## Open (tracked in Linear)
-- MPP-88 ESWM
+- MPP-88 ESWM: built, waiting for the office's answer
+- MPP-148 ask the ESWM Focal Person whether the office's own waste is weighed, and how often
 
 ## Gotchas
 - One record for the PENRO: `eswm_monthly_report` has no office column, and `report_month` is unique.
