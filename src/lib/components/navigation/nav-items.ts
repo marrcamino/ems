@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Store,
   UsersRound,
+  Zap,
 } from "@lucide/svelte/icons";
 
 export type NavPage = {
@@ -129,6 +130,19 @@ export const workPages = [
         name: "Summary",
         url: "/water/summary",
         permission: "water:view",
+      },
+    ],
+  },
+  {
+    name: "Electricity",
+    url: "/electricity",
+    icon: Zap,
+    permission: "electricity:view",
+    children: [
+      {
+        name: "Summary",
+        url: "/electricity/summary",
+        permission: "electricity:view",
       },
     ],
   },
