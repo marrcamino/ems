@@ -123,9 +123,11 @@ export const PERMISSION_DEFS = {
     view: "Access the Air Travel page",
     manage: "Add, edit, and delete air travel records",
   },
+  // One ESWM record for the whole PENRO, entered by the ESWM Focal Person,
+  // so neither key is limited to the person's own office.
   eswm: {
     view: "Access the ESWM page",
-    manage: "Add, edit, and delete ESWM records",
+    manage: "Record the waste collected, and submit each month",
   },
   ghg: {
     view: "Access the GHG Compliance page",
