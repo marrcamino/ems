@@ -1,7 +1,7 @@
 ---
 type: module
 status: active
-next: built and checked in the browser on `feature/electricity` (25 November 2026); waits for the owner's commit and merge, then `graphify update`, then the office's answers in MPP-151 to MPP-154
+next: built, checked in the browser, and merged into `main` on 25 November 2026 (a6a0487); waits for the office's answers in MPP-151 to MPP-154
 updated: 2026-11-25
 ---
 # Electricity
@@ -14,11 +14,11 @@ GSU records the office's monthly electricity use in kWh, for the whole PENRO, an
 | Code | `src/routes/(app)/electricity/` (`+page.server.ts`, `+page.svelte`, `electricity-use-dialog.svelte`, `electricity-types.ts`, `electricity-format.ts`, `electricity-month.ts`, `electricity-year.server.ts`), the year summary in `electricity/summary/`, schema `src/lib/server/db/schema/electricity.ts`; month helpers shared from `paper/paper-month.ts` |
 | Tests | none; the browser check of 25 November 2026 is in `tmp/electricity-plan/test/` |
 | Decisions / notes | `.claude/docs/features/electricity.md` (rules, what is left out, research sources) |
-| Graph nodes | none yet (run `graphify update` after the merge) |
+| Graph nodes | `graphify-out/graph.json` has every file above (updated after the merge) |
 | Related cards | `cards/water.md` (the page copies it), `cards/other-modules.md` (GHG, which reads this data) |
 
 ## Open (tracked in Linear)
-- MPP-84 Electricity: built, not merged
+- MPP-84 Electricity: built and merged, waiting for the office's answers
 - MPP-151 ask GSU whether the figures are copied from the DIELCO bill
 - MPP-152 ask GSU how many electric meters or DIELCO accounts the office has
 - MPP-153 ask the GHG Focal Person whether the office sends GEMP's monthly electricity report
