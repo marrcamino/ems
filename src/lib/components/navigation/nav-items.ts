@@ -9,6 +9,7 @@ import {
   House,
   IdCard,
   Plus,
+  Recycle,
   ShieldCheck,
   Store,
   UsersRound,
@@ -50,14 +51,12 @@ export const workPages = [
     url: "/",
     icon: House,
   },
-  // Not under Fuel or Paper: the POs of both pick from this one list.
   {
     name: "Suppliers",
     url: "/suppliers",
     icon: Store,
     permission: "purchase_orders:view",
   },
-  // Not under Fuel: the RIS numbers cover every supply, not only fuel.
   {
     name: "RIS Numbers",
     url: "/ris-numbers",
@@ -103,6 +102,19 @@ export const workPages = [
         name: "Submitted Reports",
         url: "/paper/submitted",
         permission: "paper:receive",
+      },
+    ],
+  },
+  {
+    name: "ESWM",
+    url: "/eswm",
+    icon: Recycle,
+    permission: "eswm:view",
+    children: [
+      {
+        name: "Summary",
+        url: "/eswm/summary",
+        permission: "eswm:view",
       },
     ],
   },
