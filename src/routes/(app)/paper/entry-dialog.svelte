@@ -124,7 +124,6 @@
                   : `It is under ${monthLabel(savedMonth)}.`,
             });
             open = false;
-            onSaved(savedMonth);
           }
           if (result.type === "failure") {
             toastErrorOnce("paper-entry", "Entry not saved", {
@@ -135,6 +134,9 @@
           }
           await update({ reset: false, invalidateAll: true });
           submitting = false;
+          // After the reload, which would otherwise cancel the move to the
+          // saved entry's month.
+          if (result.type === "success") onSaved(savedMonth);
         };
       }}
     >
