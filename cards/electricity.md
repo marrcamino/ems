@@ -1,7 +1,7 @@
 ---
 type: module
 status: active
-next: recording by building, from the office's workbook, built and checked in the browser on `feature/electricity` on 25 November 2026 (table added with `tmp/electricity-plan/electricity-buildings.sql`); waits for the commit and the merge
+next: recording by building, from the office's workbook, merged into `main` on 25 November 2026 (5c22df6); waits for the office's answers in MPP-151, MPP-153, MPP-154, and MPP-159
 updated: 2026-11-25
 ---
 # Electricity
