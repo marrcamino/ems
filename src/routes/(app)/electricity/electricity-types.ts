@@ -1,8 +1,10 @@
 export type ElectricityStatus = "open" | "submitted";
 
-/** The electricity used in a month, or by one meter in it. */
+/** The electricity one building used in a month. */
 export type ElectricityUse = {
   usePk: number;
+  buildingPk: number;
+  building: string;
   kwh: number;
   note: string | null;
   /** The day it was typed in, `2026-11-05`. */
@@ -25,4 +27,32 @@ export type ElectricityMonth = {
   month: string;
   status: ElectricityStatus | null;
   kwh: number | null;
+};
+
+/** A building on the Buildings page, with the number of entries for it. */
+export type ElectricityBuilding = {
+  buildingPk: number;
+  name: string;
+  status: "active" | "inactive";
+  /** Its place in the order the buildings were added, which picks its colour. */
+  order: number;
+  entries: number;
+};
+
+/** A building the Add electricity use dialog can pick. */
+export type BuildingOption = {
+  buildingPk: number;
+  name: string;
+  status: "active" | "inactive";
+};
+
+/**
+ * One building's line on the summary: its kWh for each month of the year,
+ * null where it has no entry.
+ */
+export type BuildingYear = {
+  buildingPk: number;
+  name: string;
+  order: number;
+  kwh: (number | null)[];
 };

@@ -45,9 +45,38 @@ export const electricityMonthlyReport = mysqlTable(
   (t) => [unique("elmr_report_month_unique").on(t.reportMonth)],
 );
 
-// The electricity used in a month, in whole kWh, as a bill gives it.
-// It has no date: it covers the whole month of its report. A month with more
-// than one meter has one entry per meter, named in the note.
+// A building whose electricity is recorded on its own, as the office's
+// workbook does (PENRO DI Office, Nursery, Watch Tower, Info Center). Kept on
+// the Buildings page; never deleted, only made inactive, because entries
+// point at it.
+export const electricityBuilding = mysqlTable(
+  "electricity_building",
+  {
+    electricityBuildingPk: bigint("electricity_building_pk", {
+      mode: "number",
+      unsigned: true,
+    })
+      .primaryKey()
+      .autoincrement(),
+    name: varchar("name", { length: 100 }).notNull(),
+    status: mysqlEnum("status", ["active", "inactive"])
+      .notNull()
+      .default("active"),
+    // Semantic FK name: points at `user.user_pk`, who added it.
+    createdByFk: bigint("created_by_fk", { mode: "number", unsigned: true }),
+    createdAt: datetime("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: datetime("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (t) => [unique("elb_name_unique").on(t.name)],
+);
+
+// The electricity one building used in a month, in whole kWh, as a bill
+// gives it. It has no date: it covers the whole month of its report. One
+// entry per building in a month.
 export const electricityConsumption = mysqlTable(
   "electricity_consumption",
   {
@@ -58,6 +87,10 @@ export const electricityConsumption = mysqlTable(
       .primaryKey()
       .autoincrement(),
     electricityMonthlyReportFk: bigint("electricity_monthly_report_fk", {
+      mode: "number",
+      unsigned: true,
+    }).notNull(),
+    electricityBuildingFk: bigint("electricity_building_fk", {
       mode: "number",
       unsigned: true,
     }).notNull(),
@@ -78,5 +111,14 @@ export const electricityConsumption = mysqlTable(
       columns: [t.electricityMonthlyReportFk],
       foreignColumns: [electricityMonthlyReport.electricityMonthlyReportPk],
     }).onDelete("restrict"),
+    foreignKey({
+      name: "elc_electricity_building_fk",
+      columns: [t.electricityBuildingFk],
+      foreignColumns: [electricityBuilding.electricityBuildingPk],
+    }).onDelete("restrict"),
+    unique("elc_month_building_unique").on(
+      t.electricityMonthlyReportFk,
+      t.electricityBuildingFk,
+    ),
   ],
 );

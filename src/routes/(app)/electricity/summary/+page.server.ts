@@ -3,10 +3,16 @@ import { getLocalTimeZone, today } from "@internationalized/date";
 import { error } from "@sveltejs/kit";
 import { monthOf } from "../../paper/paper-month";
 import { lastMonthOver } from "../electricity-month";
-import { electricityYear } from "../electricity-year.server";
+import {
+  electricityYear,
+  electricityYearByBuilding,
+} from "../electricity-year.server";
 import type { PageServerLoad } from "./$types";
 
-/** The year's electricity, month by month, from what is already entered. */
+/**
+ * The year's electricity, month by month and building by building, from what
+ * is already entered.
+ */
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!can(locals.permissions, "electricity:view")) {
     throw error(403, "You do not have permission to view this page.");
@@ -26,5 +32,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     year,
     lastYear,
     months: await electricityYear(String(year), lastMonth),
+    buildings: await electricityYearByBuilding(String(year), lastMonth),
   };
 };

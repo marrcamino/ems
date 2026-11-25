@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
-  import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import * as ButtonGroup from "$lib/components/ui/button-group/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -13,12 +12,23 @@
   import Header from "@/components/header.svelte";
   import { ChevronLeft, ChevronRight, Zap } from "@lucide/svelte/icons";
   import { monthLabel, monthName } from "../../paper/paper-month";
-  import { formatKwh, kwhText } from "../electricity-format";
-  import type { ElectricityStatus } from "../electricity-types";
+  import {
+    buildingColour,
+    formatKwh,
+    kwhText,
+  } from "../electricity-format";
 
   let { data } = $props();
 
   const months = $derived(data.months);
+  const buildings = $derived(data.buildings);
+  /** The buildings with an entry in month `i`, bottom of the bar first. */
+  const partsOf = (i: number) =>
+    buildings
+      .filter((b) => b.kwh[i] !== null)
+      .map((b) => ({ ...b, value: b.kwh[i]! }));
+  const buildingTotal = (kwh: (number | null)[]) =>
+    kwh.reduce<number>((sum, v) => sum + (v ?? 0), 0);
   /** The months with a figure; a month with no entry is not 0. */
   const recorded = $derived(months.filter((m) => m.kwh !== null));
   const total = $derived(recorded.reduce((sum, m) => sum + (m.kwh ?? 0), 0));
@@ -59,8 +69,6 @@
   }
 
   const STATUS_LABEL = { open: "Open", submitted: "Submitted" } as const;
-  const statusVariant = (s: ElectricityStatus | null) =>
-    s === "submitted" ? "default" : "outline";
 </script>
 
 <svelte:head>
@@ -136,13 +144,27 @@
             <Card.Title>kWh per month</Card.Title>
             <Card.Description>Electricity used in {data.year}</Card.Description>
             <Card.Action class="text-right">
-              <div class="text-lg font-semibold tabular-nums">
+              <div class="text-lg font-semibold">
                 {kwhText(total)}
               </div>
-              <div class="text-muted-foreground text-xs">in all</div>
+              <div class="text-muted-foreground text-xs">
+                in all, {averageFormat.format(total / recorded.length)} a month
+                on average
+              </div>
             </Card.Action>
           </Card.Header>
-          <Card.Content>
+          <Card.Content class="grid gap-4">
+            <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {#each buildings as b (b.buildingPk)}
+                <span class="flex items-center gap-1.5">
+                  <span
+                    class="size-2.5 rounded-full bg-(--light) dark:bg-(--dark)"
+                    style={buildingColour(b.order)}
+                  ></span>
+                  {b.name}
+                </span>
+              {/each}
+            </div>
             <!-- Plain HTML bars: the app runs offline and has no chart library. -->
             <div class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2">
               <div class="relative h-52 w-12">
@@ -168,7 +190,7 @@
                   ></div>
                 {/each}
                 <div class="absolute inset-0 flex">
-                  {#each months as m (m.month)}
+                  {#each months as m, i (m.month)}
                     <Tooltip.Root delayDuration={0}>
                       <Tooltip.Trigger>
                         {#snippet child({ props })}
@@ -181,22 +203,50 @@
                               : kwhText(m.kwh)}"
                           >
                             {#if m.kwh}
+                              <!-- One part per building, the first at the
+                                   bottom, with a 2px gap between parts. -->
                               <span
-                                class="w-full max-w-6 rounded-t-[4px] bg-amber-500 dark:bg-amber-400"
+                                class="flex w-full max-w-6 flex-col-reverse gap-0.5 overflow-hidden rounded-t-[4px]"
                                 style:height="{(m.kwh / top) * 100}%"
-                              ></span>
+                              >
+                                {#each partsOf(i) as part (part.buildingPk)}
+                                  {#if part.value > 0}
+                                    <span
+                                      class="min-h-px bg-(--light) dark:bg-(--dark)"
+                                      style="{buildingColour(part.order)}; flex: {part.value} 1 0"
+                                    ></span>
+                                  {/if}
+                                {/each}
+                              </span>
                             {/if}
                           </a>
                         {/snippet}
                       </Tooltip.Trigger>
                       <Tooltip.Content>
-                        <div class="grid gap-0.5">
+                        <div class="grid min-w-40 gap-0.5">
                           <span class="font-medium">{monthLabel(m.month)}</span>
-                          <span class="tabular-nums">
-                            {m.kwh === null
-                              ? "No electricity use recorded"
-                              : kwhText(m.kwh)}
-                          </span>
+                          {#if m.kwh === null}
+                            <span>No electricity use recorded</span>
+                          {:else}
+                            {#each [...partsOf(i)].reverse() as part (part.buildingPk)}
+                              <span class="flex items-center gap-2">
+                                <span
+                                  class="size-2 shrink-0 rounded-full bg-(--light) dark:bg-(--dark)"
+                                  style={buildingColour(part.order)}
+                                ></span>
+                                {part.name}
+                                <span class="ml-auto tabular-nums">
+                                  {formatKwh(part.value)}
+                                </span>
+                              </span>
+                            {/each}
+                            <span
+                              class="mt-0.5 flex justify-between border-t border-current/20 pt-0.5 font-medium tabular-nums"
+                            >
+                              <span>Total</span>
+                              {kwhText(m.kwh)}
+                            </span>
+                          {/if}
                         </div>
                       </Tooltip.Content>
                     </Tooltip.Root>
@@ -218,29 +268,42 @@
         </Card.Root>
       {/if}
 
+      <!-- The workbook's layout: one line per building, one column per month. -->
       <Table.Root containerClass="rounded-lg border">
         <Table.Header class="bg-muted/80">
           <Table.Row>
-            <Table.Head>Month</Table.Head>
-            <Table.Head class="text-right">kWh</Table.Head>
-            <Table.Head>Status</Table.Head>
+            <Table.Head>Building</Table.Head>
+            {#each months as m (m.month)}
+              <Table.Head class="text-right">
+                <a href="/electricity?month={m.month}" class="hover:underline">
+                  {monthShort(m.month)}
+                </a>
+              </Table.Head>
+            {/each}
+            <Table.Head class="text-right">Total</Table.Head>
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {#each months as m (m.month)}
+          {#each buildings as b (b.buildingPk)}
             <Table.Row>
-              <Table.Cell>
-                <a href="/electricity?month={m.month}" class="hover:underline">
-                  {monthName(m.month)}
-                </a>
+              <Table.Cell class="font-medium">
+                <span class="flex items-center gap-2">
+                  <span
+                    class="size-2.5 shrink-0 rounded-full bg-(--light) dark:bg-(--dark)"
+                    style={buildingColour(b.order)}
+                  ></span>
+                  {b.name}
+                </span>
               </Table.Cell>
-              <Table.Cell class="text-right tabular-nums">
-                {m.kwh === null ? "—" : formatKwh(m.kwh)}
-              </Table.Cell>
-              <Table.Cell>
-                <Badge variant={statusVariant(m.status)}>
-                  {STATUS_LABEL[m.status ?? "open"]}
-                </Badge>
+              {#each b.kwh as value, i (months[i].month)}
+                <Table.Cell class="text-right tabular-nums">
+                  {value === null ? "—" : formatKwh(value)}
+                </Table.Cell>
+              {/each}
+              <Table.Cell class="text-right font-medium tabular-nums">
+                {b.kwh.some((v) => v !== null)
+                  ? formatKwh(buildingTotal(b.kwh))
+                  : "—"}
               </Table.Cell>
             </Table.Row>
           {/each}
@@ -248,21 +311,30 @@
         <Table.Footer>
           <Table.Row class="font-medium">
             <Table.Cell>Total</Table.Cell>
+            {#each months as m (m.month)}
+              <Table.Cell class="text-right tabular-nums">
+                {m.kwh === null ? "—" : formatKwh(m.kwh)}
+              </Table.Cell>
+            {/each}
             <Table.Cell class="text-right tabular-nums">
               {formatKwh(total)}
             </Table.Cell>
-            <Table.Cell class="text-muted-foreground font-normal">
-              {submitted} of {months.length} submitted
-            </Table.Cell>
           </Table.Row>
-          <Table.Row class="font-medium">
-            <Table.Cell>Average a month</Table.Cell>
-            <Table.Cell class="text-right tabular-nums">
-              {averageFormat.format(total / recorded.length)}
-            </Table.Cell>
-            <Table.Cell class="text-muted-foreground font-normal">
-              of the {recorded.length}
-              {recorded.length === 1 ? "month" : "months"} with electricity use recorded
+          <Table.Row>
+            <Table.Cell class="font-medium">Status</Table.Cell>
+            {#each months as m (m.month)}
+              <!-- Plain words, not badges: twelve of them crowd the row. -->
+              <Table.Cell
+                class={[
+                  "text-right text-xs",
+                  m.status !== "submitted" && "text-muted-foreground",
+                ]}
+              >
+                {STATUS_LABEL[m.status ?? "open"]}
+              </Table.Cell>
+            {/each}
+            <Table.Cell class="text-right text-muted-foreground">
+              {submitted} of {months.length}
             </Table.Cell>
           </Table.Row>
         </Table.Footer>
