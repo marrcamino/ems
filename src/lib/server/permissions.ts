@@ -113,6 +113,9 @@ export const PERMISSION_DEFS = {
     view: "Access the Paper page",
     manage: "Record the paper your office uses, and submit each month",
     view_all_offices: "See the paper use of every office",
+    // The Submitted Reports page, where GSU marks each office's printed
+    // monthly report received, which locks the month.
+    receive: "Receive the monthly paper reports that offices submit",
     // GSU's paper POs and their distribution to the offices are under
     // `purchase_orders`, the same keys as the fuel POs.
   },

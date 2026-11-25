@@ -15,8 +15,9 @@ import { employeeHistory } from "./employee-history";
 import { orgUnit } from "./org-unit";
 import { supplier } from "./supplier";
 
-// One office's paper use for one month. Its entries are the reams opened
-// that month; submitting the month locks them (paper-consumption.md).
+// One office's paper use for one month. Its entries can still change once
+// it is submitted, until GSU receives the printed report; a received month
+// is locked (paper-consumption.md).
 export const paperMonthlyReport = mysqlTable(
   "paper_monthly_report",
   {
@@ -32,13 +33,22 @@ export const paperMonthlyReport = mysqlTable(
     }).notNull(),
     // Always the first day of the month, `2026-11-01`.
     reportMonth: date("report_month", { mode: "string" }).notNull(),
-    status: mysqlEnum("status", ["open", "submitted"])
+    status: mysqlEnum("status", ["open", "submitted", "received"])
       .notNull()
       .default("open"),
     submittedAt: datetime("submitted_at"),
     // Semantic FK name: points at `user.user_pk`, who submitted it. No
     // constraint, the same as `fuel_issuance.created_by_fk`.
     submittedByFk: bigint("submitted_by_fk", {
+      mode: "number",
+      unsigned: true,
+    }),
+    // The day the printed report reached GSU, typed by GSU; GSU's own
+    // report is received on the day it is submitted.
+    receivedOn: date("received_on", { mode: "string" }),
+    // Semantic FK name: points at `user.user_pk`, who marked it received.
+    // No constraint, the same as `submitted_by_fk`.
+    receivedByFk: bigint("received_by_fk", {
       mode: "number",
       unsigned: true,
     }),

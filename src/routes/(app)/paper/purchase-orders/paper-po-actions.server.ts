@@ -4,7 +4,6 @@ import {
   orgUnit,
   paperDistribution,
   paperHandover,
-  paperMonthlyReport,
   paperPurchaseOrder,
   paperPurchaseOrderItem,
   supplier,
@@ -19,6 +18,7 @@ import { getLocalTimeZone, today } from "@internationalized/date";
 import { fail, type Actions } from "@sveltejs/kit";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { reamCount } from "../paper-month";
+import { receivedRefusal, selectReceivedFrom } from "../paper-report.server";
 import { MAX_REAMS, type PaperPoRow } from "./paper-po-types";
 
 const sizeOrder = (size: PaperSize) =>
@@ -442,30 +442,12 @@ async function insertItems(tx: Tx, poPk: number, checked: Checked) {
 }
 
 /**
- * The first of these offices that already submitted the month of `day`, as
- * a refusal: a hand-over dated there would change a submitted form, which
- * never changes (paper-consumption.md).
+ * Why a hand-over dated `day` is refused for one of these offices, or null:
+ * a received report never changes, nor any month before it.
  */
-async function submittedMonth(officePks: number[], day: string) {
-  if (officePks.length === 0) return null;
-  const [row] = await db
-    .select({ abbr: orgUnit.abbr })
-    .from(paperMonthlyReport)
-    .innerJoin(orgUnit, eq(paperMonthlyReport.orgUnitFk, orgUnit.orgUnitPk))
-    .where(
-      and(
-        inArray(paperMonthlyReport.orgUnitFk, officePks),
-        eq(paperMonthlyReport.reportMonth, `${day.slice(0, 7)}-01`),
-        eq(paperMonthlyReport.status, "submitted"),
-      ),
-    )
-    .limit(1);
-  if (!row) return null;
-  const month = new Date(`${day.slice(0, 7)}-01T00:00:00`).toLocaleDateString(
-    "en-PH",
-    { month: "long", year: "numeric" },
-  );
-  return `${row.abbr} already submitted ${month}, so its paper form can no longer change. Choose a date after ${month}.`;
+async function receivedMonth(officePks: number[], day: string) {
+  const found = await selectReceivedFrom(officePks, day.slice(0, 7));
+  return found && receivedRefusal(found, day.slice(0, 7));
 }
 
 const mysqlErrno = (err: unknown) => (err as { errno?: number })?.errno;
@@ -517,7 +499,7 @@ export const paperPurchaseOrderActions = {
     if (isRefusal(checked)) return fail(400, checked);
 
     if (!editPk && checked.handOverOn) {
-      const closed = await submittedMonth(
+      const closed = await receivedMonth(
         checked.distributions.map((d) => d.orgUnitFk),
         checked.handOverOn,
       );
@@ -645,7 +627,7 @@ export const paperPurchaseOrderActions = {
     ) {
       return fail(400, { error: "Enter a date from the PO date to today." });
     }
-    const closed = await submittedMonth([officePk], handedOn);
+    const closed = await receivedMonth([officePk], handedOn);
     if (closed) return fail(409, { error: closed });
 
     const rows: { paperSize: PaperSize; reams: number }[] = [];

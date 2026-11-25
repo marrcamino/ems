@@ -22,6 +22,7 @@ import {
   eq,
   inArray,
   isNotNull,
+  ne,
   sql,
 } from "drizzle-orm";
 import { versionsOn } from "../fuel/issuance.server";
@@ -41,6 +42,11 @@ import {
   selectLowestBalance,
   selectStart,
 } from "./paper-balance.server";
+import {
+  selectGsuOfficePk,
+  selectReceivedFrom,
+  userName,
+} from "./paper-report.server";
 import type {
   PaperBalance,
   PaperEntry,
@@ -76,19 +82,25 @@ async function selectReport(officePk: number, month: string) {
 }
 
 /**
- * Why nothing in this month can change, or null when it can. The page shows
- * the same reasons, from the same data.
+ * Why nothing in this month can change, or null when it can. A submitted
+ * month can still change until GSU receives it, and a received month locks
+ * every month before it too, since its balance forwarded counts them. The
+ * page shows the same reason.
  */
-function lockReason(
-  report: { status: "open" | "submitted" } | null,
+async function lockReason(
+  officePk: number,
   month: string,
   start: { month: string } | null,
 ) {
   if (start && month < start.month) {
     return `${monthLabel(month)} is before your office's paper record starts, in ${monthLabel(start.month)}.`;
   }
-  if (report?.status === "submitted") {
-    return `${monthLabel(month)} is already submitted, so its entries can no longer change.`;
+  const received = await selectReceivedFrom([officePk], month);
+  if (received?.month === month) {
+    return `GSU already received the report for ${monthLabel(month)}, so its entries can no longer change.`;
+  }
+  if (received) {
+    return `GSU already received the report for ${monthLabel(received.month)}, which counts the paper from ${monthLabel(month)}, so ${monthLabel(month)} can no longer change.`;
   }
   if (month > monthOf(todayIso())) {
     return `${monthLabel(month)} has not started yet.`;
@@ -248,7 +260,7 @@ async function selectLastSigners(officePk: number) {
     .where(
       and(
         eq(paperMonthlyReport.orgUnitFk, officePk),
-        eq(paperMonthlyReport.status, "submitted"),
+        ne(paperMonthlyReport.status, "open"),
         isNotNull(paperMonthlyReport.preparedByFk),
       ),
     )
@@ -389,6 +401,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     return {
       ...base,
       report: null as PaperReport | null,
+      locked: null as string | null,
+      isGsuOffice: false,
       entries: [] as PaperEntry[],
       year: [] as YearMonth[],
       start: null as PaperStart | null,
@@ -421,32 +435,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       ? null
       : await selectBalance(office.orgUnitPk, month, startRow);
 
+  const locked = await lockReason(office.orgUnitPk, month, startRow);
+  const gsuOfficePk = await selectGsuOfficePk();
+
   // The starting balance goes on the office's first month: one with no
   // month recorded before it. Once entered, it changes only on its own
-  // month, and only until that month is submitted.
+  // month, and only until GSU receives that month or a later one.
   const firstReportMonth = await selectFirstReportMonth(office.orgUnitPk);
   const canEnterStart =
     can(locals.permissions, "paper:manage") &&
     office.orgUnitPk === ownOfficePk &&
-    reportRow?.status !== "submitted" &&
+    !(await selectReceivedFrom([office.orgUnitPk], month)) &&
     (startRow
       ? startRow.month === month
       : firstReportMonth === null || firstReportMonth >= month);
 
   let report: PaperReport | null = null;
   if (reportRow) {
-    const [submitter] = reportRow.submittedByFk
-      ? await db
-          .select({
-            firstName: employee.firstName,
-            middleName: employee.middleName,
-            lastName: employee.lastName,
-            suffix: employee.suffix,
-          })
-          .from(user)
-          .innerJoin(employee, eq(user.employeeFk, employee.employeePk))
-          .where(eq(user.userPk, reportRow.submittedByFk))
-      : [];
+    const submitter = await userName(reportRow.submittedByFk);
+    const receiver = await userName(reportRow.receivedByFk);
     const signedBy = async (historyPk: number | null) => {
       if (!historyPk) return null;
       const [h] = await db
@@ -468,7 +475,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       submittedOn: reportRow.submittedAt
         ? reportRow.submittedAt.toLocaleDateString("en-CA")
         : null,
-      submittedBy: submitter ? fullName(submitter) : null,
+      submittedBy: submitter,
+      receivedOn: reportRow.receivedOn,
+      receivedBy: receiver,
     };
   }
 
@@ -631,6 +640,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   return {
     ...base,
     report,
+    locked,
+    isGsuOffice: office.orgUnitPk === gsuOfficePk,
     entries,
     year,
     start,
@@ -655,11 +666,7 @@ export const actions: Actions = {
 
     const month = monthOf(values.consumedOn);
     const start = await selectStart(officePk);
-    const reason = lockReason(
-      await selectReport(officePk, month),
-      month,
-      start,
-    );
+    const reason = await lockReason(officePk, month, start);
     if (reason) return fail(409, { error: reason });
     const short = await shortReason(officePk, month, items, start);
     if (short) return fail(409, { error: short });
@@ -673,9 +680,8 @@ export const actions: Actions = {
         set: { orgUnitFk: sql`${paperMonthlyReport.orgUnitFk}` },
       });
     const report = (await selectReport(officePk, month))!;
-    if (report.status === "submitted") {
-      return fail(409, { error: lockReason(report, month, start) });
-    }
+    const lateReason = await lockReason(officePk, month, start);
+    if (lateReason) return fail(409, { error: lateReason });
 
     await db.transaction(async (tx) => {
       const [line] = await tx.insert(paperConsumption).values({
@@ -708,7 +714,7 @@ export const actions: Actions = {
 
     const month = monthOf(entry.reportMonth);
     const start = await selectStart(entry.orgUnitFk);
-    const reason = lockReason(entry, month, start);
+    const reason = await lockReason(entry.orgUnitFk, month, start);
     if (reason) return fail(409, { error: reason });
     // An entry stays in its month: one opened in another month is a
     // different entry, added under that month.
@@ -751,8 +757,8 @@ export const actions: Actions = {
     if (!entry || entry.orgUnitFk !== ownOffice(locals)) {
       return fail(404, { error: "That entry no longer exists." });
     }
-    const reason = lockReason(
-      entry,
+    const reason = await lockReason(
+      entry.orgUnitFk,
       monthOf(entry.reportMonth),
       await selectStart(entry.orgUnitFk),
     );
@@ -785,12 +791,11 @@ export const actions: Actions = {
     }
 
     const start = await selectStart(officePk);
-    const reason = lockReason(
-      await selectReport(officePk, month),
-      month,
-      start,
-    );
+    const reason = await lockReason(officePk, month, start);
     if (reason) return fail(409, { error: reason });
+    if ((await selectReport(officePk, month))?.status === "submitted") {
+      return fail(409, { error: `${monthLabel(month)} is already submitted.` });
+    }
 
     // A balance below zero is always a mistake (paper-consumption.md), for
     // example after GSU edits a PO, so the month waits until it is fixed.
@@ -803,12 +808,18 @@ export const actions: Actions = {
       });
     }
 
+    // GSU does not receive its own report: it is received as it is
+    // submitted (paper-consumption.md).
+    const ownReport = officePk === (await selectGsuOfficePk());
+
     // A month with no entries is submitted too: it reports that the office
     // used no paper. Its report is made here, already submitted.
     const submitted = {
-      status: "submitted" as const,
+      status: ownReport ? ("received" as const) : ("submitted" as const),
       submittedAt: new Date(),
       submittedByFk: locals.user!.userPk,
+      receivedOn: ownReport ? todayIso() : null,
+      receivedByFk: ownReport ? locals.user!.userPk : null,
       preparedByFk,
       notedByFk,
       updatedAt: new Date(),
@@ -821,7 +832,7 @@ export const actions: Actions = {
         ...submitted,
       })
       .onDuplicateKeyUpdate({ set: submitted });
-    return { success: true };
+    return { success: true, received: ownReport };
   },
 
   /**
@@ -852,10 +863,10 @@ export const actions: Actions = {
       reams.set(size.value, n);
     }
 
-    const report = await selectReport(officePk, month);
-    if (report?.status === "submitted") {
+    const received = await selectReceivedFrom([officePk], month);
+    if (received) {
       return fail(409, {
-        error: `${monthLabel(month)} is already submitted, so its balance forwarded can no longer change.`,
+        error: `GSU already received the report for ${monthLabel(received.month)}, so the balance forwarded can no longer change.`,
       });
     }
     const start = await selectStart(officePk);

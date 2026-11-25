@@ -7,7 +7,7 @@ import {
   paperMonthlyReport,
   paperStartingBalance,
 } from "$lib/server/db/schema";
-import { and, asc, eq, gte, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, gte, lt, ne, or, sql, type SQL } from "drizzle-orm";
 import { addMonths, firstDay, monthOf } from "./paper-month";
 import type { PaperBalance } from "./paper-types";
 
@@ -137,7 +137,7 @@ export async function selectFirstReportMonth(officePk: number) {
       and(
         eq(paperMonthlyReport.orgUnitFk, officePk),
         or(
-          eq(paperMonthlyReport.status, "submitted"),
+          ne(paperMonthlyReport.status, "open"),
           sql`exists (select 1 from ${paperConsumption} where ${paperConsumption.paperMonthlyReportFk} = ${paperMonthlyReport.paperMonthlyReportPk})`,
         ),
       ),

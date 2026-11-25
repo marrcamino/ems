@@ -30,12 +30,14 @@
     Plus,
     Printer,
     Send,
+    Stamp,
     StickyNotes,
     Trash,
     TriangleAlert,
   } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
   import EntryDialog from "./entry-dialog.svelte";
+  import OwnReportNote from "./own-report-note.svelte";
   import StartingBalanceDialog from "./starting-balance-dialog.svelte";
   import {
     addMonths,
@@ -44,7 +46,7 @@
     reamCount,
     submitTooEarly,
   } from "./paper-month";
-  import type { PaperEntry } from "./paper-types";
+  import type { PaperEntry, ReportStatus } from "./paper-types";
 
   let { data } = $props();
 
@@ -60,10 +62,16 @@
     office !== null && office.orgUnitPk === data.ownOfficePk,
   );
   const canManage = $derived(gblCtx.can("paper:manage") && ownOffice);
-  const submitted = $derived(report?.status === "submitted");
-  /** Adding, editing, removing and submitting: the server's lockReason. */
-  const beforeStart = $derived(!!data.start && month < data.start.month);
-  const canChange = $derived(canManage && !submitted && !beforeStart);
+  const status = $derived<ReportStatus>(report?.status ?? "open");
+  /**
+   * Adding, editing, and removing, until GSU receives the month or a later
+   * one: the server's lockReason.
+   */
+  const canChange = $derived(canManage && !data.locked);
+  /** A locked month that is not received itself: a later one is. */
+  const lockedByLater = $derived(
+    !!data.locked && status !== "received" && !(data.start && month < data.start.month),
+  );
 
   const totals = $derived(
     PAPER_SIZES.map((size) => ({
@@ -118,6 +126,14 @@
   function onSaved(savedMonth: string) {
     if (savedMonth !== month) go({ month: savedMonth });
   }
+
+  const STATUS_LABEL = {
+    open: "Open",
+    submitted: "Submitted",
+    received: "Received",
+  } as const;
+  const statusVariant = (s: ReportStatus | null) =>
+    s === "received" ? "default" : s === "submitted" ? "secondary" : "outline";
 
   /** Sends Remove or Submit, then reloads the page's data. */
   async function send(action: "remove" | "submit", body: FormData) {
@@ -204,7 +220,12 @@
       toastErrorOnce("paper-submit", `${monthName(month)} not submitted`, {
         description: error,
       });
-    } else toast.success(`${monthLabel(month)} submitted`);
+    } else
+      toast.success(
+        data.isGsuOffice
+          ? `${monthLabel(month)} submitted and received`
+          : `${monthLabel(month)} submitted`,
+      );
   }
 
   /** "2 A4 and 1 Long", for the submit and remove dialogs. */
@@ -315,15 +336,15 @@
       class="grid w-full max-w-5xl items-start gap-4 pt-3 lg:grid-cols-[minmax(0,1fr)_18rem]"
     >
       <div class="grid min-w-0 gap-3">
-        {#if submitted}
+        {#if status === "received"}
           <Alert.Root>
-            <Send />
-            <Alert.Title>{monthLabel(month)} is submitted</Alert.Title>
+            <Stamp />
+            <Alert.Title>{monthLabel(month)} is received by GSU</Alert.Title>
             <Alert.Description>
               {[
-                report?.submittedOn &&
-                  `Submitted ${formatDate(report.submittedOn)}`,
-                report?.submittedBy && `by ${report.submittedBy}`,
+                report?.receivedOn &&
+                  `Received ${formatDate(report.receivedOn)}`,
+                report?.receivedBy && `by ${report.receivedBy}`,
               ]
                 .filter(Boolean)
                 .join(" ")}. Its entries can no longer change.
@@ -334,6 +355,29 @@
               {/if}
             </Alert.Description>
           </Alert.Root>
+        {:else if status === "submitted"}
+          <Alert.Root>
+            <Send />
+            <Alert.Title>{monthLabel(month)} is submitted</Alert.Title>
+            <Alert.Description>
+              {[
+                report?.submittedOn &&
+                  `Submitted ${formatDate(report.submittedOn)}`,
+                report?.submittedBy && `by ${report.submittedBy}`,
+              ]
+                .filter(Boolean)
+                .join(" ")}. {lockedByLater
+                ? data.locked
+                : "Its entries can still change until GSU receives the printed report. Print it again after a change."}
+              {#if report?.preparedBy}
+                Prepared by {report.preparedBy}{report.notedBy
+                  ? `, noted by ${report.notedBy}`
+                  : ""}.
+              {/if}
+            </Alert.Description>
+          </Alert.Root>
+        {:else if lockedByLater}
+          <p class="text-sm text-muted-foreground">{data.locked}</p>
         {:else if !ownOffice}
           <p class="text-sm text-muted-foreground">
             {office.orgUnitName} records its own paper. This month is not submitted
@@ -353,7 +397,7 @@
               <Empty.Description>
                 {canChange
                   ? "Add each ream when your office opens it."
-                  : submitted
+                  : status !== "open"
                     ? "The month was submitted with no paper used."
                     : "Nothing has been recorded for this month yet."}
               </Empty.Description>
@@ -444,8 +488,8 @@
             <Card.Title>{monthLabel(month)}</Card.Title>
             <Card.Description>Bond paper, in reams</Card.Description>
             <Card.Action>
-              <Badge variant={submitted ? "secondary" : "outline"}>
-                {submitted ? "Submitted" : "Open"}
+              <Badge variant={statusVariant(status)}>
+                {STATUS_LABEL[status]}
               </Badge>
             </Card.Action>
           </Card.Header>
@@ -510,7 +554,7 @@
               </Button>
             {/if}
           </Card.Content>
-          {#if canChange}
+          {#if canChange && status === "open"}
             <!--
               Unavailable until the month is over, with the reason under the
               button; the server refuses an early submit with the same words.
@@ -527,7 +571,7 @@
                 </p>
               {/if}
             </Card.Footer>
-          {:else if submitted && canManage}
+          {:else if status !== "open" && canManage}
             <!-- Only once submitted: before that there is no form to print. -->
             <Card.Footer>
               <Button
@@ -565,10 +609,8 @@
                   <span class="text-muted-foreground tabular-nums">
                     {m.reams > 0 ? reamCount(m.reams) : ""}
                   </span>
-                  <Badge
-                    variant={m.status === "submitted" ? "secondary" : "outline"}
-                  >
-                    {m.status === "submitted" ? "Submitted" : "Open"}
+                  <Badge variant={statusVariant(m.status)}>
+                    {STATUS_LABEL[m.status ?? "open"]}
                   </Badge>
                 </span>
               </button>
@@ -627,11 +669,19 @@
         {:else}
           No paper is recorded for this month, so it is submitted as none used.
         {/if}
-        After submitting, no entry can be added, edited, or removed for {monthName(
-          month,
-        )}.
+        {#if data.isGsuOffice}
+          After submitting, no entry can be added, edited, or removed for {monthName(
+            month,
+          )}.
+        {:else}
+          Its entries can still change until GSU receives the printed report.
+        {/if}
       </Dialog.Description>
     </Dialog.Header>
+
+    {#if data.isGsuOffice}
+      <OwnReportNote userPk={gblCtx.user.userPk} />
+    {/if}
 
     <Field.Group class="gap-4">
       <Field.Field data-invalid={signerErrors.preparedBy ? true : undefined}>
