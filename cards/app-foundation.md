@@ -24,6 +24,7 @@ Sign-in, sessions, the one layout and sidebar, shared components, and the comman
 - MPP-124 decide whether records need attachments (not needed now)
 
 ## Gotchas
+- shadcn's radio item and field label style the checked state with `data-checked`, which bits-ui 2.18.1 does not set (it sets `data-state="checked"`). Both were changed to `data-[state=checked]` on 9 November 2026, so a picked radio fills in and a radio card lights up.
 - Nobody is sent into or kept out of an area by address: each page's `load` checks its own key, and sidebar links come from `nav-items.ts` (MPP-121).
 - Session cookie is not `secure`: the office network has no HTTPS.
 - Script messages are wrapped at 60 characters by `wrap()` in `scripts/lib/cli.ts`.

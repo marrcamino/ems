@@ -26,6 +26,7 @@
     wholeDigits = 9,
     decimals = 2,
     padDecimals = false,
+    padWholeSetValues = true,
     grouped = false,
     ref = $bindable(null),
     class: className,
@@ -42,11 +43,19 @@
     decimals?: number;
     /** On leaving the field, fill in the decimals: 65.5 becomes 65.50. */
     padDecimals?: boolean;
+    /**
+     * With `padDecimals`, whether a whole number the field did not get by
+     * typing (its starting value, or one the form worked out) also gets its
+     * zeros: 810 shows as 810.00. Off, it shows as 810, and a number with a
+     * fraction is still padded: 812.5 shows as 812.50. Leaving the field pads
+     * it either way.
+     */
+    padWholeSetValues?: boolean;
     grouped?: boolean;
   } = $props();
 
   /** The digits and period as written, with commas. */
-  let text = $state(untrack(() => show(value, padDecimals)));
+  let text = $state(untrack(() => showSet(value)));
 
   function show(n: number | null, pad: boolean) {
     if (n === null || !Number.isFinite(n)) return "";
@@ -54,6 +63,15 @@
       minimumFractionDigits: pad ? decimals : 0,
       maximumFractionDigits: decimals,
     }).format(n);
+  }
+
+  /**
+   * A number the field did not get by typing: the one it starts with, or one
+   * the form worked out later (see `padWholeSetValues`).
+   */
+  function showSet(n: number | null) {
+    const whole = n !== null && Number.isInteger(n);
+    return show(n, padDecimals && (padWholeSetValues || !whole));
   }
 
   function toNumber(t: string) {
@@ -67,7 +85,7 @@
   $effect(() => {
     const next = value;
     untrack(() => {
-      if (toNumber(text) !== next) text = show(next, padDecimals);
+      if (toNumber(text) !== next) text = showSet(next);
     });
   });
 

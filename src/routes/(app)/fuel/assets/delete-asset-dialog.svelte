@@ -91,8 +91,7 @@
 
               if (result.type === "failure") {
                 const data = result.data as
-                  | { error?: string; deactivateInstead?: boolean }
-                  | undefined;
+                  { error?: string; deactivateInstead?: boolean } | undefined;
 
                 if (data?.deactivateInstead !== undefined && data.error) {
                   // Refused because of recorded fuel: keep the dialog open.

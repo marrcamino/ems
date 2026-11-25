@@ -1,11 +1,13 @@
 import type { PermissionKey } from "$lib/server/permissions";
 import {
   Building,
+  FileDigit,
   FilePenLine,
   FlaskConical,
   Fuel,
   House,
   IdCard,
+  Plus,
   ShieldCheck,
   UsersRound,
 } from "@lucide/svelte/icons";
@@ -19,6 +21,18 @@ export type NavPage = {
   /** The `view` key that opens the page. Left off for a page everyone opens. */
   permission?: PermissionKey;
   children?: NavPage[];
+  /**
+   * A small button on the right of the page's row, for the page's most
+   * common task. Shown to whoever can open the page and holds its key.
+   */
+  action?: {
+    name: string;
+    url: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    icon: any;
+    /** The key that the task needs, besides the page's own. */
+    permission?: PermissionKey;
+  };
 };
 
 /**
@@ -39,6 +53,12 @@ export const workPages = [
     url: "/fuel",
     icon: Fuel,
     permission: "fuel:view",
+    action: {
+      name: "New withdrawal",
+      url: "/fuel?new=withdrawal",
+      icon: Plus,
+      permission: "fuel:record",
+    },
     children: [
       {
         name: "Assets",
@@ -52,15 +72,28 @@ export const workPages = [
       },
     ],
   },
+  // Not under Fuel: the RIS numbers cover every supply, not only fuel.
+  {
+    name: "RIS Numbers",
+    url: "/ris-numbers",
+    icon: FileDigit,
+    permission: "ris_numbers:view",
+  },
 ] satisfies NavPage[];
 
 /** The pages for running the system, in the `(admin)` route group. */
 export const adminPages = [
   {
-    name: "Users",
-    url: "/users",
-    icon: UsersRound,
-    permission: "users:view",
+    name: "Org Structure",
+    url: "/org-structure",
+    icon: Building,
+    permission: "org_units:view",
+  },
+  {
+    name: "Roles",
+    url: "/roles",
+    icon: ShieldCheck,
+    permission: "roles:view",
   },
   {
     name: "Employees",
@@ -69,22 +102,16 @@ export const adminPages = [
     permission: "employees:view",
   },
   {
-    name: "Org Structure",
-    url: "/org-structure",
-    icon: Building,
-    permission: "org_units:view",
+    name: "Users",
+    url: "/users",
+    icon: UsersRound,
+    permission: "users:view",
   },
   {
     name: "Signatories",
     url: "/signatories",
     icon: FilePenLine,
     permission: "signatories:view",
-  },
-  {
-    name: "Roles",
-    url: "/roles",
-    icon: ShieldCheck,
-    permission: "roles:view",
   },
   {
     name: "Test",

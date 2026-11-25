@@ -7,7 +7,7 @@
 </script>
 
 <header
-  class="flex h-16 shrink-0 items-center gap-2 sticky top-0 bg-background rounded-t-xl"
+  class="flex h-12 shrink-0 bg-background items-center gap-2 sticky top-0"
 >
   <div class="flex items-center gap-2 px-4 w-full">
     <SidebarTrigger class="-ms-1" />

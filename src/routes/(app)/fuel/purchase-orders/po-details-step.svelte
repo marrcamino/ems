@@ -14,7 +14,25 @@
   import { getLocalTimeZone, today } from "@internationalized/date";
   import type { AddPurchaseOrderForm } from "./add-po-form.svelte.js";
   import NumberInput from "@/components/number-input.svelte";
-  import { FUEL_LABELS, FUELS, type Fuel } from "./po-math.js";
+  import * as RadioGroup from "$lib/components/ui/radio-group/index.js";
+  import { FUEL_LABELS, FUELS, type PoType } from "./po-math.js";
+
+  const PO_TYPE_CHOICES: {
+    value: PoType;
+    title: string;
+    description: string;
+  }[] = [
+    {
+      value: "liter",
+      title: "Liter-based",
+      description: "Every liter costs the unit cost on the PO.",
+    },
+    {
+      value: "price",
+      title: "Price-based",
+      description: "Each withdrawal costs that day's pump price.",
+    },
+  ];
 
   /**
    * Step 1 of the add PO dialog: the PO as it is printed. PO number, date,
@@ -66,7 +84,7 @@
   <Field.Group class="gap-4">
     <div class="grid grid-cols-2 gap-2">
       <Field.Field data-invalid={errors.poNumber ? true : undefined}>
-        <Field.Label for="poNumber">PO number</Field.Label>
+        <Field.Label for="poNumber" required>PO number</Field.Label>
         <Input
           id="poNumber"
           bind:ref={poNumberInput}
@@ -75,13 +93,14 @@
           placeholder="2026-03-22"
           maxlength={50}
           aria-invalid={errors.poNumber ? true : undefined}
+          autocorrect="off"
         />
         <Field.Error>{errors.poNumber}</Field.Error>
       </Field.Field>
 
       <Field.Field data-invalid={errors.poDate ? true : undefined}>
         <!-- DateInput is labelled by id: a label's `for` cannot reach it. -->
-        <Field.Label id="poDate-label">PO date</Field.Label>
+        <Field.Label id="poDate-label" required>PO date</Field.Label>
         <DateInput
           id="poDate"
           aria-labelledby="poDate-label"
@@ -100,7 +119,7 @@
     </div>
 
     <Field.Field data-invalid={errors.supplierFk ? true : undefined}>
-      <Field.Label for="supplierFk">Supplier</Field.Label>
+      <Field.Label for="supplierFk" required>Supplier</Field.Label>
       {#if suppliers.length > 0}
         <Select.Root
           type="single"
@@ -144,6 +163,35 @@
         </div>
       {/if}
     </Field.Field>
+
+    <Field.Set data-invalid={errors.poType ? true : undefined}>
+      <Field.Legend variant="label">PO type</Field.Legend>
+      <RadioGroup.Root
+        value={form.poType}
+        onValueChange={(value) => {
+          form.poType = value as PoType;
+          form.clearError("poType");
+        }}
+        class="grid grid-cols-2 gap-2"
+      >
+        {#each PO_TYPE_CHOICES as choice (choice.value)}
+          <Field.Label for="poType-{choice.value}">
+            <Field.Field orientation="horizontal">
+              <Field.Content>
+                <Field.Title>{choice.title}</Field.Title>
+                <Field.Description>{choice.description}</Field.Description>
+              </Field.Content>
+              <RadioGroup.Item
+                value={choice.value}
+                id="poType-{choice.value}"
+                aria-invalid={errors.poType ? true : undefined}
+              />
+            </Field.Field>
+          </Field.Label>
+        {/each}
+      </RadioGroup.Root>
+      <Field.Error>{errors.poType}</Field.Error>
+    </Field.Set>
 
     <!--
       One row per fuel, as on the PO. Amount = liters × unit cost; it is

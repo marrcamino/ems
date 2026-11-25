@@ -51,6 +51,25 @@ export const PERMISSION_DEFS = {
     // shows every office's. Held by the GSU role and the super-admin. Checked
     // once the office rule is built, with the first page that needs it.
     view_all_offices: "See the fuel records of every office",
+    record: "Record fuel withdrawals and trips",
+    // Marks a slip approved once GSU has signed the paper (MPP-81), which
+    // moves it from Waiting for approval to Out.
+    approve: "Mark withdrawal slips approved",
+    // Types the supplier's numbers and the trip ticket's lines after the
+    // trip, and presses Complete. Only GSU completes (point 9.1 of "Recording
+    // a fuel issuance"). Holders also edit and cancel any office's
+    // transaction at any step; `fuel:record` alone edits and cancels only
+    // before GSU has acted on it.
+    complete:
+      "Complete withdrawals and trips, and edit or cancel them at any step",
+    // Everyone else's withdrawal or trip is filed today; this key lets
+    // someone pick an earlier date, for paper that is entered late.
+    change_file_date: "Change the file date of a new withdrawal or trip",
+    // The one-time step at go-live: the last number used before EMS on each
+    // of the four forms, typed before EMS gives out its first number (point
+    // 6.6 of "Recording a fuel issuance"). GSU and the super-admin hold it.
+    set_starting_numbers:
+      "Set the starting numbers of the forms once, at go-live",
   },
 
   // The fuel purchase orders GSU records, each split into allocations for
@@ -68,6 +87,15 @@ export const PERMISSION_DEFS = {
   assets: {
     view: "Access the Assets page, the office's vehicles and equipment",
     manage: "Add, edit, and deactivate vehicles, equipment, and their types",
+  },
+
+  // The RIS numbers that GSU reserves for supplies that are not fuel. Fuel
+  // withdrawals take theirs on the Fuel page, from the same count (point 6
+  // of "Recording a fuel issuance" in fuel-purchase-orders.md).
+  ris_numbers: {
+    view: "Access the RIS Numbers page",
+    manage:
+      "Reserve RIS numbers, mark a reserved number not used, and delete the newest one",
   },
 
   electricity: {
@@ -133,7 +161,9 @@ type PermissionDefs = typeof PERMISSION_DEFS;
  * "fuel:view" | "users:manage" | ...
  */
 export type PermissionKey = {
-  [M in keyof PermissionDefs]: `${M & string}:${keyof PermissionDefs[M] & string}`;
+  [
+    M in keyof PermissionDefs
+  ]: `${M & string}:${keyof PermissionDefs[M] & string}`;
 }[keyof PermissionDefs];
 
 export type PermissionModule = keyof PermissionDefs;

@@ -53,6 +53,8 @@ export function nameTakenMessage(assetTypeName: string) {
  */
 export function inUseMessage(assetTypeName: string, usage: TypeUsage) {
   const assets =
-    usage.count === 1 ? "1 asset still uses" : `${usage.count} assets still use`;
+    usage.count === 1
+      ? "1 asset still uses"
+      : `${usage.count} assets still use`;
   return `${assetTypeName} can't be deleted because ${assets} it.`;
 }

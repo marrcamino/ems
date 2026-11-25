@@ -209,7 +209,7 @@
     >
       <InputGroup.Root
         class={cn(
-          "has-[[data-segment]:focus,input:focus]:border-ring has-[[data-segment]:focus,input:focus]:ring-3 has-[[data-segment]:focus,input:focus]:ring-ring/50",
+          "has-[[data-segment]:focus,input:focus]:border-ring has-[[data-segment]:focus,input:focus]:ring-3 has-[[data-segment]:focus,input:focus]:ring-ring/50 min-w-36",
           className,
         )}
         data-disabled={disabled || undefined}
@@ -220,7 +220,7 @@
           aria-labelledby={ariaLabelledby}
           aria-describedby={ariaDescribedby}
           data-slot="input-group-control"
-          class="flex flex-1 items-center px-1 text-base tabular-nums select-none md:text-sm"
+          class="flex flex-1 items-center px-1 tabular-nums select-none text-sm"
           onkeydowncapture={(e: KeyboardEvent) => {
             if (e.altKey && e.key === "ArrowDown") {
               e.preventDefault();

@@ -13,6 +13,7 @@ import {
   MAX_HUNDREDTHS,
   toHundredths,
   type Fuel,
+  type PoType,
 } from "./po-math";
 import type { PurchaseOrderRow } from "./po-types";
 
@@ -27,7 +28,7 @@ export type Allocation = {
 };
 
 /** The fields on the first step, which a server refusal can point at. */
-export const DETAIL_FIELDS = ["poNumber", "poDate", "supplierFk"];
+export const DETAIL_FIELDS = ["poNumber", "poDate", "poType", "supplierFk"];
 
 function blankRows(): Record<Fuel, FuelRow> {
   return {
@@ -52,6 +53,8 @@ export class AddPurchaseOrderForm {
   poNumber = $state("");
   /** Undefined while the date field is empty or only partly typed. */
   poDate = $state<DateValue | undefined>(undefined);
+  /** A new PO starts as liter-based, which about 80% of POs are. */
+  poType = $state<PoType>("liter");
   supplierFk = $state("");
   note = $state("");
   rows = $state<Record<Fuel, FuelRow>>(blankRows());
@@ -70,6 +73,7 @@ export class AddPurchaseOrderForm {
     this.editingPk = null;
     this.poNumber = "";
     this.poDate = today(getLocalTimeZone());
+    this.poType = "liter";
     this.supplierFk = supplierPks.length === 1 ? String(supplierPks[0]) : "";
     this.note = "";
     this.rows = blankRows();
@@ -82,6 +86,7 @@ export class AddPurchaseOrderForm {
     this.editingPk = po.purchaseOrderPk;
     this.poNumber = po.poNumber;
     this.poDate = parseDate(po.poDate);
+    this.poType = po.poType;
     this.supplierFk = String(po.supplierFk);
     this.note = po.note ?? "";
     this.rows = blankRows();
@@ -232,9 +237,7 @@ export class AddPurchaseOrderForm {
   /** Units already given an allocation of this fuel by another row. */
   takenElsewhere(fuel: Fuel, id: number) {
     return new Set(
-      this.allocations[fuel]
-        .filter((a) => a.id !== id)
-        .map((a) => a.orgUnitFk),
+      this.allocations[fuel].filter((a) => a.id !== id).map((a) => a.orgUnitFk),
     );
   }
 
@@ -253,10 +256,11 @@ export class AddPurchaseOrderForm {
         found[fuel] =
           `Enter the liters of each ${label} allocation, with up to 2 decimals.`;
       } else if (left > 0) {
-        found[fuel] = `Allocate the last ${formatLiters(left)} of ${label}.`;
+        found[fuel] =
+          `Allocate the last ${formatLiters(left, { dropZeros: true })} of ${label}.`;
       } else if (left < 0) {
         found[fuel] =
-          `Take ${formatLiters(-left)} of ${label} off the allocations.`;
+          `Take ${formatLiters(-left, { dropZeros: true })} of ${label} off the allocations.`;
       }
     }
     return found;
@@ -268,6 +272,7 @@ export class AddPurchaseOrderForm {
       purchaseOrderPk: this.editingPk ?? undefined,
       poNumber: this.poNumber.trim(),
       poDate: this.poDate?.toString() ?? "",
+      poType: this.poType,
       supplierFk: Number(this.supplierFk),
       note: this.note.trim(),
       items: this.fuelsOnPo.map((fuel) => ({

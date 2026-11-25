@@ -80,6 +80,22 @@
           {/snippet}
         </Sidebar.MenuButton>
 
+        {#if item.action && item.opens && (!item.action.permission || gblCtx.can(item.action.permission))}
+          {@const action = item.action}
+          <Sidebar.MenuAction>
+            {#snippet child({ props })}
+              <a
+                href={action.url}
+                aria-label={action.name}
+                title={action.name}
+                {...props}
+              >
+                <action.icon />
+              </a>
+            {/snippet}
+          </Sidebar.MenuAction>
+        {/if}
+
         {#if item.children.length}
           <div
             class="grid grid-rows-[1fr] transition-[grid-template-rows,opacity,visibility] duration-200 ease-linear group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:grid-rows-[0fr] group-data-[collapsible=icon]:opacity-0 motion-reduce:transition-none"

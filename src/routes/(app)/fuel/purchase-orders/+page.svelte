@@ -2,7 +2,6 @@
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import * as Table from "$lib/components/ui/table/index.js";
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { getGlobalContext } from "$routes/global-context.svelte";
@@ -11,15 +10,12 @@
   import { Plus, Store } from "@lucide/svelte/icons";
   import { untrack } from "svelte";
   import AddPurchaseOrderDialog from "./add-purchase-order-dialog.svelte";
-  import { formatPesos } from "$lib/utils/format-number.js";
-  import { formatDate } from "./format-date.js";
   import AnimatedList from "$lib/components/transition/animated-list.svelte";
   import OpenPoCard from "./open-po-card.svelte";
+  import ClosePoDialog from "./close-po-dialog.svelte";
+  import { deserialize } from "$app/forms";
+  import { toast } from "svelte-sonner";
   import type { PurchaseOrderRow } from "./po-types.js";
-  import {
-    SAMPLE_CLOSED_COUNT,
-    SAMPLE_CLOSED_POS,
-  } from "./sample-purchase-orders.js";
   import SuppliersDialog from "./suppliers/suppliers-dialog.svelte";
 
   let { data } = $props();
@@ -91,16 +87,57 @@
   );
 
   /**
-   * Every PO counts as open until closing one is built. Oldest first, the
-   * order slips are charged in, so the first one is used first.
+   * Oldest first, the order slips are charged in, so the first one is used
+   * first.
    */
   const openPos = $derived(
-    [...purchaseOrders].sort(
-      (a, b) =>
-        a.poDate.localeCompare(b.poDate) ||
-        a.purchaseOrderPk - b.purchaseOrderPk,
-    ),
+    purchaseOrders
+      .filter((po) => !po.closedAt)
+      .sort(
+        (a, b) =>
+          a.poDate.localeCompare(b.poDate) ||
+          a.purchaseOrderPk - b.purchaseOrderPk,
+      ),
   );
+  /** The one closed last first. */
+  const closedPos = $derived(
+    purchaseOrders
+      .filter((po) => po.closedAt)
+      .sort((a, b) => (b.closedAt ?? "").localeCompare(a.closedAt ?? "")),
+  );
+
+  let closing = $state<PurchaseOrderRow | null>(null);
+  let closeOpen = $state(false);
+
+  function setClosedAt(purchaseOrderPk: number, closedAt: string | null) {
+    purchaseOrders = purchaseOrders.map((po) =>
+      po.purchaseOrderPk === purchaseOrderPk ? { ...po, closedAt } : po,
+    );
+  }
+
+  /** Reopening is undone by closing again, so it asks nothing first. */
+  async function reopen(po: PurchaseOrderRow) {
+    const body = new FormData();
+    body.set("purchaseOrderPk", String(po.purchaseOrderPk));
+    try {
+      const response = await fetch("?/reopenPurchaseOrder", {
+        method: "POST",
+        body,
+        headers: { "x-sveltekit-action": "true" },
+      });
+      const result = deserialize(await response.text());
+      if (result.type === "success") {
+        setClosedAt(po.purchaseOrderPk, null);
+        toast.success(`PO ${po.poNumber} reopened`);
+        return;
+      }
+    } catch {
+      // Reported below.
+    }
+    toast.error(`PO ${po.poNumber} not reopened`, {
+      description: "Try again. If it keeps happening, contact ICT.",
+    });
+  }
 
   /** A new PO is added to the list; an edited one replaces its old self. */
   function onSaved(row: PurchaseOrderRow) {
@@ -137,7 +174,9 @@
 </Header>
 
 <div class="flex min-w-0 flex-1 flex-col items-center gap-4 p-4 pt-0">
-  <div class="flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 pt-1">
+  <div
+    class="flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 pt-1"
+  >
     <h1 class="text-xl font-semibold">Purchase orders</h1>
     <div class="ml-auto flex gap-2">
       <Button variant="outline" onclick={() => setSuppliersOpen(true)}>
@@ -153,13 +192,10 @@
     </div>
   </div>
 
-  <!--
-    The open POs come from the database. What depends on withdrawal slips or
-    on closing a PO is still made up (sample-purchase-orders.ts): the slips not
-    back, and the Closed list.
-  -->
   <div class="grid w-full max-w-5xl gap-4">
-    <h2 class="flex items-center gap-2 text-sm font-semibold text-foreground/75">
+    <h2
+      class="flex items-center gap-2 text-sm font-semibold text-foreground/75"
+    >
       Open
       <Badge variant="secondary">{openPos.length}</Badge>
     </h2>
@@ -176,6 +212,11 @@
           useFirst={i === 0 && openPos.length > 1}
           {canManage}
           onEdit={() => openEdit(po)}
+          onClose={() => {
+            closing = po;
+            closeOpen = true;
+          }}
+          onReopen={() => reopen(po)}
         />
       {/snippet}
       {#snippet empty()}
@@ -191,44 +232,42 @@
       class="mt-1.5 flex items-center gap-2 text-sm font-semibold text-foreground/75"
     >
       Closed
-      <Badge variant="secondary">{SAMPLE_CLOSED_COUNT}</Badge>
+      <Badge variant="secondary">{closedPos.length}</Badge>
     </h2>
 
-    <div class="overflow-hidden rounded-xl border">
-      <div class="overflow-x-auto">
-        <Table.Root>
-          <Table.Header>
-            <Table.Row class="hover:bg-transparent">
-              <Table.Head class="pl-4">PO number</Table.Head>
-              <Table.Head>PO date</Table.Head>
-              <Table.Head>Supplier</Table.Head>
-              <Table.Head class="text-right">Amount</Table.Head>
-              <Table.Head class="pr-4">Closed on</Table.Head>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {#each SAMPLE_CLOSED_POS as row (row.poNumber)}
-              <Table.Row>
-                <Table.Cell class="pl-4 font-medium">{row.poNumber}</Table.Cell>
-                <Table.Cell>{formatDate(row.poDate)}</Table.Cell>
-                <Table.Cell>{row.supplierName}</Table.Cell>
-                <Table.Cell class="text-right tabular-nums">
-                  {formatPesos(row.amountC)}
-                </Table.Cell>
-                <Table.Cell class="pr-4">{formatDate(row.closedOn)}</Table.Cell>
-              </Table.Row>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-      </div>
-      <div class="bg-muted/40 flex justify-center border-t px-4 py-2.5">
-        <Button variant="link" size="sm" class="h-auto p-0">
-          Show all {SAMPLE_CLOSED_COUNT} closed POs
-        </Button>
-      </div>
-    </div>
+    <AnimatedList
+      items={closedPos}
+      key={(po) => po.purchaseOrderPk}
+      listClass="gap-4"
+    >
+      {#snippet item(po)}
+        <OpenPoCard
+          {po}
+          useFirst={false}
+          {canManage}
+          onEdit={() => {}}
+          onClose={() => {}}
+          onReopen={() => reopen(po)}
+        />
+      {/snippet}
+      {#snippet empty()}
+        <p
+          class="text-muted-foreground rounded-xl border px-4 py-6 text-center text-sm"
+        >
+          No closed purchase orders yet.
+        </p>
+      {/snippet}
+    </AnimatedList>
   </div>
 </div>
+
+<ClosePoDialog
+  bind:open={closeOpen}
+  po={closing}
+  onClosed={(closedAt) => {
+    if (closing) setClosedAt(closing.purchaseOrderPk, closedAt);
+  }}
+/>
 
 <SuppliersDialog
   open={suppliersDialogOpen}

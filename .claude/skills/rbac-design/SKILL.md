@@ -29,7 +29,7 @@ The rules below were rewritten on 24 October 2026 for the shared work pages
 
 ### Where pages live
 
-- **One shared set of work pages**, for everyone who holds their keys: `/fuel`, with `/fuel/assets` and `/fuel/purchase-orders`, and later electricity, water, paper, air travel, ESWM, and GHG. There is never a separate admin copy of a data page.
+- **One shared set of work pages**, for everyone who holds their keys: `/fuel`, with `/fuel/assets` and `/fuel/purchase-orders`, `/ris-numbers` (17 November 2026), and later electricity, water, paper, air travel, ESWM, and GHG. There is never a separate admin copy of a data page.
 - **The pages for running the system** sit in the `src/routes/(app)/(admin)/` folder: `/users`, `/employees`, `/org-structure`, `/signatories`, `/roles`. The brackets group files without adding to the address, so there is no `/admin` address. The folder has no layout check, because each page needs a different key.
 - **One layout** (`src/routes/(app)/+layout.svelte`) and **one sidebar** (`src/lib/components/navigation/app-sidebar.svelte`, links in `nav-items.ts`) for everyone. Each link shows only to people who hold its key; a parent such as Fuel also shows, as a plain heading, when the person holds the key of a page under it.
 - **Everyone lands on `/`** (the dashboard) after signing in. Nobody is sent into an area, or kept out of one, by their address; `hooks.server.ts` only handles signing in and the forced password change.
@@ -46,7 +46,8 @@ The rules below were rewritten on 24 October 2026 for the shared work pages
 - Every module must define a `view` action. The types enforce it. `view` opens the module's pages; it is what each page's `load` checks.
 - Only `view` and `manage` per thing for now. They are split into add, edit, and delete only when the office needs it.
 - **Moving a page never renames a key.** Assets lives at `/fuel/assets` but its key is `assets`, because the asset list may later cover equipment that uses no fuel (GEMP's inventory).
-- Fuel's keys: `fuel:view` opens the fuel pages, and `fuel:view_all_offices` shows every office's records (see "Rows by office"). `fuel:approve`, for marking slips approved, and a key for recording withdrawals come with MPP-80 and MPP-81. There is no `fuel:manage`.
+- Fuel's keys: `fuel:view` opens the fuel pages, `fuel:view_all_offices` shows every office's records (see "Rows by office"), and `fuel:record` saves withdrawals and trips (9 November 2026, MPP-80). Without `fuel:record` the New withdrawal button and the sidebar's + are hidden, and the save is refused. `fuel:change_file_date` lets someone pick an earlier file date on a new withdrawal (10 November 2026); without it the date field is greyed out and the server files the withdrawal today, whatever was sent. Only the super-admin holds it so far. `fuel:approve` marks slips approved (MPP-81), and `fuel:complete` completes withdrawals and trips and edits or cancels them at any step, while `fuel:record` alone edits and cancels only before GSU has acted (23 November 2026, `transaction-actions.ts`); the GSU template holds both. There is no `fuel:manage`.
+- RIS Numbers' keys (17 November 2026): `ris_numbers:view` opens `/ris-numbers` and `ris_numbers:manage` reserves numbers, marks a reserved one not used, and deletes the newest one. The module is `ris_numbers`, not part of `fuel`, because the numbers cover every supply. `fuel:set_starting_numbers` is the one-time step at go-live that sets the four counts (control, WS, RIS, DTT) from the last numbers used before EMS (point 6.6 of "Recording a fuel issuance" in fuel-purchase-orders.md); the GSU template and the super-admin hold it (decided by the owner, 17 November 2026, because the counts are GSU's). Until it is done, every save that needs a number is refused.
 - Naming: plural for things you can count (`users`, `roles`, `org_units`), singular for the rest (`fuel`, `water`, `paper`, `air_travel`). Keys use `_`, never `-`; keys do not have to match URLs.
 - The `permission` table's `module` column holds the part before the `:`.
 
@@ -115,14 +116,14 @@ There is no `is_protected` column. Protection comes from a live condition — do
 Constants in `src/lib/server/role-templates.ts`. They are pre-ticked defaults shown when an admin creates a role, and nothing more. They are never saved to the database as records of their own; once a role is created from one, the template has no further connection to it.
 
 - **Super Admin:** every key, read from `PERMISSIONS`, so a new module is picked up automatically. It is what `create-admin.ts` reads on a fresh server, and the only template that includes either Roles key. The editor never offers it.
-- **Admin:** Users, Employees, Org Structure, and Signatories, `view` and `manage` each. No Roles keys and no fuel work: the admin does not do GSU's job.
-- **GSU:** `fuel:view`, `fuel:view_all_offices`, Purchase Orders, and Assets, and later approving slips.
-- **Staff:** `fuel:view` for their own office, and later recording withdrawals.
+- **Admin:** Users, Employees, Org Structure, and Signatories, `view` and `manage` each. No Roles keys, no fuel work, and no RIS numbers (decided by the owner, 17 November 2026): the admin does not do GSU's job.
+- **GSU:** `fuel:view`, `fuel:view_all_offices`, `fuel:record`, Purchase Orders, Assets, RIS Numbers (`view` and `manage`), and `fuel:set_starting_numbers`, and later approving slips.
+- **Staff:** `fuel:view` and `fuel:record`, for their own office.
 - No template other than Super Admin may include either Roles key.
 
 ---
 
-### Rows by office (decided, not built yet)
+### Rows by office (built on the Fuel page, 9 November 2026)
 
 Each person sees only their own office's records, using the office on their employee record (`employee.org_unit_fk`). `fuel:view_all_offices` shows every office's records, including every office's allocation; the GSU role and the super-admin hold it, and no other role does. A key is used rather than a check of "is this person in GSU", because the super-admin is not in GSU and because a role can then be given the key without changing code.
 
@@ -130,7 +131,7 @@ Example: a CDS staff member opens the fuel pages and sees only CDS's allocation 
 
 Within one office, any staff member whose role allows editing may edit a record that a colleague made; the record's history shows who changed what (MPP-122).
 
-The rule is built with the first page that needs it. Until then the key exists and is in the GSU template, but nothing checks it.
+Built on the Fuel page (`src/routes/(app)/fuel/issuance.server.ts`, `scopeOf`): its list and the balances in the New withdrawal form show only the person's own office without the key. The same key decides who picks the Office on a new withdrawal (point 7 of "Recording a fuel issuance"): with it, a picker; without it, the withdrawal counts down the person's own office. The Purchase Orders page does not follow the rule yet (MPP-125).
 
 ---
 

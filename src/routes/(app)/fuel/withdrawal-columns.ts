@@ -9,7 +9,7 @@ import {
   tableFeatures,
 } from "@tanstack/table-core";
 import type { SortIconType } from "$lib/components/sort-icon.svelte";
-import type { SampleWithdrawal } from "./sample-withdrawals.js";
+import type { WithdrawalRow } from "./withdrawal-row.js";
 import { WITHDRAWAL_STATUSES } from "./withdrawal-status.js";
 
 export const features = tableFeatures({
@@ -22,14 +22,14 @@ export const features = tableFeatures({
   columnMeta: metaHelper<{ sortIcon?: SortIconType }>(),
 });
 
-const helper = createColumnHelper<typeof features, SampleWithdrawal>();
+const helper = createColumnHelper<typeof features, WithdrawalRow>();
 
 /**
  * Layout 1b of the Claude Design "Withdrawals Table": fewer columns, with the
  * details in a smaller line under the main value. The cells are drawn in
  * +page.svelte by column id, and each column sorts by its main value.
  *
- * The estimated balance is not sortable: it belongs to one office's
+ * The balance is not sortable: it belongs to one office's
  * allocation of one fuel, so sorting it across offices tells nothing.
  */
 export const columns = helper.columns([
@@ -78,7 +78,7 @@ export const columns = helper.columns([
   }),
   helper.accessor("balanceH", {
     id: "balance",
-    header: "Estimated bal.",
+    header: "Balance",
     enableSorting: false,
   }),
   helper.accessor("asset", {

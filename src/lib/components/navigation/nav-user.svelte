@@ -27,6 +27,10 @@
   // Logging out has to be a POST so the session row is actually invalidated,
   // so the menu item submits this form rather than following a link.
   let logoutForm = $state<HTMLFormElement | null>(null);
+
+  const dropdownContentSide = $derived(
+    sidebar.isMobile ? "top" : sidebar.open ? "top" : "right",
+  );
 </script>
 
 <form
@@ -66,7 +70,7 @@
       </DropdownMenu.Trigger>
       <DropdownMenu.Content
         class="w-(--bits-dropdown-menu-anchor-width) min-w-56 rounded-lg"
-        side={sidebar.isMobile ? "bottom" : "right"}
+        side={dropdownContentSide}
         align="end"
         sideOffset={4}
       >

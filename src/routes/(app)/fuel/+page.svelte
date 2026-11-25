@@ -9,7 +9,9 @@
   import * as ButtonGroup from "$lib/components/ui/button-group/index.js";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
   import {
+    Ban,
     ChevronDown,
+    ClipboardCheck,
     Copy,
     EllipsisVertical,
     HandCoins,
@@ -18,24 +20,28 @@
     Printer,
     RotateCcwClock,
     Route,
+    Stamp,
   } from "@lucide/svelte/icons";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
+  import { Spinner } from "$lib/components/ui/spinner/index.js";
+  import { deserialize } from "$app/forms";
+  import { invalidateAll } from "$app/navigation";
+  import { toast } from "svelte-sonner";
+  import { transactionActions } from "./transaction-actions.js";
+  import type { TransactionDetails } from "./issuance.server";
+  import CompleteDialog from "./complete-dialog.svelte";
   import { createTable, FlexRender } from "@tanstack/svelte-table";
   import { formatLiters, formatPesos } from "$lib/utils/format-number.js";
-  import { formatDate } from "./purchase-orders/format-date.js";
+  import { formatDate } from "$lib/utils/format-date.js";
   import {
-    amountInCentavos,
     FUEL_LABELS,
     FUELS,
+    PO_TYPE_LABELS,
     type Fuel,
   } from "./purchase-orders/po-math.js";
-  import {
-    SAMPLE_OFFICES,
-    SAMPLE_OPEN_PO_NUMBERS,
-    sampleWithdrawals,
-    type SampleWithdrawal,
-  } from "./sample-withdrawals.js";
+  import type { WithdrawalRow } from "./withdrawal-row.js";
   import { columns, features } from "./withdrawal-columns.js";
-  import { runningWidth, shortNumber } from "./short-numbers.js";
+  import { runningWidth, shortNumber } from "$lib/utils/form-numbers.js";
   import {
     STATUS_BADGE,
     STATUS_LABELS,
@@ -45,19 +51,206 @@
   import SearchInput from "@/components/search-input.svelte";
   import SortIcon from "@/components/sort-icon.svelte";
   import FilterCombobox from "./filter-combobox.svelte";
-  import { poInUse } from "./po-in-use.js";
   import RadioTabs, { type RadioTab } from "@/components/radio-tabs.svelte";
+  import StartingNumbersNote from "@/components/starting-numbers-note.svelte";
+  import NewWithdrawalDialog from "./new-withdrawal-dialog.svelte";
+  import NewTripDialog from "./new-trip-dialog.svelte";
+  import { page } from "$app/state";
+  import { goto } from "$app/navigation";
+  import { getGlobalContext } from "$routes/global-context.svelte";
+  import * as Empty from "$lib/components/ui/empty/index.js";
 
   let { data }: PageProps = $props();
 
-  /** The made-up rows filed up to today. */
-  const withdrawals = sampleWithdrawals();
+  const gblCtx = getGlobalContext();
+  const canRecord = $derived(gblCtx.can("fuel:record"));
+  // GSU edits any office's transactions at any step.
+  const canEdit = $derived(canRecord || gblCtx.can("fuel:complete"));
 
-  // A fixed list, so an office with no withdrawals can still be picked.
-  const officeOptions = SAMPLE_OFFICES.map((office) => ({
-    value: office,
-    label: office,
-  }));
+  let newWithdrawalOpen = $state(false);
+  let newTripOpen = $state(false);
+  let reimbursedTripOpen = $state(false);
+
+  /** The saved transaction the forms are editing; null for a new one. */
+  let editing = $state<TransactionDetails | null>(null);
+  let completing = $state<TransactionDetails | null>(null);
+  let completeOpen = $state(false);
+  let cancelling = $state<WithdrawalRow | null>(null);
+  let cancelOpen = $state(false);
+  let cancelSubmitting = $state(false);
+  /** Why an action cannot be used on a row, shown in a dialog. */
+  let unavailable = $state<{ title: string; reason: string } | null>(null);
+  let unavailableOpen = $state(false);
+  /**
+   * The row whose details are being fetched. Its Edit button is disabled
+   * meanwhile, so a second press does not fetch them again; it is enabled
+   * again when the fetch ends, failed or not, so a failure can be retried.
+   */
+  let loadingId = $state<number | null>(null);
+
+  function openNew(open: (value: boolean) => void) {
+    editing = null;
+    open(true);
+  }
+
+  /** A saved transaction, for the Edit and Complete forms. */
+  async function fetchDetails(id: number) {
+    loadingId = id;
+    try {
+      const response = await fetch(`/fuel/transactions/${id}`);
+      if (!response.ok) throw new Error(String(response.status));
+      return (await response.json()) as TransactionDetails;
+    } catch {
+      toast.error("The record could not be opened", {
+        description: "Try again. If it keeps happening, contact ICT.",
+      });
+      return null;
+    } finally {
+      loadingId = null;
+    }
+  }
+
+  async function startEdit(row: WithdrawalRow) {
+    const edit = transactionActions(row, gblCtx.can).edit;
+    if (edit.show && edit.reason) {
+      unavailable = { title: "This cannot be edited", reason: edit.reason };
+      unavailableOpen = true;
+      return;
+    }
+    const details = await fetchDetails(row.id);
+    if (!details) return;
+    editing = details;
+    if (details.kind === "withdrawal") newWithdrawalOpen = true;
+    else if (details.kind === "trip") newTripOpen = true;
+    else reimbursedTripOpen = true;
+  }
+
+  async function startComplete(row: WithdrawalRow) {
+    const details = await fetchDetails(row.id);
+    if (!details) return;
+    completing = details;
+    completeOpen = true;
+  }
+
+  /** Sends Approve or Cancel for one row, then reloads the list. */
+  async function setStatus(
+    row: WithdrawalRow,
+    action: "approveTransaction" | "cancelTransaction",
+  ) {
+    const body = new FormData();
+    body.set("id", String(row.id));
+    const cn = `CN ${shortNumber(row.controlNumber, width)}`;
+    const failed =
+      action === "approveTransaction" ? "not approved" : "not cancelled";
+    try {
+      const response = await fetch(`?/${action}`, {
+        method: "POST",
+        body,
+        headers: { "x-sveltekit-action": "true" },
+      });
+      const result = deserialize(await response.text());
+      if (result.type === "success") {
+        await invalidateAll();
+        toast.success(
+          action === "approveTransaction"
+            ? `${cn} marked approved`
+            : `${cn} cancelled`,
+        );
+        return;
+      }
+      toast.error(`${cn} ${failed}`, {
+        description:
+          result.type === "failure"
+            ? ((result.data as { error?: string } | undefined)?.error ??
+              "Try again.")
+            : "Try again. If it keeps happening, contact ICT.",
+      });
+    } catch {
+      toast.error(`${cn} ${failed}`, {
+        description: "Try again. If it keeps happening, contact ICT.",
+      });
+    }
+  }
+
+  async function confirmCancel() {
+    if (!cancelling) return;
+    cancelSubmitting = true;
+    await setStatus(cancelling, "cancelTransaction");
+    cancelSubmitting = false;
+    cancelOpen = false;
+  }
+
+  /**
+   * The clipboard API works only on a secure page, and the office server is
+   * plain http on the LAN, so the older way is the fallback.
+   */
+  async function copyControlNumber(row: WithdrawalRow) {
+    const value = row.controlNumber;
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      const area = document.createElement("textarea");
+      area.value = value;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.append(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    toast.success("Control number copied", { description: value });
+  }
+
+  /** The numbers a transaction holds, as the cancel dialog names them. */
+  function numbersOf(row: WithdrawalRow) {
+    return [
+      ["CN", row.controlNumber],
+      ["WS", row.wsNumber],
+      ["RIS", row.risNumber],
+      ["DTT", row.tripTicketNumber],
+    ]
+      .filter(([, n]) => n)
+      .map(([form, n]) => `${form} ${shortNumber(n as string, width)}`)
+      .join(", ");
+  }
+
+  const KIND_NOUN = {
+    withdrawal: "withdrawal",
+    trip: "trip",
+    reimbursed: "reimbursed trip",
+  } as const;
+
+  // The sidebar's + beside Fuel links to /fuel?new=withdrawal, which opens
+  // the form. The ?new is dropped when the form closes, not when it opens:
+  // on a fresh page load the router is not ready yet. It is dropped with
+  // goto, not replaceState: replaceState leaves page.url as it was, so the
+  // next reload of the list (after Approve, say) opened the form again.
+  $effect(() => {
+    if (
+      page.url.searchParams.get("new") === "withdrawal" &&
+      canRecord &&
+      data.cutoverDone
+    ) {
+      editing = null;
+      newWithdrawalOpen = true;
+    }
+  });
+
+  function setNewWithdrawalOpen(open: boolean) {
+    newWithdrawalOpen = open;
+    if (open || !page.url.searchParams.has("new")) return;
+    const url = new URL(page.url);
+    url.searchParams.delete("new");
+    goto(url, { replaceState: true, noScroll: true, keepFocus: true });
+  }
+
+  /** By file date, then by the order of entry, as the server sends them. */
+  const withdrawals = $derived(data.withdrawals);
+
+  // Every active office, so one with no withdrawals can still be picked.
+  const officeOptions = $derived(
+    data.offices.map((office) => ({ value: office.abbr, label: office.abbr })),
+  );
 
   const fuelOptions = FUELS.map((fuel) => ({
     value: fuel,
@@ -141,7 +334,9 @@
   const table = createTable({
     features,
     columns,
-    data: withdrawals,
+    get data() {
+      return withdrawals;
+    },
     getRowId: (row) => String(row.id),
   });
 
@@ -158,7 +353,7 @@
   });
 
   /** The forms under the control number, as the line under it reads. */
-  function formsLine(row: SampleWithdrawal) {
+  function formsLine(row: WithdrawalRow) {
     if (row.kind === "trip") return "Trip only";
     const parts: string[] = [];
     if (row.wsNumber) parts.push(`WS ${shortNumber(row.wsNumber, width)}`);
@@ -167,10 +362,17 @@
     return parts.join(" · ");
   }
 
-  const inUse = poInUse(withdrawals, SAMPLE_OPEN_PO_NUMBERS);
+  /** The hover text of a balance, saying why its liters are or are not exact. */
+  function balanceHint(row: WithdrawalRow) {
+    if (!row.poType) return undefined;
+    const type = PO_TYPE_LABELS[row.poType];
+    return row.poType === "price"
+      ? `${row.poNumber} is ${type}, so the liters are an estimate from the last known price.`
+      : `${row.poNumber} is ${type}, so its price does not change.`;
+  }
 
-  /** "A", "A and B", "A, B, and C". */
-  const listFormat = new Intl.ListFormat("en", { type: "conjunction" });
+  const countLabel = (n: number) =>
+    `${n} ${n === 1 ? "withdrawal" : "withdrawals"}`;
 
   const NUMBER_COLUMNS = new Set(["rowNumber", "withdrawn", "balance"]);
 
@@ -199,7 +401,13 @@
 </Header>
 
 <div class="flex h-[calc(100svh-4rem)] min-w-0 flex-col items-center pt-0 px-2">
-  <div class="w-full px-1">
+  {#if !data.cutoverDone}
+    <StartingNumbersNote
+      canSet={gblCtx.can("fuel:set_starting_numbers")}
+      class="w-full px-1 pb-3"
+    />
+  {/if}
+  <div class="w-full px-1 overflow-hidden">
     <RadioTabs legend="Status" tabs={statusTabs} bind:value={statusTab} />
   </div>
 
@@ -210,14 +418,17 @@
       placeholder="Search asset, driver, remarks, or number"
     />
 
-    <FilterCombobox
-      name="office"
-      plural="offices"
-      searchable
-      options={officeOptions}
-      bind:selected={selectedOffices}
-      class="w-48"
-    />
+    <!-- Someone who sees one office has nothing to filter by office. -->
+    {#if data.allOffices}
+      <FilterCombobox
+        name="office"
+        plural="offices"
+        searchable
+        options={officeOptions}
+        bind:selected={selectedOffices}
+        class="w-48"
+      />
+    {/if}
     <FilterCombobox
       name="fuel"
       plural="fuels"
@@ -233,33 +444,48 @@
 
     <span class="ml-auto text-sm text-muted-foreground tabular-nums">
       {withdrawalsShown.length === withdrawals.length
-        ? `${withdrawals.length} withdrawals`
-        : `${withdrawalsShown.length} of ${withdrawals.length} withdrawals`}
+        ? countLabel(withdrawals.length)
+        : `${withdrawalsShown.length} of ${countLabel(withdrawals.length)}`}
     </span>
 
     <!--
       A withdrawal is the common case; the two trips without a withdrawal
-      slip wait in the menu. Samples only: none of these opens a form yet.
+      slip wait in the menu.
     -->
-    <ButtonGroup.Root>
-      <Button>
-        <Plus />
-        New withdrawal
-      </Button>
-      <ButtonGroup.Separator />
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger
-          class={buttonVariants({ size: "icon" })}
-          aria-label="More ways to add"
+    {#if canRecord}
+      <!-- Disabled with no reason beside it: the note above says why. -->
+      <ButtonGroup.Root>
+        <Button
+          onclick={() => openNew((v) => (newWithdrawalOpen = v))}
+          disabled={!data.cutoverDone}
         >
-          <ChevronDown />
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content align="end" class="min-w-max">
-          <DropdownMenu.Item><Route />Trip only</DropdownMenu.Item>
-          <DropdownMenu.Item><HandCoins /> Reimbursed trip</DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-    </ButtonGroup.Root>
+          <Plus />
+          New withdrawal
+        </Button>
+        <ButtonGroup.Separator />
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger
+            class={buttonVariants({ size: "icon" })}
+            aria-label="More ways to add"
+            disabled={!data.cutoverDone}
+          >
+            <ChevronDown />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" class="min-w-max">
+            <DropdownMenu.Item
+              onSelect={() => openNew((v) => (newTripOpen = v))}
+            >
+              <Route />Trip only
+            </DropdownMenu.Item>
+            <DropdownMenu.Item
+              onSelect={() => openNew((v) => (reimbursedTripOpen = v))}
+            >
+              <HandCoins />Reimbursed trip
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+      </ButtonGroup.Root>
+    {/if}
   </div>
 
   <!--
@@ -322,7 +548,31 @@
           {/each}
         </Table.Header>
         <Table.Body>
-          {#if withdrawalsShown.length === 0}
+          {#if withdrawals.length === 0}
+            <Table.Row class="hover:bg-transparent">
+              <Table.Cell colspan={columns.length} class="py-6">
+                <Empty.Root>
+                  <Empty.Header>
+                    <Empty.Title>No withdrawals yet</Empty.Title>
+                    <Empty.Description>
+                      Withdrawals show here once they are saved.
+                    </Empty.Description>
+                  </Empty.Header>
+                  {#if canRecord}
+                    <Empty.Content>
+                      <Button
+                        onclick={() => openNew((v) => (newWithdrawalOpen = v))}
+                        disabled={!data.cutoverDone}
+                      >
+                        <Plus />
+                        New withdrawal
+                      </Button>
+                    </Empty.Content>
+                  {/if}
+                </Empty.Root>
+              </Table.Cell>
+            </Table.Row>
+          {:else if withdrawalsShown.length === 0}
             <!--
               Rows exist but the search or the filters hide all of them. The
               button undoes the search first, since it is the quickest to
@@ -378,9 +628,6 @@
                 {:else if cell.column.id === "fileDate"}
                   <Table.Cell>
                     {formatDate(row.fileDate)}
-                    <div class="text-xs text-muted-foreground">
-                      <span class="text-red-600">&bull;</span> PO-2026-09-002
-                    </div>
                   </Table.Cell>
                 {:else if cell.column.id === "office"}
                   <Table.Cell>
@@ -443,23 +690,27 @@
                         )}/L
                       {:else if row.requestedH !== null}
                         Requested {formatLiters(row.requestedH)}
+                      {:else if row.requestedC !== null}
+                        Requested {formatPesos(row.requestedC)}
                       {/if}
                     </div>
                   </Table.Cell>
                 {:else if cell.column.id === "balance"}
                   <Table.Cell class="text-right tabular-nums">
                     <!-- A trip does not count down any allocation. -->
-                    {#if row.balanceH === null}
+                    {#if row.balanceH === null || row.balanceC === null}
                       <span class="text-muted-foreground">—</span>
                     {:else}
-                      <div>{formatLiters(row.balanceH)}</div>
-                      {#if row.priceC !== null}
-                        <div class="text-xs text-muted-foreground">
-                          ≈ {formatPesos(
-                            amountInCentavos(row.balanceH, row.priceC),
+                      <div title={balanceHint(row)}>
+                        <div>
+                          {row.poType === "price" ? "≈ " : ""}{formatLiters(
+                            row.balanceH,
                           )}
                         </div>
-                      {/if}
+                        <div class="text-xs text-muted-foreground">
+                          {formatPesos(row.balanceC)}
+                        </div>
+                      </div>
                     {/if}
                   </Table.Cell>
                 {:else if cell.column.id === "assetAndTrip"}
@@ -480,14 +731,26 @@
                     {row.remarks}
                   </Table.Cell>
                 {:else if cell.column.id === "actions"}
+                  {@const actions = transactionActions(row, gblCtx.can)}
                   <Table.Cell>
-                    <!-- Samples only: none of these does anything yet. -->
-                    <ButtonGroup.Root>
-                      <Button variant="secondary" size="sm" class="border-r-0">
-                        <Pencil />
-                        Edit
-                      </Button>
-                      <ButtonGroup.Separator />
+                    <!--
+                      Edit stays pressable when it is unavailable: the row has
+                      no room for the reason, so pressing it shows the reason.
+                    -->
+                    <ButtonGroup.Root class="ml-auto">
+                      {#if actions.edit.show}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          class="border-r-0"
+                          disabled={loadingId === row.id}
+                          onclick={() => startEdit(row)}
+                        >
+                          <Pencil />
+                          Edit
+                        </Button>
+                        <ButtonGroup.Separator />
+                      {/if}
                       <DropdownMenu.Root>
                         <DropdownMenu.Trigger
                           class={buttonVariants({
@@ -499,15 +762,50 @@
                           <EllipsisVertical />
                         </DropdownMenu.Trigger>
                         <DropdownMenu.Content align="end" class="min-w-max">
+                          {#if actions.approve.show}
+                            <DropdownMenu.Item
+                              onclick={() =>
+                                setStatus(row, "approveTransaction")}
+                            >
+                              <Stamp /> Mark approved
+                            </DropdownMenu.Item>
+                          {/if}
+                          {#if actions.complete.show}
+                            <DropdownMenu.Item
+                              unavailable={actions.complete.reason}
+                              onclick={() => startComplete(row)}
+                            >
+                              <ClipboardCheck /> Complete
+                            </DropdownMenu.Item>
+                          {/if}
+                          {#if actions.approve.show || actions.complete.show}
+                            <DropdownMenu.Separator />
+                          {/if}
+                          <!-- Print and View history do nothing yet. -->
                           <DropdownMenu.Item
                             ><Printer /> Print</DropdownMenu.Item
                           >
-                          <DropdownMenu.Item>
+                          <DropdownMenu.Item
+                            onclick={() => copyControlNumber(row)}
+                          >
                             <Copy /> Copy control number
                           </DropdownMenu.Item>
                           <DropdownMenu.Item>
                             <RotateCcwClock /> View history
                           </DropdownMenu.Item>
+                          {#if actions.cancel.show}
+                            <DropdownMenu.Separator />
+                            <DropdownMenu.Item
+                              variant="destructive"
+                              unavailable={actions.cancel.reason}
+                              onclick={() => {
+                                cancelling = row;
+                                cancelOpen = true;
+                              }}
+                            >
+                              <Ban /> Cancel {KIND_NOUN[row.kind]}
+                            </DropdownMenu.Item>
+                          {/if}
                         </DropdownMenu.Content>
                       </DropdownMenu.Root>
                     </ButtonGroup.Root>
@@ -521,3 +819,72 @@
     </ScrollArea>
   </div>
 </div>
+
+{#if canEdit}
+  <NewWithdrawalDialog
+    bind:open={() => newWithdrawalOpen, setNewWithdrawalOpen}
+    {data}
+    edit={editing?.kind === "withdrawal" ? editing : null}
+  />
+  <NewTripDialog
+    bind:open={newTripOpen}
+    {data}
+    edit={editing?.kind === "trip" ? editing : null}
+  />
+  <NewWithdrawalDialog
+    kind="reimbursed"
+    bind:open={reimbursedTripOpen}
+    {data}
+    edit={editing?.kind === "reimbursed" ? editing : null}
+  />
+{/if}
+
+<CompleteDialog bind:open={completeOpen} details={completing} />
+
+<AlertDialog.Root bind:open={cancelOpen}>
+  <AlertDialog.Content class="sm:max-w-115">
+    {#if cancelling}
+      <AlertDialog.Header>
+        <AlertDialog.Title>
+          Cancel CN {shortNumber(cancelling.controlNumber, width)}?
+        </AlertDialog.Title>
+        <AlertDialog.Description>
+          {#if cancelling.kind === "withdrawal"}
+            Its liters go back to {cancelling.poNumber
+              ? `PO ${cancelling.poNumber}`
+              : "the PO"}.
+          {/if}
+          Its numbers ({numbersOf(cancelling)}) stay with it and are never given
+          to another. Cancelling cannot be undone.
+        </AlertDialog.Description>
+      </AlertDialog.Header>
+      <AlertDialog.Footer>
+        <AlertDialog.Cancel disabled={cancelSubmitting}>
+          Keep it
+        </AlertDialog.Cancel>
+        <Button
+          variant="destructive"
+          disabled={cancelSubmitting}
+          onclick={confirmCancel}
+        >
+          {#if cancelSubmitting}
+            <Spinner />
+          {/if}
+          Cancel {KIND_NOUN[cancelling.kind]}
+        </Button>
+      </AlertDialog.Footer>
+    {/if}
+  </AlertDialog.Content>
+</AlertDialog.Root>
+
+<AlertDialog.Root bind:open={unavailableOpen}>
+  <AlertDialog.Content class="sm:max-w-100">
+    <AlertDialog.Header>
+      <AlertDialog.Title>{unavailable?.title}</AlertDialog.Title>
+      <AlertDialog.Description>{unavailable?.reason}</AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>OK</AlertDialog.Cancel>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

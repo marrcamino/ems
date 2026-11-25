@@ -29,6 +29,10 @@ export const purchaseOrder = mysqlTable("purchase_order", {
   poNumber: varchar("po_number", { length: 50 }).notNull().unique(),
   // The date printed on the PO, not the day it was typed in.
   poDate: date("po_date", { mode: "string" }).notNull(),
+  // Liter-based (the price is the PO's unit cost) or price-based (each
+  // withdrawal is charged at that day's pump price). Changes only what the
+  // screens show, never how the PO is counted (MPP-132).
+  poType: mysqlEnum("po_type", ["liter", "price"]).notNull(),
   supplierFk: bigint("supplier_fk", { mode: "number", unsigned: true })
     .notNull()
     .references((): AnyMySqlColumn => supplier.supplierPk, {
@@ -37,6 +41,9 @@ export const purchaseOrder = mysqlTable("purchase_order", {
   // Where the shares came from, such as a memo number or "as agreed on
   // 7 Oct". The system needs only the numbers, not the paper behind them.
   note: varchar("note", { length: 255 }),
+  // When GSU closed it by hand, once the supplier was paid; empty while it is
+  // open (MPP-61). Reopen empties it again.
+  closedAt: datetime("closed_at"),
   // Semantic FK name: points at `user.user_pk`, the GSU user who typed the
   // PO in. No constraint, the same as `user.created_by_fk`.
   createdByFk: bigint("created_by_fk", { mode: "number", unsigned: true }),
