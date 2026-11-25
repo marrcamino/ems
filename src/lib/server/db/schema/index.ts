@@ -17,3 +17,4 @@ export * from "./role";
 export * from "./session";
 export * from "./supplier";
 export * from "./user";
+export * from "./water";

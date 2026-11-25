@@ -104,7 +104,7 @@ export const PERMISSION_DEFS = {
   },
   water: {
     view: "Access the Water page",
-    manage: "Add, edit, and delete water records",
+    manage: "Record the office's water use, and submit each month",
   },
   // Each office records the reams it opens and submits each month. Records
   // and submits for the person's own office only, even with
