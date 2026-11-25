@@ -15,5 +15,6 @@ static/
 .vscode/
 skills-lock.json
 
-# Logos and icons: no relationships to extract
+# Logos, icons, and the login background photos: no relationships to extract
 *.png
+src/lib/assets/login-bg-*.jpg
