@@ -100,7 +100,7 @@ export const PERMISSION_DEFS = {
 
   electricity: {
     view: "Access the Electricity page",
-    manage: "Add, edit, and delete electricity records",
+    manage: "Record the office's electricity use, and submit each month",
   },
   water: {
     view: "Access the Water page",

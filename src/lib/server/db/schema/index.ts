@@ -1,6 +1,7 @@
 export * from "./asset";
 export * from "./asset-type";
 export * from "./config";
+export * from "./electricity";
 export * from "./employee-history-correction";
 export * from "./employee-history";
 export * from "./employee";
