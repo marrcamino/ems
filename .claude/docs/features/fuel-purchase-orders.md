@@ -136,19 +136,27 @@ The shared pieces they use went to `main` first (see
    `purchase_orders:manage`, synced on 11 October 2026. The manage key
    also covers suppliers.
 2. **Page** `/fuel/purchase-orders`, in the sidebar under Fuel, after
-   Assets. It has "Manage suppliers", "Add purchase order", and the list
-   of POs.
+   Assets. It has "Add purchase order" and the list of POs.
 3. **Suppliers** (11 October 2026), pushed to the database and tried in a
-   browser. A dialog opened with `?suppliers` lists the
-   suppliers as cards. Add and Edit slide a form in over the list, using the
-   shared `DialogViews` component (`src/lib/components/dialog-views/`);
-   Cancel or Escape returns to the list. The fields are:
+   browser. Since 24 November 2026 they have their own page, `/suppliers`,
+   in the sidebar after Dashboard, because the paper POs pick from the same
+   list (asked for by the owner). It is under the purchase order keys, so
+   only GSU and the system administrator see it. It is laid out like the
+   assets page: a search box (name, address, TIN with or without spaces, and
+   PhilGEPS number), Active / Archived / All tabs with counts, and a table
+   sortable by supplier and address. Add and Edit open a form in a dialog. Until then they were
+   managed in a dialog on the fuel PO page, opened with `?suppliers`, whose
+   last version is kept in `tmp/archive/suppliers-dialog-2026-11-24.svelte`.
+   The fields are:
    1. The supplier name, which is required and does not have to be unique.
    2. The business address, which is required.
    3. The TIN, which is required and unique. The field takes digits only
       and adds a space after every 3 as they are typed (123 456 789 000).
       It is stored as digits only, and 9, 12 or 14 digits are accepted.
-   4. The PhilGEPS registration number, which is optional.
+   4. The PhilGEPS registration number, required since 24 November 2026
+      (optional before), in the form and in the database.
+   5. A contact number and an email address, both optional, added on
+      24 November 2026 for GSU to reach the supplier; neither is on the PO.
 
    A supplier is **active or archived** (`status` column). It was first built
    as active/inactive on 12 October 2026 and renamed the same day: a
@@ -156,12 +164,9 @@ The shared pieces they use went to `main` first (see
    kept for history" better. Only suppliers use "archived"; every other
    lookup table keeps active/inactive. Exactly two values, no third.
    `tmp/convert-supplier-status.ts` converts a database that already had the
-   inactive version. A dropdown picks Active, Archived or All, kept in the
-   address as `?supplier-status=`. The page loads only active suppliers,
-   nothing about archived ones (not even a count); those are fetched from
-   `GET /fuel/purchase-orders/suppliers?status=archived` the first time
-   Archived or All is picked, with a skeleton while they load (AnimatedList),
-   and then kept for the rest of the visit. Each card's menu has "Archive supplier"
+   inactive version. The tab is kept in the address as `?status=`; the page
+   loads every supplier, archived ones included, and filters on screen.
+   Each card's menu has "Archive supplier"
    or "Restore supplier", and Delete. The PO form must offer only active
    suppliers, except the one a PO being edited already names.
 

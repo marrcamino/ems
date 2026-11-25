@@ -4,13 +4,11 @@
   import * as Field from "$lib/components/ui/field/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Textarea } from "$lib/components/ui/textarea/index.js";
-  import Badge from "@/components/ui/badge/badge.svelte";
   import HiddenInput from "@/components/ui/hidden-input.svelte";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
   import type { Supplier } from "@/types";
   import { untrack } from "svelte";
   import { toast } from "svelte-sonner";
-  import { fade } from "svelte/transition";
   import {
     groupTin,
     normalizeTin,
@@ -19,11 +17,9 @@
   } from "./tin.js";
 
   /**
-   * The add and edit supplier form. It is a DialogViews view inside the
-   * suppliers dialog, which slides it in over the list, rather than a dialog
-   * of its own on top of that one. The dialog mounts a fresh copy each time it is
-   * shown, so the fields are seeded once, here, and never overwritten while
-   * the admin types.
+   * The add and edit supplier form, in a dialog on the Suppliers page. The
+   * page mounts a fresh copy each time it is shown, so the fields are seeded
+   * once, here, and never overwritten while the admin types.
    */
   let {
     supplierToEdit,
@@ -43,6 +39,8 @@
   let businessAddress = $state(seed?.businessAddress ?? "");
   let tin = $state(groupTin(seed?.tin ?? ""));
   let philgepsNumber = $state(seed?.philgepsNumber ?? "");
+  let contactNumber = $state(seed?.contactNumber ?? "");
+  let email = $state(seed?.email ?? "");
   let submitting = $state(false);
 
   /**
@@ -197,23 +195,15 @@
       <Field.Field
         data-invalid={fieldErrors.businessAddress ? true : undefined}
       >
-        <Field.Label for="businessAddress" class="gap-1" required>
+        <Field.Label for="businessAddress" required>
           Business address
-
-          {#if businessAddress.trim().length > 225}
-            <div in:fade={{ duration: 250 }} out:fade={{ duration: 150 }}>
-              <Badge variant="secondary" class="h-4 px-1.5"
-                >{businessAddress.trim().length}/255</Badge
-              >
-            </div>
-          {/if}
         </Field.Label>
         <Textarea
           id="businessAddress"
           name="businessAddress"
           bind:value={businessAddress}
           oninput={() => clearError("businessAddress")}
-          placeholder="Purok 2, Brgy. Justiniana Edera, San Jose, Dinagat Islands"
+          placeholder="Purok 2, Brgy. Santa Cruz, San Jose, Dinagat Islands"
           maxlength={255}
           rows={2}
           aria-invalid={fieldErrors.businessAddress ? true : undefined}
@@ -242,28 +232,54 @@
         />
         {#if fieldErrors.tin}
           <Field.Error>{fieldErrors.tin}</Field.Error>
-        {:else}
-          <Field.Description>
-            No two suppliers can have the same TIN.
-          </Field.Description>
         {/if}
       </Field.Field>
 
-      <Field.Field>
-        <Field.Label for="philgepsNumber">
+      <Field.Field data-invalid={fieldErrors.philgepsNumber ? true : undefined}>
+        <Field.Label for="philgepsNumber" required>
           PhilGEPS registration no.
         </Field.Label>
         <Input
           id="philgepsNumber"
           name="philgepsNumber"
           bind:value={philgepsNumber}
+          oninput={() => delete fieldErrors.philgepsNumber}
+          placeholder="341245"
           maxlength={50}
+          aria-invalid={fieldErrors.philgepsNumber ? true : undefined}
+          required
         />
-        <Field.Description>
-          The number on the supplier's Philippine Government Electronic
-          Procurement System registration.
-        </Field.Description>
+        <Field.Error>{fieldErrors.philgepsNumber}</Field.Error>
       </Field.Field>
+
+      <!-- Optional, for GSU to reach the supplier; not printed on the PO. -->
+      <div class="grid gap-4 sm:grid-cols-2">
+        <Field.Field>
+          <Field.Label for="contactNumber">Contact number</Field.Label>
+          <Input
+            id="contactNumber"
+            name="contactNumber"
+            type="tel"
+            bind:value={contactNumber}
+            placeholder="0917 123 4567"
+            maxlength={50}
+          />
+        </Field.Field>
+        <Field.Field data-invalid={fieldErrors.email ? true : undefined}>
+          <Field.Label for="email">Email address</Field.Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            bind:value={email}
+            oninput={() => clearError("email")}
+            placeholder="name@example.com"
+            maxlength={150}
+            aria-invalid={fieldErrors.email ? true : undefined}
+          />
+          <Field.Error>{fieldErrors.email}</Field.Error>
+        </Field.Field>
+      </div>
     </Field.Group>
   </div>
 

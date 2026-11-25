@@ -2,12 +2,10 @@
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import { goto } from "$app/navigation";
-  import { page } from "$app/state";
   import { getGlobalContext } from "$routes/global-context.svelte";
   import Header from "@/components/header.svelte";
   import type { Supplier } from "@/types";
-  import { Plus, Store } from "@lucide/svelte/icons";
+  import { Plus } from "@lucide/svelte/icons";
   import { untrack } from "svelte";
   import AddPurchaseOrderDialog from "./add-purchase-order-dialog.svelte";
   import AnimatedList from "$lib/components/transition/animated-list.svelte";
@@ -16,43 +14,15 @@
   import { deserialize } from "$app/forms";
   import { toast } from "svelte-sonner";
   import type { PurchaseOrderRow } from "./po-types.js";
-  import SuppliersDialog from "./suppliers/suppliers-dialog.svelte";
 
   let { data } = $props();
 
   const gblCtx = getGlobalContext();
   const canManage = $derived(gblCtx.can("purchase_orders:manage"));
 
-  // The active suppliers. Held here rather than re-read from `data`, so a
-  // supplier added or edited in the dialog appears without waiting for the
-  // page to reload. The page keeps it, not the dialog, because the add PO
-  // form picks from it, and a new PO only ever names an active supplier.
-  let suppliers = $state<Supplier[]>(untrack(() => data.suppliers));
-
-  /**
-   * The suppliers dialog is opened through the address (`?suppliers`), the
-   * same as asset types on the assets page, so a link or a reload opens it.
-   */
-  const SUPPLIERS_PARAM = "suppliers";
-
-  const suppliersDialogOpen = $derived(
-    page.url.searchParams.has(SUPPLIERS_PARAM),
-  );
-
-  /**
-   * Replaces the history entry rather than adding one, so Back leaves the
-   * page instead of reopening the dialog.
-   */
-  function setSuppliersOpen(open: boolean) {
-    const url = new URL(page.url);
-    if (open) url.searchParams.set(SUPPLIERS_PARAM, "");
-    else {
-      url.searchParams.delete(SUPPLIERS_PARAM);
-      // The dialog's tab goes with it, so reopening starts on Active.
-      url.searchParams.delete("supplier-status");
-    }
-    goto(url, { noScroll: true, keepFocus: true, replaceState: true });
-  }
+  // Active suppliers, which a new PO picks from. Managed on the Suppliers
+  // page.
+  const suppliers = $derived<Supplier[]>(data.suppliers);
 
   let addDialogOpen = $state(false);
 
@@ -73,12 +43,6 @@
     purchaseOrders = purchaseOrders.filter(
       (po) => po.purchaseOrderPk !== purchaseOrderPk,
     );
-  }
-
-  /** From the add PO dialog, when there is no supplier to pick yet. */
-  function switchToSuppliers() {
-    addDialogOpen = false;
-    setSuppliersOpen(true);
   }
 
   // Held here for the same reason: a PO saved in the dialog shows at once.
@@ -179,10 +143,6 @@
   >
     <h1 class="text-xl font-semibold">Purchase orders</h1>
     <div class="ml-auto flex gap-2">
-      <Button variant="outline" onclick={() => setSuppliersOpen(true)}>
-        <Store />
-        Manage suppliers
-      </Button>
       {#if canManage}
         <Button onclick={openAdd}>
           <Plus />
@@ -269,12 +229,6 @@
   }}
 />
 
-<SuppliersDialog
-  open={suppliersDialogOpen}
-  onOpenChange={setSuppliersOpen}
-  bind:suppliers
-/>
-
 <AddPurchaseOrderDialog
   bind:open={addDialogOpen}
   {suppliers}
@@ -282,5 +236,4 @@
   {editing}
   {onSaved}
   {onDeleted}
-  onManageSuppliers={switchToSuppliers}
 />

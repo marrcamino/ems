@@ -2,6 +2,7 @@ import type { PermissionKey } from "$lib/server/permissions";
 import {
   Building,
   FileDigit,
+  StickyNotes,
   FilePenLine,
   FlaskConical,
   Fuel,
@@ -9,6 +10,7 @@ import {
   IdCard,
   Plus,
   ShieldCheck,
+  Store,
   UsersRound,
 } from "@lucide/svelte/icons";
 
@@ -48,6 +50,20 @@ export const workPages = [
     url: "/",
     icon: House,
   },
+  // Not under Fuel or Paper: the POs of both pick from this one list.
+  {
+    name: "Suppliers",
+    url: "/suppliers",
+    icon: Store,
+    permission: "purchase_orders:view",
+  },
+  // Not under Fuel: the RIS numbers cover every supply, not only fuel.
+  {
+    name: "RIS Numbers",
+    url: "/ris-numbers",
+    icon: FileDigit,
+    permission: "ris_numbers:view",
+  },
   {
     name: "Fuel",
     url: "/fuel",
@@ -72,12 +88,18 @@ export const workPages = [
       },
     ],
   },
-  // Not under Fuel: the RIS numbers cover every supply, not only fuel.
   {
-    name: "RIS Numbers",
-    url: "/ris-numbers",
-    icon: FileDigit,
-    permission: "ris_numbers:view",
+    name: "Paper",
+    url: "/paper",
+    icon: StickyNotes,
+    permission: "paper:view",
+    children: [
+      {
+        name: "Purchase Orders",
+        url: "/paper/purchase-orders",
+        permission: "purchase_orders:view",
+      },
+    ],
   },
 ] satisfies NavPage[];
 

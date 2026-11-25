@@ -1,6 +1,10 @@
 import { can } from "$lib/rbac/access";
 import { db } from "$lib/server/db";
-import { purchaseOrder, supplier } from "$lib/server/db/schema";
+import {
+  paperPurchaseOrder,
+  purchaseOrder,
+  supplier,
+} from "$lib/server/db/schema";
 import type { Supplier } from "@/types";
 import { fail, type Actions } from "@sveltejs/kit";
 import { and, asc, count, eq, ne } from "drizzle-orm";
@@ -8,11 +12,7 @@ import { groupTin, normalizeTin, TIN_FORMAT_ERROR } from "./tin";
 
 export type SupplierStatus = "active" | "archived";
 
-/**
- * The suppliers with one status, by name. Only active ones come with the
- * page; archived ones are fetched when the dialog is switched to show them,
- * because the archive only grows and is rarely looked at.
- */
+/** The suppliers with one status, by name. */
 export function selectSuppliers(status: SupplierStatus) {
   return db
     .select()
@@ -28,9 +28,9 @@ function readForm(form: FormData) {
     businessAddress: String(form.get("businessAddress") ?? "").trim(),
     // Null when it cannot be read as a TIN, which rejectionReason reports.
     tin: normalizeTin(String(form.get("tin") ?? "")),
-    // Stored as NULL rather than "" when left empty, the same as an asset's
-    // plate number.
-    philgepsNumber: philgeps || null,
+    philgepsNumber: philgeps,
+    contactNumber: String(form.get("contactNumber") ?? "").trim() || null,
+    email: String(form.get("email") ?? "").trim() || null,
   };
 }
 
@@ -49,6 +49,18 @@ function rejectionReason(values: FormValues) {
     return { field: "businessAddress", error: "Enter the business address." };
   }
   if (!values.tin) return { field: "tin", error: TIN_FORMAT_ERROR };
+  if (values.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+    return {
+      field: "email",
+      error: "Enter the email address as name@example.com.",
+    };
+  }
+  if (!values.philgepsNumber) {
+    return {
+      field: "philgepsNumber",
+      error: "Enter the PhilGEPS registration number.",
+    };
+  }
   return null;
 }
 
@@ -101,9 +113,9 @@ async function readBack(supplierPk: number) {
 }
 
 /**
- * The supplier writes, served from the purchase orders page, where suppliers
- * are managed in a dialog. Prefixed with `Supplier` so they sit beside the
- * purchase order actions without clashing.
+ * The supplier writes, served from the Suppliers page. The fuel and paper
+ * POs both pick from this one list. Under the purchase order keys, which
+ * only GSU holds.
  */
 export const supplierActions = {
   createSupplier: async ({ request, locals }) => {
@@ -227,10 +239,18 @@ export const supplierActions = {
     const row = await readBack(supplierPk);
     if (!row) return fail(404, { error: "That supplier no longer exists." });
 
-    const [{ total }] = await db
-      .select({ total: count() })
-      .from(purchaseOrder)
-      .where(eq(purchaseOrder.supplierFk, supplierPk));
+    // Fuel and paper POs both name suppliers from this one list.
+    const [[fuel], [paper]] = await Promise.all([
+      db
+        .select({ total: count() })
+        .from(purchaseOrder)
+        .where(eq(purchaseOrder.supplierFk, supplierPk)),
+      db
+        .select({ total: count() })
+        .from(paperPurchaseOrder)
+        .where(eq(paperPurchaseOrder.supplierFk, supplierPk)),
+    ]);
+    const total = fuel.total + paper.total;
     if (total > 0)
       return fail(409, { error: namedOnPos(row.supplierName, total) });
 

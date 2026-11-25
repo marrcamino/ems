@@ -6,15 +6,15 @@ updated: 2026-11-23
 ---
 # Fuel
 
-Assets, suppliers, purchase orders, and later the withdrawal slips. The only area with an approval step.
+Assets, purchase orders, and later the withdrawal slips. Suppliers have their own page, `/suppliers`, shared with the paper POs. The only area with an approval step.
 
 ## Home
 | Source | Path |
 |---|---|
-| Code | `src/routes/(app)/fuel/` (`issuance.server.ts`, `assets/`, `purchase-orders/`), schema `asset.ts`, `asset-type.ts`, `supplier.ts`, `purchase-order.ts`, `fuel-issuance.ts` |
+| Code | `src/routes/(app)/fuel/` (`issuance.server.ts`, `assets/`, `purchase-orders/`), `src/routes/(app)/suppliers/`, schema `asset.ts`, `asset-type.ts`, `supplier.ts`, `purchase-order.ts`, `fuel-issuance.ts` |
 | Tests | none |
 | Decisions / notes | `.claude/docs/decisions/2026-10-24-shared-work-pages-and-office-scoped-permissions.md` (shared pages and keys, built 24 October 2026), `.claude/docs/features/fuel-assets.md`, `.claude/docs/features/fuel-purchase-orders.md` (start at "How the office handles fuel today"), `tmp/fuel-po-tests/findings.md` (rounding tests, 20 October 2026) |
-| Graph nodes | `issuance.server.ts`, `new-withdrawal-dialog.svelte`, `po-actions.server.ts`, `po-math.ts`, `add-purchase-order-dialog.svelte`, `suppliers-dialog.svelte`, `add-edit-asset-dialog.svelte` |
+| Graph nodes | `issuance.server.ts`, `new-withdrawal-dialog.svelte`, `po-actions.server.ts`, `po-math.ts`, `add-purchase-order-dialog.svelte`, `suppliers/+page.svelte`, `add-edit-asset-dialog.svelte` |
 | Related cards | `cards/signatories.md`, `cards/app-foundation.md` (DialogViews, Stepper) |
 
 ## Open (tracked in Linear)

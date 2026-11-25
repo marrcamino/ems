@@ -21,7 +21,6 @@
     editing = null,
     onSaved,
     onDeleted,
-    onManageSuppliers,
   }: {
     open: boolean;
     /** Active suppliers only: a new PO cannot name an archived one. */
@@ -35,7 +34,6 @@
     onSaved: (row: PurchaseOrderRow) => void;
     onDeleted: (purchaseOrderPk: number) => void;
     /** Closes this dialog and opens the suppliers dialog instead. */
-    onManageSuppliers: () => void;
   } = $props();
 
   /**
@@ -277,7 +275,6 @@
             bind:poNumberInput
             onNext={goToAllocate}
             onCancel={() => (open = false)}
-            {onManageSuppliers}
           />
         {:else}
           <PoAllocationStep

@@ -7,6 +7,7 @@ export * from "./employee";
 export * from "./form-counter";
 export * from "./fuel-issuance";
 export * from "./org-unit";
+export * from "./paper";
 export * from "./permission";
 export * from "./purchase-order";
 export * from "./ris-reservation";

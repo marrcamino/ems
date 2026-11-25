@@ -56,6 +56,17 @@ export const easeInOut = cubicBezier(0.77, 0, 0.175, 1);
 export const EASE_OUT_CSS = "cubic-bezier(0.23, 1, 0.32, 1)";
 export const EASE_IN_OUT_CSS = "cubic-bezier(0.77, 0, 0.175, 1)";
 
+/**
+ * For a NumberFlow that changes on every key typed, such as a total. Faster
+ * than NumberFlow's own 900ms, which felt slow there: the digits roll for
+ * 500ms on the strong ease-out, so most of the movement is over in the first
+ * 150ms, and fade over 250ms.
+ */
+export const NUMBER_ROLL = {
+  transformTiming: { duration: 500, easing: EASE_OUT_CSS },
+  opacityTiming: { duration: 250, easing: "ease-out" },
+};
+
 export const DURATION = {
   /** Swapping the whole block: skeleton to list, list to empty message. */
   phase: 220,
