@@ -1,7 +1,7 @@
 ---
 type: module
 status: active
-next: built on `feature/water` on 25 November 2026, not committed yet; waits for the office's answers in MPP-149 (water bill) and MPP-150 (meters)
+next: built, with the year summary, and merged into `main` on 25 November 2026 (2ec8d06); waits for the office's answers in MPP-149 (water bill) and MPP-150 (meters)
 updated: 2026-11-25
 ---
 # Water
@@ -18,7 +18,7 @@ GSU records the office's monthly water use in cubic meters, for the whole PENRO,
 | Related cards | `cards/eswm.md` (the page copies its layout), `cards/other-modules.md` |
 
 ## Open (tracked in Linear)
-- MPP-85 Water: built, waiting for the office's answers
+- MPP-85 Water: built and merged, waiting for the office's answers
 - MPP-149 ask GSU whether the water figures are copied from the water bill
 - MPP-150 ask GSU how many water meters or accounts the office has
 
