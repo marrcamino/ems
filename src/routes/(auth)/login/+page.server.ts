@@ -53,7 +53,12 @@ export const load: PageServerLoad = ({ locals, url, request }) => {
 export const actions: Actions = {
   login: async (event) => {
     const form = await event.request.formData();
-    const username = form.get("username");
+    // Trimmed here as well as in the form, since a post can arrive without
+    // the form's script. The password is left as typed: a space at either
+    // end of it is part of the password.
+    const rawUsername = form.get("username");
+    const username =
+      typeof rawUsername === "string" ? rawUsername.trim() : rawUsername;
     const password = form.get("password");
     const redirectTo = form.get("redirectTo");
 

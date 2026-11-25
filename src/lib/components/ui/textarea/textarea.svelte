@@ -12,6 +12,7 @@
     class: className,
     "data-slot": dataSlot = "textarea",
     autoTrim = false,
+    maxlength,
     ...restProps
   }: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> & {
     /**
@@ -23,6 +24,14 @@
      */
     autoTrim?: boolean;
   } = $props();
+
+  // With a maxlength, a "233/255" count shows in the bottom-right corner once
+  // the text is within 10% of the limit (at least 10 characters).
+  const max = $derived(maxlength == null ? undefined : Number(maxlength));
+  const length = $derived(String(value ?? "").length);
+  const showCount = $derived(
+    max !== undefined && max - length <= Math.max(10, Math.ceil(max * 0.1)),
+  );
 
   function normalizeWhitespace(text: string) {
     return text
@@ -49,14 +58,39 @@
   }
 </script>
 
-<textarea
-  bind:this={ref}
-  data-slot={dataSlot}
-  class={cn(
-    "rounded-lg border hover:border-ring border-input bg-transparent px-2.5 py-2 text-base transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:bg-input/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 flex field-sizing-content min-h-16 w-full outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
-    className,
-  )}
-  bind:value
-  {...restProps}
-  {onfocusout}
-></textarea>
+{#snippet field()}
+  <!-- The bottom padding grows to give the count its own line, so the text
+       never runs under it; the height follows the padding as it animates. -->
+  <textarea
+    bind:this={ref}
+    data-slot={dataSlot}
+    class={cn(
+      "rounded-lg border hover:border-ring border-input bg-transparent px-2.5 py-2 text-base transition-[color,background-color,border-color,box-shadow,padding] duration-200 ease-(--ease-out-strong) motion-reduce:transition-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:bg-input/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 flex field-sizing-content min-h-16 w-full outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+      showCount && "pb-6",
+      className,
+    )}
+    bind:value
+    {maxlength}
+    {...restProps}
+    {onfocusout}
+  ></textarea>
+{/snippet}
+
+<!-- Wrapped only when there is a count to place, so a textarea without a
+     maxlength keeps its plain markup (InputGroup looks for a bare textarea). -->
+{#if max !== undefined}
+  <div data-slot="textarea-wrapper" class="relative w-full">
+    {@render field()}
+    <span
+      aria-hidden="true"
+      class={cn(
+        "pointer-events-none absolute right-2.5 bottom-1.5 text-xs text-muted-foreground tabular-nums transition-[opacity,translate] duration-200 ease-(--ease-out-strong) motion-reduce:transition-none",
+        showCount ? "opacity-100" : "translate-y-1 opacity-0",
+      )}
+    >
+      {length}/{max}
+    </span>
+  </div>
+{:else}
+  {@render field()}
+{/if}

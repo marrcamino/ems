@@ -10,6 +10,8 @@
     FieldLabel,
   } from "$lib/components/ui/field/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
+  import loginBgDay from "$lib/assets/login-bg-day.jpg";
+  import loginBgNight from "$lib/assets/login-bg-night.jpg";
   import { Spinner } from "$lib/components/ui/spinner";
   import { cn } from "$lib/utils/index.js";
   import { Eye, EyeOff } from "@lucide/svelte/icons";
@@ -31,16 +33,33 @@
 </script>
 
 <div
-  class="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10"
+  class="relative isolate flex min-h-svh flex-col items-center justify-center gap-6 bg-muted p-6 md:p-10"
 >
+  <!--
+    The day picture in light mode, the night one in dark mode. Switching on
+    the `dark` class, not in script, shows the right one from the first paint.
+  -->
+  <img
+    src={loginBgDay}
+    alt=""
+    class="absolute inset-0 -z-10 size-full object-cover dark:hidden"
+  />
+  <img
+    src={loginBgNight}
+    alt=""
+    class="absolute inset-0 -z-10 hidden size-full object-cover dark:block"
+  />
+
   <div class="flex w-full max-w-sm flex-col gap-4">
     <div class="flex flex-col items-center self-center font-medium">
       <p>Environmental Management System</p>
-      <p class="text-muted-foreground">DENR-PENRO Dinagat Islands</p>
+      <p class="text-neutral-700 dark:text-muted-foreground">
+        DENR-PENRO Dinagat Islands
+      </p>
     </div>
 
     <div class={cn("flex flex-col gap-6", className)} {...restProps}>
-      <Card.Root>
+      <Card.Root class="bg-card/85 backdrop-blur-md">
         <Card.Header class="text-center">
           <Card.Title class="text-xl">Log in to continue</Card.Title>
           <Card.Description
@@ -51,7 +70,9 @@
           <form
             method="POST"
             action="?/login"
-            use:enhance={() => {
+            use:enhance={({ formData }) => {
+              username = username.trim();
+              formData.set("username", username);
               loading = true;
               error = "";
               return async ({ result, update }) => {
@@ -87,6 +108,7 @@
                   tabindex={1}
                   aria-invalid={error.length ? true : null}
                   bind:value={username}
+                  class="bg-background/80"
                 />
               </Field>
               <Field>
@@ -129,7 +151,7 @@
                     tabindex={2}
                     aria-invalid={error.length ? true : null}
                     bind:value={password}
-                    class="appearance-none"
+                    class="appearance-none bg-background/80"
                   />
 
                   <Button

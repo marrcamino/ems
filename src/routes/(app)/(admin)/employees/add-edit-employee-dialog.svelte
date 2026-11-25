@@ -11,7 +11,6 @@
   import type { OrgUnit } from "$lib/types";
   import DateInput from "$lib/components/date-input.svelte";
   import { Textarea } from "$lib/components/ui/textarea/index.js";
-  import AnimateContent from "@/components/transition/animate-content.svelte";
   import HiddenInput from "@/components/ui/hidden-input.svelte";
   import Spinner from "@/components/ui/spinner/spinner.svelte";
   import { capitalize } from "@/utils";
@@ -60,19 +59,6 @@
 
   const selectedSection = $derived(
     ctx.formOrgUnitFk ? ctx.orgUnitByPk(Number(ctx.formOrgUnitFk)) : undefined,
-  );
-
-  const POSITION_TITLE_MAX = POSITION_TITLE_MAX_LENGTH;
-  /** The count appears once the title is this close to the limit. */
-  const POSITION_TITLE_WARN_WITHIN = 25;
-  // Every character counts, spaces included, because `maxlength` counts them
-  // too. Leading, trailing and doubled spaces are trimmed only when the field
-  // loses focus, and the count is hidden by then.
-  const positionTitleLength = $derived(ctx.formPositionTitle.length);
-  let positionTitleFocused = $state(false);
-  const showPositionTitleCount = $derived(
-    positionTitleFocused &&
-      positionTitleLength > POSITION_TITLE_MAX - POSITION_TITLE_WARN_WITHIN,
   );
 
   // A birthday can't be in the future, so the field is capped at today.
@@ -348,12 +334,10 @@
                 id="positionTitle"
                 name="positionTitle"
                 required
-                maxlength={POSITION_TITLE_MAX}
+                maxlength={POSITION_TITLE_MAX_LENGTH}
                 autoTrim
                 placeholder="Administrative Officer III (Records Officer II)"
                 bind:value={ctx.formPositionTitle}
-                onfocus={() => (positionTitleFocused = true)}
-                onblur={() => (positionTitleFocused = false)}
                 onkeydown={(e) => {
                   if (e.key === "Enter") e.preventDefault();
                 }}
@@ -365,21 +349,6 @@
                 }}
               />
 
-              <div>
-                <!--
-                  Only while typing in the field and close to the limit. The
-                  spacing is inside the part that slides, so it opens smoothly.
-                -->
-                {#if showPositionTitleCount}
-                  <AnimateContent delay={0}>
-                    <p
-                      class="pt-1.5 text-right text-xs text-muted-foreground tabular-nums"
-                    >
-                      {positionTitleLength}/{POSITION_TITLE_MAX}
-                    </p>
-                  </AnimateContent>
-                {/if}
-              </div>
             </div>
           </div>
 

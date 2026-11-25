@@ -28,7 +28,6 @@
   let { permissionDefs }: { permissionDefs: typeof PERMISSIONS } = $props();
 
   const DESCRIPTION_MAX_LENGTH = 255;
-  const DESCRIPTION_WARN_REMAINING = 20;
 
   const ctx = getRolesContext();
 
@@ -185,11 +184,6 @@
               maxlength={DESCRIPTION_MAX_LENGTH}
               bind:value={ctx.formDescription}
             />
-            {#if DESCRIPTION_MAX_LENGTH - ctx.formDescription.length <= DESCRIPTION_WARN_REMAINING}
-              <span class="text-xs text-muted-foreground text-right">
-                {ctx.formDescription.length}/{DESCRIPTION_MAX_LENGTH}
-              </span>
-            {/if}
           </div>
 
           {#if ctx.editingIsFrozen}

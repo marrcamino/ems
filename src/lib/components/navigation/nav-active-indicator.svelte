@@ -20,7 +20,7 @@
   data-active={active ? "" : null}
   aria-hidden="true"
   class={cn(
-    "data-active:opacity-100 data-active:bg-primary absolute -left-0.5 h-4 w-1 rounded-lg transition-opacity group-hover/menu-button:bg-ring",
+    "data-active:opacity-100 data-active:bg-primary absolute -left-0.5 h-4 w-1 rounded-lg transition-opacity not-data-active:group-hover/menu-button:bg-ring not-data-active:group-hover/menu-sub-button:bg-ring",
     className,
   )}
 ></span>

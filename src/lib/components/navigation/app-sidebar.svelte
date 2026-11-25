@@ -101,12 +101,23 @@
             class="grid grid-rows-[1fr] transition-[grid-template-rows,opacity,visibility] duration-200 ease-linear group-data-[collapsible=icon]:invisible group-data-[collapsible=icon]:grid-rows-[0fr] group-data-[collapsible=icon]:opacity-0 motion-reduce:transition-none"
           >
             <div class="min-h-0 overflow-hidden">
-              <Sidebar.MenuSub class="group-data-[collapsible=icon]:flex">
+              <Sidebar.MenuSub
+                class="border-l-0 group-data-[collapsible=icon]:flex"
+              >
                 {#each item.children as subItem (subItem.url)}
-                  <Sidebar.MenuSubItem>
+                  <!--
+                    The tree line. `before` runs down from the row above and
+                    curves into this row; `after` runs the whole row's height
+                    on to the next row, so the last row ends on its curve. The
+                    two overlap where they meet, so the colour is solid: a
+                    see-through one would show the overlap as a brighter patch.
+                  -->
+                  <Sidebar.MenuSubItem
+                    class="[--tree-line:color-mix(in_oklab,var(--sidebar-foreground)_20%,var(--sidebar))] before:pointer-events-none before:absolute before:-top-1 before:-left-2.5 before:h-[calc(50%+0.25rem)] before:w-1.5 before:rounded-bl-md before:border-b before:border-l before:border-(--tree-line) first:before:-top-0.5 first:before:h-[calc(50%+0.125rem)] not-last:after:pointer-events-none not-last:after:absolute not-last:after:-top-1 not-last:after:bottom-0 not-last:after:-left-2.5 not-last:after:border-l not-last:after:border-(--tree-line) first:after:-top-0.5"
+                  >
                     <Sidebar.MenuSubButton
                       isActive={subItem.active}
-                      class="overflow-visible text-nowrap group-data-[collapsible=icon]:flex"
+                      class="group/menu-sub-button overflow-visible text-nowrap group-data-[collapsible=icon]:flex"
                     >
                       {#snippet child({ props })}
                         <a
