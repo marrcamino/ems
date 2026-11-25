@@ -63,7 +63,7 @@ export const ROLE_TEMPLATES = [
   {
     roleName: "GSU",
     description:
-      "General Services Unit. Records fuel and paper purchase orders, assets, and withdrawals, gives each office its share of a paper PO, sees the fuel records and paper use of every office, and reserves RIS numbers.",
+      "General Services Unit. Records fuel and paper purchase orders, assets, and withdrawals, gives each office its share of a paper PO, sees the fuel records and paper use of every office, receives the offices' monthly paper reports, and reserves RIS numbers.",
     permissions: [
       "fuel:view",
       "fuel:view_all_offices",
@@ -80,6 +80,7 @@ export const ROLE_TEMPLATES = [
       "paper:view",
       "paper:manage",
       "paper:view_all_offices",
+      "paper:receive",
     ],
   },
 

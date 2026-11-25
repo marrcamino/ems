@@ -99,6 +99,11 @@ export const workPages = [
         url: "/paper/purchase-orders",
         permission: "purchase_orders:view",
       },
+      {
+        name: "Submitted Reports",
+        url: "/paper/submitted",
+        permission: "paper:receive",
+      },
     ],
   },
 ] satisfies NavPage[];

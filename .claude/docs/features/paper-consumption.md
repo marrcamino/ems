@@ -19,6 +19,25 @@ flowchart of the paper process and from the form kept in their own office
 4. At the end of the month, the office prints its monthly consumption and
    submits it to GSU. Whether the printed form is titled "monthly" is still to
    be checked by the owner.
+5. GSU receives the printed form, and EMS must show that GSU has received
+   it. The office cannot change a form it has submitted (owner, 25 November
+   2026). GSU receives the submitted reports on a page of its own, apart
+   from the Paper page on which every office, GSU included, records and
+   submits its own paper. That page lists every office, GSU included, and
+   only GSU and the system administrator can open it. The office calls the
+   submitted document a report, never a "form" (owner, 25 November 2026).
+   GSU does not receive its own report: submitting it marks it received at
+   once, and the page says so on GSU's row (owner, 25 November 2026).
+   GSU's Submit dialog says so too, in a note titled "Received
+   automatically" with an "Okay, got it" button that hides it; the note comes back six months later, in case GSU has
+   forgotten. There is no "Return to office" step (owner, 25 November 2026).
+   An office can still edit a submitted report until GSU receives it, for
+   example after submitting by accident and before printing, with no extra
+   step to take it back; a received report is locked (owner, 25 November
+   2026). GSU's own report, received the moment it is submitted, is changed
+   by reopening it on its row of the submitted reports page; it is received
+   again when GSU submits it again (owner, 25 November 2026). Built the same
+   day (see "What EMS does").
 
 ## The office's paper form
 
@@ -75,6 +94,10 @@ The office's flowchart has two kinds of user.
      combined data of the four EMS data features. The EMS focal person is the
      chief of the owner's office (Unit 1). How often the focal person makes
      the report is still to be asked; the owner's guess is once a year.
+     This is a separate report from the offices' monthly reports: GSU
+     consolidates every office's data into it, and once GSU submits it to
+     the focal person, none of the data in it can change or be added to
+     (owner, 25 November 2026).
 
 ## What EMS does
 
@@ -94,13 +117,27 @@ The office's flowchart has two kinds of user.
   month: a submitted month is locked, so paper taken in its last days would
   otherwise have nowhere to be recorded, and its Balance is final only then.
   Until then Submit shows as unavailable, with "You can only submit after this
-  month." (the owner's wording, 25 November 2026) under it, one line. There is no undo: GSU and the focal
-  person rely on a submitted month not changing; reopening one is for the
-  system administrator, not built yet. Agreed by the owner on 25 November
-  2026.
+  month." (the owner's wording, 25 November 2026) under it, one line. Agreed
+  by the owner on 25 November 2026. Until GSU receives the report, the
+  office can still edit the month as it is; once GSU
+  has received it, it cannot change, and reopening it is for the system
+  administrator, not built yet (owner, 25 November 2026, replacing the rule
+  that a submitted month has no undo; see "How the office handles paper
+  today", step 5).
 - While a month is open, an entry can be edited or removed, the same as
   erasing a line on the form. Once the month is submitted, nothing in it can
-  change (agreed by the owner, 23 November 2026).
+  change once GSU has received it (agreed by the owner, 23 November 2026;
+  editing until GSU receives it added 25 November 2026).
+- GSU receives the printed reports on the Submitted Reports page
+  (`/paper/submitted`, key `paper:receive`), one month at a time, one row per
+  office with its status, the reams of each size it used, and when it was
+  submitted and received. Receive asks for the date the printed report
+  arrived, from the submit date to today, and shows the office's totals so
+  GSU can check them against the paper. GSU's own row shows "GSU's own
+  report" and a Reopen button, which opens the month again to be submitted
+  again. A received month locks every earlier month of the office too, since
+  its balance forwarded counts them, and so do GSU's hand-overs dated in it
+  or before it. Rapid build of 25 November 2026, for the owner to check.
 - An office records and submits only its own paper. Seeing every office's is
   a separate permission, and it changes nothing (decided in the rapid build of
   23 November 2026, for the owner to check).

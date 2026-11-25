@@ -12,11 +12,16 @@ export type PaperEntry = {
   receivedBy: string;
 };
 
+export type ReportStatus = "open" | "submitted" | "received";
+
 export type PaperReport = {
-  status: "open" | "submitted";
+  status: ReportStatus;
   /** `2026-11-30`. */
   submittedOn: string | null;
   submittedBy: string | null;
+  /** The day the printed report reached GSU, `2026-12-02`. */
+  receivedOn: string | null;
+  receivedBy: string | null;
   /** The form's signature blocks, as chosen on submitting. */
   preparedBy: string | null;
   notedBy: string | null;
@@ -50,6 +55,6 @@ export type PaperStart = {
 /** One month in the year list. `status` is null before any entry. */
 export type YearMonth = {
   month: string;
-  status: "open" | "submitted" | null;
+  status: ReportStatus | null;
   reams: number;
 };
