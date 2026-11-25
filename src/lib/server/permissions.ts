@@ -106,9 +106,15 @@ export const PERMISSION_DEFS = {
     view: "Access the Water page",
     manage: "Add, edit, and delete water records",
   },
+  // Each office records the reams it opens and submits each month. Records
+  // and submits for the person's own office only, even with
+  // `view_all_offices`, which shows every office's but changes none.
   paper: {
     view: "Access the Paper page",
-    manage: "Add, edit, and delete paper records",
+    manage: "Record the paper your office uses, and submit each month",
+    view_all_offices: "See the paper use of every office",
+    // GSU's paper POs and their distribution to the offices are under
+    // `purchase_orders`, the same keys as the fuel POs.
   },
   air_travel: {
     view: "Access the Air Travel page",

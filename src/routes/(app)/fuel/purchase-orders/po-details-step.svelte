@@ -44,7 +44,6 @@
     poNumberInput = $bindable(null),
     onNext,
     onCancel,
-    onManageSuppliers,
   }: {
     form: AddPurchaseOrderForm;
     /**
@@ -57,7 +56,6 @@
     onNext: () => void;
     onCancel: () => void;
     /** Closes the dialog and opens the suppliers dialog instead. */
-    onManageSuppliers: () => void;
   } = $props();
 
   const errors = $derived(form.errors);
@@ -156,7 +154,7 @@
           class="text-muted-foreground flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed p-3 text-sm"
         >
           No active suppliers yet.
-          <Button size="sm" variant="outline" onclick={onManageSuppliers}>
+          <Button size="sm" variant="outline" href="/suppliers">
             <Store />
             Manage suppliers
           </Button>

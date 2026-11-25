@@ -24,9 +24,12 @@ export const supplier = mysqlTable("supplier", {
   // are added only where it is typed and shown.
   tin: varchar("tin", { length: 20 }).notNull().unique(),
   // The supplier's PhilGEPS registration number (Philippine Government
-  // Electronic Procurement System). Optional, because a gas station sold
-  // to by direct retail purchase may not be registered.
-  philgepsNumber: varchar("philgeps_number", { length: 50 }),
+  // Electronic Procurement System), as printed on the PO. Required since
+  // 24 November 2026 (owner's decision).
+  philgepsNumber: varchar("philgeps_number", { length: 50 }).notNull(),
+  // Optional, for GSU to reach the supplier; not on the PO. Empty is NULL.
+  contactNumber: varchar("contact_number", { length: 50 }),
+  email: varchar("email", { length: 150 }),
   // A supplier is a reference record. One the office no longer buys from
   // (it closed, its contract ended, the office switched) is archived rather
   // than deleted, because past purchase orders and fuel records still name

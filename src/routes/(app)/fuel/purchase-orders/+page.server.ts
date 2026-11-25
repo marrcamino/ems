@@ -6,16 +6,15 @@ import {
   selectPurchaseOrders,
   selectUnitOptions,
 } from "./po-actions.server";
-import { selectSuppliers, supplierActions } from "./suppliers/actions.server";
+import { selectSuppliers } from "../../suppliers/actions.server";
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!can(locals.permissions, "purchase_orders:view")) {
     throw error(403, "You do not have permission to view this page.");
   }
 
-  // Active suppliers only: they are what a new PO picks from. Nothing about
-  // archived suppliers, not even how many there are, is read here; the
-  // suppliers dialog fetches them when Archived or All is picked.
+  // Active suppliers only: they are what a new PO picks from. Suppliers are
+  // managed on their own page.
   const [suppliers, purchaseOrders, unitOptions] = await Promise.all([
     selectSuppliers("active"),
     selectPurchaseOrders(),
@@ -26,6 +25,5 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-  ...supplierActions,
   ...purchaseOrderActions,
 };

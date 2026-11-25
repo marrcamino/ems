@@ -1103,7 +1103,7 @@ async function checkReimbursed(
  * forms show. A date before the person's first version takes that first
  * version, because the names were first entered after the paper was signed.
  */
-async function versionsOn(employeePks: number[], day: string) {
+export async function versionsOn(employeePks: number[], day: string) {
   const versions = await db
     .select({
       employeeHistoryPk: employeeHistory.employeeHistoryPk,

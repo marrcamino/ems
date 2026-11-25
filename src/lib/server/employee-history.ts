@@ -42,6 +42,8 @@ import {
   employeeHistory,
   employeeHistoryCorrection,
   fuelIssuance,
+  paperConsumption,
+  paperMonthlyReport,
 } from "./db/schema";
 
 /** The handle drizzle hands to the body of `db.transaction(...)`. */
@@ -536,10 +538,11 @@ export async function reinstateEmployee(
 }
 
 /**
- * Every column of a filed document that names a person. Each fuel
+ * Every column of a filed fuel document that names a person. Each fuel
  * transaction prints its withdrawal slip, RIS, and DTT from one row, so the
- * row counts as one document however many of its lines a person is on. A
- * new kind of document adds its columns here.
+ * row counts as one document however many of its lines a person is on. The
+ * office's paper form is counted after these, in
+ * `countDocumentsUsingVersions`.
  */
 const PEOPLE_COLUMNS = [
   fuelIssuance.driverFk,
@@ -613,6 +616,43 @@ export async function countDocumentsUsingVersions(
     for (const pk of new Set(Object.values(row))) {
       if (typeof pk === "number" && pk in counts) counts[pk]++;
     }
+  }
+
+  // The office's paper form names who received each line, and who prepared
+  // and noted it. A month's form is one document, however many of its
+  // places name the person.
+  const [lines, signed] = await Promise.all([
+    db
+      .selectDistinct({
+        pk: paperConsumption.receivedByFk,
+        reportFk: paperConsumption.paperMonthlyReportFk,
+      })
+      .from(paperConsumption)
+      .where(inArray(paperConsumption.receivedByFk, employeeHistoryPks)),
+    db
+      .select({
+        preparedByFk: paperMonthlyReport.preparedByFk,
+        notedByFk: paperMonthlyReport.notedByFk,
+        reportFk: paperMonthlyReport.paperMonthlyReportPk,
+      })
+      .from(paperMonthlyReport)
+      .where(
+        or(
+          inArray(paperMonthlyReport.preparedByFk, employeeHistoryPks),
+          inArray(paperMonthlyReport.notedByFk, employeeHistoryPks),
+        ),
+      ),
+  ]);
+  const paperForms = new Set([
+    ...lines.map((l) => `${l.pk}:${l.reportFk}`),
+    ...signed.flatMap((r) => [
+      `${r.preparedByFk}:${r.reportFk}`,
+      `${r.notedByFk}:${r.reportFk}`,
+    ]),
+  ]);
+  for (const key of paperForms) {
+    const pk = Number(key.split(":")[0]);
+    if (pk in counts) counts[pk]++;
   }
   return counts;
 }

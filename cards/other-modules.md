@@ -2,9 +2,9 @@
 type: module
 status: not-started
 next: none planned; fuel comes first
-updated: 2026-10-20
+updated: 2026-11-23
 ---
-# Electricity, water, paper, air travel, ESWM, GHG
+# Electricity, water, air travel, ESWM, GHG
 
 The other tracked areas. Each has its permission keys; nothing else exists yet.
 
@@ -15,10 +15,10 @@ The other tracked areas. Each has its permission keys; nothing else exists yet.
 | Tests | none |
 | Decisions / notes | `.claude/docs/project-brief.md` |
 | Graph nodes | none yet |
-| Related cards | `cards/fuel.md`, `cards/signatories.md` |
+| Related cards | `cards/fuel.md`, `cards/signatories.md`, `cards/paper.md` (paper has its own card since 23 November 2026) |
 
 ## Open (tracked in Linear)
-- MPP-84 electricity · MPP-85 water · MPP-86 paper · MPP-87 air travel · MPP-88 ESWM · MPP-89 GHG
+- MPP-84 electricity · MPP-85 water · MPP-87 air travel · MPP-88 ESWM · MPP-89 GHG
 - MPP-87 also asks to confirm air travel is in scope; it is in the code but not in the project brief.
 
 ## Gotchas
