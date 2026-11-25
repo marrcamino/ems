@@ -8,6 +8,13 @@ updated: 2026-11-25
 
 The other tracked areas. Each has its permission keys; nothing else exists yet.
 
+Unlike fuel and paper, these areas have no GSU step: their data is entered and submitted, and goes straight to the focal person, with nobody receiving it or marking it complete in between (owner, 25 November 2026; process in `.claude/docs/project-brief.md`, "The process at a glance").
+- Electricity: GSU enters it; it goes to the GHG Focal Person.
+- Water: GSU enters it; it goes to the EMS Focal Person.
+- Air travel: the Finance office enters it; it goes to the GHG Focal Person.
+- ESWM: the ESWM Focal Person enters it; it goes to the EMS Focal Person.
+- GHG: not entered by anyone; the GHG Focal Person builds the GHG emission report from fuel, electricity, and air travel, and that data goes on to the EMS Focal Person.
+
 ## Home
 | Source | Path |
 |---|---|
@@ -19,7 +26,7 @@ The other tracked areas. Each has its permission keys; nothing else exists yet.
 
 ## Open (tracked in Linear)
 - MPP-84 electricity · MPP-85 water · MPP-87 air travel · MPP-88 ESWM · MPP-89 GHG
-- MPP-87 also asked to confirm air travel is in scope. The owner's flowchart of 25 November 2026 confirms it: the Finance office enters it, and it goes to the GHG Focal Person.
+- MPP-87 also asked to confirm air travel is in scope. The owner's flowchart of 25 November 2026 confirms it.
 
 ## Gotchas
 - Their paper forms have not been examined yet; only the fuel documents have.

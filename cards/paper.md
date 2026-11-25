@@ -6,7 +6,7 @@ updated: 2026-11-25
 ---
 # Paper
 
-Each office records the reams of bond paper it opens, and submits each month to GSU. GSU records each paper PO that COA forwards, and the reams of each size it gave each office, on the Paper Purchase Orders page. The report to the EMS focal person is not built.
+Each office records the reams of bond paper it opens, and submits each month to GSU. GSU records each paper PO that COA forwards, and the reams of each size it gave each office, on the Paper Purchase Orders page. GSU receives the offices' reports and reviews them together before they go on to the EMS Focal Person; that last step is not built (process in `.claude/docs/project-brief.md`, "The process at a glance").
 
 ## Home
 | Source | Path |

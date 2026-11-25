@@ -6,7 +6,7 @@ updated: 2026-11-23
 ---
 # Fuel
 
-Assets, purchase orders, and later the withdrawal slips. Suppliers have their own page, `/suppliers`, shared with the paper POs. The only area with an approval step.
+Assets, purchase orders, and later the withdrawal slips. Suppliers have their own page, `/suppliers`, shared with the paper POs. The only area with an approval step: GSU checks and approves each request before the fuel data goes on to the GHG Focal Person (process in `.claude/docs/project-brief.md`, "The process at a glance").
 
 ## Home
 | Source | Path |

@@ -37,6 +37,8 @@ This comes from the owner's flowchart of 25 November 2026. The flowchart gives t
 7. **The GHG Focal Person** receives fuel, electricity, and air travel. They check the combined data, generate the GHG emission report, review and verify it, and print it.
 8. **The EMS Focal Person** receives paper, water, and ESWM, and also the data that the GHG Focal Person checked. They check it all, generate the EMS report, review and verify it, and print it.
 
+**Only fuel and paper pass through GSU first** (told by the owner, 25 November 2026). In fuel, GSU checks and approves each request; in paper, GSU receives each office's monthly report and reviews them together. Electricity, water, air travel, and ESWM are only entered and submitted, and go straight to their focal person: nobody receives them or marks them complete in between.
+
 ## Tech Stack
 
 - **Framework:** SvelteKit
