@@ -1,7 +1,7 @@
 ---
 type: module
 status: active
-next: built and checked in the browser on `feature/air-travel` with the Routes page (25 November 2026); waits for the owner's commit and merge, then `graphify update`, then the office's answers in MPP-156 and MPP-158
+next: built, checked in the browser, and merged into `main` on 25 November 2026 (6110ad0); waits for the office's answers in MPP-156 and MPP-158
 updated: 2026-11-25
 ---
 # Air Travel
@@ -14,11 +14,11 @@ The Finance office records each flight that staff took on official business, for
 | Code | `src/routes/(app)/air-travel/` (`+page.server.ts`, `+page.svelte`, `flight-dialog.svelte`, `air-travel-types.ts`, `air-travel-format.ts`, `air-travel-year.server.ts`, `air-travel-routes.server.ts`), the year summary in `air-travel/summary/`, the Routes page in `air-travel/routes/`, schema `src/lib/server/db/schema/air-travel.ts`; the traveller picker is Fuel's `search-picker.svelte`, and the name versions come from Fuel's `versionsOn` |
 | Tests | none; the browser check of 25 November 2026 is in `tmp/air-travel-plan/test/` (`try-air-travel.mjs`) |
 | Decisions / notes | `.claude/docs/features/air-travel.md` (rules, what is left out, research sources) |
-| Graph nodes | none yet (run `graphify update` after the merge) |
+| Graph nodes | `graphify-out/graph.json` has every file above (updated after the merge) |
 | Related cards | `cards/eswm.md` (the page copies its layout), `cards/electricity.md` (the Summary copies its chart), `cards/other-modules.md` (GHG, which reads this data) |
 
 ## Open (tracked in Linear)
-- MPP-87 Air Travel: built, not merged
+- MPP-87 Air Travel: built and merged, waiting for the office's answers
 - MPP-156 ask the GHG Focal Person whether a flight someone else paid for is counted
 - MPP-158 ask Finance whether a seat is ever not economy
 
