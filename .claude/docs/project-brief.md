@@ -10,12 +10,32 @@ Build an Environmental Management System (EMS) to track and monitor:
 
 - Fuel consumption
 - Electricity consumption
+- Air travel of employees
 - Water consumption
 - Paper consumption
-- ESWM (Ecological Solid Waste Management) compliance
-- GHG (Greenhouse Gas) compliance
+- ESWM (Ecological Solid Waste Management): the waste collected, for example the kilos of garbage collected in sacks at a cleanup drive
+
+GHG (greenhouse gas) is not an area that anyone enters data into. It is a report built from fuel, electricity, and air travel (see "The process at a glance").
 
 The system supports compliance with **ISO 14001:2015** (Environmental Management Systems standard).
+
+## The process at a glance
+
+This comes from the owner's flowchart of 25 November 2026. The flowchart gives the big picture of who enters which data and who receives it. It is not the design of the system: each feature's screens and steps are decided while it is built and recorded in its own doc in `.claude/docs/features/`, and they can differ from the flowchart. Fuel, for example, already has assets, control numbers, and form numbers that the flowchart does not show.
+
+**Who enters the data**
+
+1. **Fuel:** staff request fuel, and GSU checks and approves the requests. GSU also enters the vehicles and the fuel procured. Details: `.claude/docs/features/fuel-purchase-orders.md`.
+2. **Electricity:** GSU enters the office's electricity use each month.
+3. **Air travel:** the Finance office enters the employees' air travel.
+4. **Paper:** each office enters its monthly paper use, and GSU enters the bond paper procured and reviews every office's figures together. Details: `.claude/docs/features/paper-consumption.md`.
+5. **Water:** GSU enters the monthly water use.
+6. **ESWM:** the ESWM Focal Person enters the waste collected each month.
+
+**Who receives it**
+
+7. **The GHG Focal Person** receives fuel, electricity, and air travel. They check the combined data, generate the GHG emission report, review and verify it, and print it.
+8. **The EMS Focal Person** receives paper, water, and ESWM, and also the data that the GHG Focal Person checked. They check it all, generate the EMS report, review and verify it, and print it.
 
 ## Tech Stack
 
