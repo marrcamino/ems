@@ -1,6 +1,7 @@
 import type { PermissionKey } from "$lib/server/permissions";
 import {
   Building,
+  Droplets,
   FileDigit,
   StickyNotes,
   FilePenLine,
@@ -115,6 +116,19 @@ export const workPages = [
         name: "Summary",
         url: "/eswm/summary",
         permission: "eswm:view",
+      },
+    ],
+  },
+  {
+    name: "Water",
+    url: "/water",
+    icon: Droplets,
+    permission: "water:view",
+    children: [
+      {
+        name: "Summary",
+        url: "/water/summary",
+        permission: "water:view",
       },
     ],
   },
