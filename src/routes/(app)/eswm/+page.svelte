@@ -7,11 +7,8 @@
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import * as ButtonGroup from "$lib/components/ui/button-group/index.js";
-  import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
-  import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
-  import * as Empty from "$lib/components/ui/empty/index.js";
-  import * as Table from "$lib/components/ui/table/index.js";
   import { formatDate } from "$lib/utils/format-date.js";
   import { toastErrorOnce } from "$lib/utils/toast.js";
   import { getGlobalContext } from "$routes/global-context.svelte";
@@ -20,12 +17,9 @@
   import {
     ChevronLeft,
     ChevronRight,
-    EllipsisVertical,
     Pencil,
     Plus,
-    Recycle,
     Send,
-    Trash,
   } from "@lucide/svelte/icons";
   import { toast } from "svelte-sonner";
   import {
@@ -34,9 +28,18 @@
     monthName,
     submitTooEarly,
   } from "../paper/paper-month";
-  import CleanupDriveDialog from "./cleanup-drive-dialog.svelte";
-  import { countOf, formatCount, formatKilos } from "./eswm-format";
-  import type { CleanupDrive, EswmStatus } from "./eswm-types";
+  import { formatKilos } from "./eswm-format";
+  import type { EswmStatus } from "./eswm-types";
+  import {
+    blockTotal,
+    monthTotal,
+    SOURCE_LABEL,
+    WASTE_LABEL,
+    WASTE_SOURCES,
+    WASTE_TYPES,
+    type WasteSource,
+  } from "./eswm-waste";
+  import WasteDialog from "./waste-dialog.svelte";
 
   let { data } = $props();
 
@@ -44,18 +47,14 @@
 
   const month = $derived(data.month);
   const report = $derived(data.report);
-  const drives = $derived(data.drives);
+  const waste = $derived(data.waste);
   const canManage = $derived(gblCtx.can("eswm:manage"));
   const status = $derived<EswmStatus>(report?.status ?? "open");
+  const total = $derived(monthTotal(waste));
 
-  const totals = $derived({
-    sacks: drives.reduce((sum, d) => sum + d.sacks, 0),
-    kilos: drives.reduce((sum, d) => sum + d.kilos, 0),
-    // Unknown, not 0, when no entry has a number of participants.
-    participants: drives.some((d) => d.participants !== null)
-      ? drives.reduce((sum, d) => sum + (d.participants ?? 0), 0)
-      : null,
-  });
+  /** "187.00 kg", or "—" when nothing was weighed. */
+  const kgText = (kilos: number | null | undefined) =>
+    kilos == null ? "—" : `${formatKilos(kilos)} kg`;
 
   function go(nextMonth: string) {
     const url = new URL(page.url);
@@ -64,30 +63,20 @@
     goto(url, { noScroll: true, keepFocus: true });
   }
 
-  let driveOpen = $state(false);
-  let driveToEdit = $state<CleanupDrive | null>(null);
+  let wasteOpen = $state(false);
+  let wasteSource = $state<WasteSource>("coastal");
 
-  function openAdd() {
-    driveToEdit = null;
-    driveOpen = true;
-  }
-
-  function openEdit(drive: CleanupDrive) {
-    driveToEdit = drive;
-    driveOpen = true;
-  }
-
-  /** An entry saved under another month takes the page there. */
-  function onSaved(savedMonth: string) {
-    if (savedMonth !== month) go(savedMonth);
+  function openWaste(source: WasteSource) {
+    wasteSource = source;
+    wasteOpen = true;
   }
 
   const STATUS_LABEL = { open: "Open", submitted: "Submitted" } as const;
   const statusVariant = (s: EswmStatus | null) =>
     s === "submitted" ? "default" : "outline";
 
-  /** Sends Remove or Submit, then reloads the page's data. */
-  async function send(action: "remove" | "submit", body: FormData) {
+  /** Sends Submit, then reloads the page's data. */
+  async function send(action: "submit", body: FormData) {
     try {
       const response = await fetch(`?/${action}`, {
         method: "POST",
@@ -106,25 +95,6 @@
     } catch {
       return "Try again. If it keeps happening, contact ICT.";
     }
-  }
-
-  let removeOpen = $state(false);
-  let driveToRemove = $state<CleanupDrive | null>(null);
-  let removing = $state(false);
-
-  async function confirmRemove() {
-    if (!driveToRemove) return;
-    removing = true;
-    const body = new FormData();
-    body.set("drivePk", String(driveToRemove.drivePk));
-    const error = await send("remove", body);
-    removing = false;
-    removeOpen = false;
-    if (error)
-      toastErrorOnce("eswm-remove", "Entry not removed", {
-        description: error,
-      });
-    else toast.success("Entry removed");
   }
 
   let submitOpen = $state(false);
@@ -189,14 +159,6 @@
       </Button>
     </ButtonGroup.Root>
 
-    <div class="ml-auto flex gap-2">
-      {#if canManage}
-        <Button onclick={openAdd}>
-          <Plus />
-          Add collected waste
-        </Button>
-      {/if}
-    </div>
   </div>
 
   <div
@@ -214,7 +176,7 @@
               report?.submittedBy && `by ${report.submittedBy}`,
             ]
               .filter(Boolean)
-              .join(" ")}. Its entries can still be corrected.
+              .join(" ")}. Its figures can still be corrected.
           </Alert.Description>
         </Alert.Root>
       {:else if !canManage}
@@ -223,117 +185,58 @@
         </p>
       {/if}
 
-      {#if drives.length === 0}
-        <Empty.Root class="border py-12">
-          <Empty.Header>
-            <Empty.Media variant="icon">
-              <Recycle />
-            </Empty.Media>
-            <Empty.Title>No waste collected in {monthLabel(month)}</Empty.Title>
-            <Empty.Description>
-              {status === "submitted"
-                ? "The month was submitted with no waste collected."
-                : canManage
-                  ? "Add the waste from each cleanup that the office holds."
-                  : "Nothing is recorded for this month yet."}
-            </Empty.Description>
-          </Empty.Header>
-          {#if canManage}
-            <Empty.Content>
-              <Button onclick={openAdd}>
-                <Plus />
-                Add collected waste
-              </Button>
-            </Empty.Content>
-          {/if}
-        </Empty.Root>
-      {:else}
-        <Table.Root containerClass="rounded-lg border">
-          <Table.Header class="bg-muted/80">
-            <Table.Row>
-              <Table.Head>Date</Table.Head>
-              <Table.Head>Activity</Table.Head>
-              <Table.Head class="text-right">Participants</Table.Head>
-              <Table.Head class="text-right">Sacks</Table.Head>
-              <Table.Head class="text-right">Kilos</Table.Head>
+      <div class="grid gap-4 md:grid-cols-2">
+        {#each WASTE_SOURCES as source (source)}
+          {@const block = waste[source]}
+          {@const recorded = blockTotal(block) !== null}
+          <Card.Root>
+            <Card.Header>
+              <Card.Title>{SOURCE_LABEL[source]}</Card.Title>
+              <Card.Description>Kilos by type</Card.Description>
               {#if canManage}
-                <Table.Head class="w-0"></Table.Head>
+                <Card.Action>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onclick={() => openWaste(source)}
+                  >
+                    {#if recorded}
+                      <Pencil /> Edit
+                    {:else}
+                      <Plus /> Add
+                    {/if}
+                  </Button>
+                </Card.Action>
               {/if}
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {#each drives as drive (drive.drivePk)}
-              <Table.Row>
-                <Table.Cell class="tabular-nums">
-                  {formatDate(drive.heldOn)}
-                </Table.Cell>
-                <Table.Cell class="whitespace-normal">
-                  <div>{drive.activity}</div>
-                  <div class="text-xs text-muted-foreground">
-                    {drive.place}
-                  </div>
-                </Table.Cell>
-                <Table.Cell class="text-right tabular-nums">
-                  {drive.participants === null
-                    ? "—"
-                    : formatCount(drive.participants)}
-                </Table.Cell>
-                <Table.Cell class="text-right tabular-nums">
-                  {formatCount(drive.sacks)}
-                </Table.Cell>
-                <Table.Cell class="text-right tabular-nums">
-                  {formatKilos(drive.kilos)}
-                </Table.Cell>
-                {#if canManage}
-                  <Table.Cell>
-                    <ButtonGroup.Root>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        class="border-r-0"
-                        onclick={() => openEdit(drive)}
-                      >
-                        <Pencil />
-                        Edit
-                      </Button>
-                      <ButtonGroup.Separator />
-                      <DropdownMenu.Root>
-                        <DropdownMenu.Trigger
-                          class={buttonVariants({
-                            variant: "secondary",
-                            size: "icon-sm",
-                          })}
-                          aria-label="More actions"
-                        >
-                          <EllipsisVertical />
-                        </DropdownMenu.Trigger>
-                        <DropdownMenu.Content align="end">
-                          <DropdownMenu.Item
-                            variant="destructive"
-                            onclick={() => {
-                              driveToRemove = drive;
-                              removeOpen = true;
-                            }}
-                          >
-                            <Trash /> Remove
-                          </DropdownMenu.Item>
-                        </DropdownMenu.Content>
-                      </DropdownMenu.Root>
-                    </ButtonGroup.Root>
-                  </Table.Cell>
-                {/if}
-              </Table.Row>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-      {/if}
+            </Card.Header>
+            <Card.Content class="grid gap-1 text-sm tabular-nums">
+              {#each WASTE_TYPES[source] as { type } (type)}
+                <div class="flex justify-between">
+                  <span>{WASTE_LABEL[type]}</span>
+                  <span
+                    class={[block[type] === undefined && "text-muted-foreground"]}
+                  >
+                    {kgText(block[type])}
+                  </span>
+                </div>
+              {/each}
+              <div
+                class="mt-1 flex justify-between border-t pt-1.5 font-medium"
+              >
+                <span>Total</span>
+                <span>{kgText(blockTotal(block))}</span>
+              </div>
+            </Card.Content>
+          </Card.Root>
+        {/each}
+      </div>
     </div>
 
     <div class="grid gap-4">
       <Card.Root>
         <Card.Header>
           <Card.Title>{monthLabel(month)}</Card.Title>
-          <Card.Description>Collected waste</Card.Description>
+          <Card.Description>Waste weighed</Card.Description>
           <Card.Action>
             <Badge variant={statusVariant(status)}>
               {STATUS_LABEL[status]}
@@ -341,25 +244,15 @@
           </Card.Action>
         </Card.Header>
         <Card.Content class="grid gap-1 text-sm tabular-nums">
-          <div class="flex justify-between">
-            <span>Activities</span>
-            <span>{formatCount(drives.length)}</span>
-          </div>
-          <div class="flex justify-between">
-            <span>Participants</span>
-            <span>
-              {totals.participants === null
-                ? "—"
-                : formatCount(totals.participants)}
-            </span>
-          </div>
-          <div class="flex justify-between">
-            <span>Sacks</span>
-            <span>{formatCount(totals.sacks)}</span>
-          </div>
+          {#each WASTE_SOURCES as source (source)}
+            <div class="flex justify-between">
+              <span>{SOURCE_LABEL[source]}</span>
+              <span>{kgText(blockTotal(waste[source]))}</span>
+            </div>
+          {/each}
           <div class="mt-1 flex justify-between border-t pt-1.5 font-medium">
-            <span>Kilos</span>
-            <span>{formatKilos(totals.kilos)}</span>
+            <span>Total</span>
+            <span>{kgText(total)}</span>
           </div>
         </Card.Content>
         {#if canManage && status === "open"}
@@ -404,7 +297,7 @@
               <span>{monthName(m.month)}</span>
               <span class="flex items-center gap-2">
                 <span class="text-muted-foreground tabular-nums">
-                  {m.kilos > 0 ? `${formatKilos(m.kilos)} kg` : ""}
+                  {m.kilos === null ? "" : `${formatKilos(m.kilos)} kg`}
                 </span>
                 <Badge variant={statusVariant(m.status)}>
                   {STATUS_LABEL[m.status ?? "open"]}
@@ -418,54 +311,28 @@
   </div>
 </div>
 
-<CleanupDriveDialog
-  bind:open={driveOpen}
-  drive={driveToEdit}
+<WasteDialog
+  bind:open={wasteOpen}
+  source={wasteSource}
   {month}
-  currentMonth={data.currentMonth}
-  today={data.today}
-  {onSaved}
+  block={waste[wasteSource]}
 />
-
-<AlertDialog.Root bind:open={removeOpen}>
-  <AlertDialog.Content class="sm:max-w-100">
-    <AlertDialog.Header>
-      <AlertDialog.Title>Remove this entry?</AlertDialog.Title>
-      <AlertDialog.Description>
-        {#if driveToRemove}
-          {driveToRemove.activity} on {formatDate(driveToRemove.heldOn)}, with
-          {countOf(driveToRemove.sacks, "sack", "sacks")} and {formatKilos(
-            driveToRemove.kilos,
-          )} kg, comes off the {monthName(month)} total.
-        {/if}
-      </AlertDialog.Description>
-    </AlertDialog.Header>
-    <AlertDialog.Footer>
-      <AlertDialog.Cancel disabled={removing}>Cancel</AlertDialog.Cancel>
-      <Button variant="destructive" onclick={confirmRemove} disabled={removing}>
-        {#if removing}
-          <Spinner />
-        {/if}
-        Remove
-      </Button>
-    </AlertDialog.Footer>
-  </AlertDialog.Content>
-</AlertDialog.Root>
 
 <AlertDialog.Root bind:open={submitOpen}>
   <AlertDialog.Content class="sm:max-w-100">
     <AlertDialog.Header>
       <AlertDialog.Title>Submit {monthLabel(month)}?</AlertDialog.Title>
       <AlertDialog.Description>
-        {#if drives.length > 0}
-          The office collected {countOf(totals.sacks, "sack", "sacks")} and {formatKilos(
-            totals.kilos,
-          )} kg of waste this month.
+        {#if total === null}
+          Nothing is weighed for this month, so it is submitted as none
+          recorded.
         {:else}
-          No waste is recorded for this month, so it is submitted as none
-          collected.
+          {WASTE_SOURCES.map(
+            (source) =>
+              `${SOURCE_LABEL[source]}: ${kgText(blockTotal(waste[source]))}`,
+          ).join(". ")}. Total: {kgText(total)}.
         {/if}
-        Its entries can still be corrected after submitting.
+        Its figures can still be corrected after submitting.
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>

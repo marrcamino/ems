@@ -5,11 +5,9 @@ import {
   datetime,
   decimal,
   foreignKey,
-  int,
   mysqlEnum,
   mysqlTable,
   unique,
-  varchar,
 } from "drizzle-orm/mysql-core";
 
 // One month of the PENRO's ESWM record, entered by the ESWM Focal Person for
@@ -46,28 +44,30 @@ export const eswmMonthlyReport = mysqlTable(
   (t) => [unique("emr_report_month_unique").on(t.reportMonth)],
 );
 
-// The garbage collected at one cleanup drive: the sacks and their weight.
-export const eswmCleanupDrive = mysqlTable(
-  "eswm_cleanup_drive",
+// One month's kilos of one type of waste, from the coastal cleanups or from
+// the office's own bins, as the office's workbook keeps them. A type that was
+// not weighed has no line; 0 means none. Which types belong to which source
+// is a list in code (`eswm/eswm-waste.ts`).
+export const eswmWaste = mysqlTable(
+  "eswm_waste",
   {
-    eswmCleanupDrivePk: bigint("eswm_cleanup_drive_pk", {
-      mode: "number",
-      unsigned: true,
-    })
+    eswmWastePk: bigint("eswm_waste_pk", { mode: "number", unsigned: true })
       .primaryKey()
       .autoincrement(),
     eswmMonthlyReportFk: bigint("eswm_monthly_report_fk", {
       mode: "number",
       unsigned: true,
     }).notNull(),
-    // Always inside the month of its report.
-    heldOn: date("held_on", { mode: "string" }).notNull(),
-    activity: varchar("activity", { length: 150 }).notNull(),
-    place: varchar("place", { length: 200 }).notNull(),
-    participants: int("participants", { unsigned: true }),
-    sacks: int("sacks", { unsigned: true }).notNull(),
+    source: mysqlEnum("source", ["coastal", "office"]).notNull(),
+    wasteType: mysqlEnum("waste_type", [
+      "recyclable",
+      "residual",
+      "non_biodegradable",
+      "biodegradable",
+      "special",
+    ]).notNull(),
     kilos: decimal("kilos", { precision: 10, scale: 2 }).notNull(),
-    // Semantic FK name: points at `user.user_pk`, who typed it.
+    // Semantic FK name: points at `user.user_pk`, who typed it first.
     createdByFk: bigint("created_by_fk", { mode: "number", unsigned: true }),
     createdAt: datetime("created_at")
       .notNull()
@@ -78,9 +78,14 @@ export const eswmCleanupDrive = mysqlTable(
   },
   (t) => [
     foreignKey({
-      name: "ecd_eswm_monthly_report_fk",
+      name: "ew_eswm_monthly_report_fk",
       columns: [t.eswmMonthlyReportFk],
       foreignColumns: [eswmMonthlyReport.eswmMonthlyReportPk],
     }).onDelete("restrict"),
+    unique("ew_month_source_type_unique").on(
+      t.eswmMonthlyReportFk,
+      t.source,
+      t.wasteType,
+    ),
   ],
 );

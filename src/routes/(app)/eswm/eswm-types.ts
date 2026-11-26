@@ -1,15 +1,6 @@
-export type EswmStatus = "open" | "submitted";
+import type { MonthWaste } from "./eswm-waste";
 
-/** The garbage collected at one cleanup drive. */
-export type CleanupDrive = {
-  drivePk: number;
-  heldOn: string;
-  activity: string;
-  place: string;
-  participants: number | null;
-  sacks: number;
-  kilos: number;
-};
+export type EswmStatus = "open" | "submitted";
 
 export type EswmReport = {
   status: EswmStatus;
@@ -22,16 +13,13 @@ export type EswmReport = {
 export type EswmYearMonth = {
   month: string;
   status: EswmStatus | null;
-  kilos: number;
+  /** Null when nothing was weighed in the month. */
+  kilos: number | null;
 };
 
 /** One month of the year on the summary page. */
 export type SummaryMonth = {
   month: string;
   status: EswmStatus | null;
-  activities: number;
-  /** Null when no entry in the month has a number of participants. */
-  participants: number | null;
-  sacks: number;
-  kilos: number;
+  waste: MonthWaste;
 };
