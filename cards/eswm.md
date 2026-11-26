@@ -1,7 +1,7 @@
 ---
 type: module
 status: active
-next: recording by month and type, from the office's workbook, built and committed on `feature/eswm` on 26 November 2026, not merged yet; waits for the office's answer in MPP-160
+next: recording by month and type, from the office's workbook, merged into `main` on 26 November 2026 (3a73d37); waits for the office's answer in MPP-160
 updated: 2026-11-26
 ---
 # ESWM
@@ -14,7 +14,7 @@ The ESWM Focal Person records each month's kilos by type, for the coastal cleanu
 | Code | `src/routes/(app)/eswm/` (`+page.server.ts`, `+page.svelte`, `waste-dialog.svelte`, `eswm-waste.ts`, `eswm-year.server.ts`, `eswm-types.ts`, `eswm-format.ts`), the year summary in `eswm/summary/`, schema `src/lib/server/db/schema/eswm.ts`; month helpers shared from `paper/paper-month.ts` |
 | Tests | none; the browser checks of 26 November 2026 are in `tmp/eswm-plan/test/` (`try-eswm-waste.mjs` with its screenshots in `workbook/`, `clean-october.mjs`, and `enter-workbook.mjs`, which entered January to May) |
 | Decisions / notes | `.claude/docs/features/eswm.md` (rules, the office's workbook, what is left out, research sources) |
-| Graph nodes | `eswm-waste.ts` (`WASTE_TYPES`, `blockTotal`), `eswm-year.server.ts` (`yearWaste`), `eswm/+page.server.ts` (`load`) |
+| Graph nodes | `graphify-out/graph.json` has every file above (updated after the merge) |
 | Related cards | `cards/paper.md` (the page copies its layout), `cards/electricity.md` (changed the same way, from the same workbook), `cards/other-modules.md` |
 
 ## Open (tracked in Linear)
